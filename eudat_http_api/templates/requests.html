@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<title>Request List</title>
+<body>
+<h3>List of registering requests</h3>
+<ul>
+{% for request_id, value in request_dict.iteritems() %}
+<li><a href="{{ value.link }}">{{ request_id }}</a>: {{ value.status }}</li>
+{% endfor %}
+</ul>
+</body>
+</html>
