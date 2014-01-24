@@ -7,6 +7,7 @@ from __future__ import with_statement
 from eudat_http_api import app
 from eudat_http_api import requestsdb
 from eudat_http_api import registration_worker
+from eudat_http_api import auth
 import flask
 from flask import request
 from flask import json
@@ -44,6 +45,7 @@ def request_wants_json():
     request.accept_mimetypes['text/html']
 
 @app.route('/request/', methods=['GET'])
+@auth.requires_auth
 def get_requests():
   """Get a list of all requests."""
   requests = requestsdb.query_db('select * from requests', ())
@@ -69,6 +71,7 @@ def make_request_id_creator():
 create_request_id = make_request_id_creator()
 
 @app.route('/request/', methods=['POST'])
+@auth.requires_auth
 def post_request():
   """Submit a new request to register a file.
 
@@ -110,6 +113,7 @@ def post_request():
   return 'your thread has been started, your request id is %s' % (request_id)
 
 @app.route('/request/<request_id>', methods=['GET'])
+@auth.requires_auth
 def get_request(request_id):
   """Poll the status of a request by ID."""
 
@@ -122,6 +126,7 @@ def get_request(request_id):
 #### /registered container ####
 
 @app.route('/registered/<pid_prefix>/', methods=['GET'])
+@auth.requires_auth
 def get_pids_by_prefix():
 
   # search PIDs with this prefix on handle.net
@@ -150,6 +155,7 @@ def get_pid_by_handle():
 # living in the supported iRODS zones
 
 @app.route('/<zone>/<path:filepath>', methods=['GET'])
+@auth.requires_auth
 def get_cdmi_irods(zone, filepath):
   """Get a file from irods storage through CDMI.
 
@@ -160,6 +166,7 @@ def get_cdmi_irods(zone, filepath):
   return 'you can get a file here'
 
 @app.route('/<zone>/<path:filepath>', methods=['PUT'])
+@auth.requires_auth
 def put_cdmi_irods(zone, filepath):
   """Put a file into irods through CDMI.
 
