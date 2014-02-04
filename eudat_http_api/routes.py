@@ -12,6 +12,7 @@ from eudat_http_api import auth
 from eudat_http_api import storage
 import flask
 from flask import request
+from flask import Response
 from flask import json
 
 # it seems not to be possible to send
@@ -185,9 +186,14 @@ def get_cdmi_file_obj(dirpath, filename):
   problems with metadata handling, though.
   """
 
-  conn = storage.get_storage()
+  try:
+    stream_gen = storage.read('/%s/%s' % (dirpath, filename), [])
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
 
-  return 'you can get the file %s/%s here' % (dirpath, filename)
+  return Response(stream_gen)
 
 
 @app.route('/<path:dirpath>/<filename>', methods=['PUT'])

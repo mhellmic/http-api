@@ -98,8 +98,38 @@ def authenticate(username, password):
     return False
 
 
-def read(conn, path):
-  pass
+def read(path, ordered_range_list=[]):
+  """Read a file from the backend storage.
+
+  Returns a bytestream.
+  In the case of one range, the bytestream is only
+  the specified range.
+  In case of multiple ranges, the bytestream is all
+  ranges concatenated.
+  If a range exceeds the size of the object, the
+  bytestream goes until the object end.
+  """
+  conn = get_storage()
+
+  if conn is None:
+    return None
+
+  file_handle = irodsOpen(conn, path, 'r')
+  if not file_handle:
+    raise NotFoundException('Path does not exist or is not a file: %s'
+                            % (path))
+
+  def stream_generator(file_handle, ordered_range_list, buffer_size=4194304):
+    #default buffer_size is 4 MByte
+    while True:
+      data = file_handle.read(buffSize=buffer_size)
+      if data == '':
+        break
+      yield data
+
+  gen = stream_generator(file_handle, ordered_range_list)
+
+  return gen
 
 
 def ls(conn, path):
