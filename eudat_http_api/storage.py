@@ -12,6 +12,10 @@ from flask import request
 from irods import *
 
 
+START = 'file-start'
+END = 'file-end'
+
+
 class StorageException(Exception):
   def __init__(self, msg):
     self.msg = msg
@@ -120,12 +124,58 @@ def read(path, ordered_range_list=[]):
                             % (path))
 
   def stream_generator(file_handle, ordered_range_list, buffer_size=4194304):
-    #default buffer_size is 4 MByte
-    while True:
-      data = file_handle.read(buffSize=buffer_size)
-      if data == '':
-        break
-      yield data
+    """Generate the bytestream.
+
+    Default chunking is 4 MByte.
+
+    Supports multirange request.
+    (even unordened and if the ranges overlap)
+
+    In case of no range requests, the whole file is read.
+
+    With range requests, we seek the range, and then deliver
+    the bytestream in buffer_size chunks. To stop at the end
+    of the range, the make the last buffer smaller.
+    This might become a performance issue, as we can have very
+    small chunks. Also we deliver differently sized chunks to
+    the frontend, and I'm not sure how they take it.
+
+    The special values START and END represent the start and end
+    of the file to allow for range requests that only specify
+    one the two.
+    """
+    if not ordered_range_list:
+      while True:
+        data = file_handle.read(buffSize=buffer_size)
+        if data == '':
+          break
+        yield data
+    else:
+      for start, end in ordered_range_list:
+        if start == START:
+          start = 0
+
+        if end == END:
+          file_handle.seek(start)
+          while True:
+            data = file_handle.read(buffSize=buffer_size)
+            if data == '':
+              break
+            yield data
+
+        range_size = end - start
+        range_size_acc = 0
+        range_buffer_size = buffer_size
+        file_handle.seek(start)
+
+        while range_size_acc < range_size:
+          if (range_size - range_size_acc) < range_buffer_size:
+            range_buffer_size = (range_size - range_size_acc)
+          data = file_handle.read(buffSize=range_buffer_size)
+          if data == '':
+            break
+          yield data
+          range_size_acc += range_buffer_size
 
   gen = stream_generator(file_handle, ordered_range_list)
 
