@@ -64,7 +64,7 @@ def check_src(request, db_conn):
 
   # also check the content of metadata; if it conforms to datacite3
 
-  # we could use the reuqest object as a store going from function to function,
+  # we could use the request object as a store going from function to function,
   # so we can separate e.g. check_src_permissions and check_checksum,
   # but still do only one request
 
