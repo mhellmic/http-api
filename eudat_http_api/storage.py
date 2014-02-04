@@ -132,7 +132,7 @@ def read(path, ordered_range_list=[]):
   return gen
 
 
-def ls(conn, path):
+def ls(path):
   """Return a generator of a directory listing."""
   conn = get_storage()
 
@@ -168,11 +168,11 @@ def ls(conn, path):
   return gen
 
 
-def write(conn, path, stream):
+def write(path, stream):
   pass
 
 
-def mkdir(conn, path):
+def mkdir(path):
   """Create a directory."""
   conn = get_storage()
 

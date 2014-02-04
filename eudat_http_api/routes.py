@@ -216,9 +216,8 @@ def get_cdmi_dir_obj(dirpath):
   Get the listing of a directory.
   """
 
-  conn = storage.get_storage()
   try:
-    dir_list = [x for x in storage.ls(conn, '/%s' % (dirpath))]
+    dir_list = [x for x in storage.ls('/%s' % (dirpath))]
   except storage.NotFoundException as e:
     return e.msg, 404
   except storage.NotAuthorizedException as e:
@@ -235,9 +234,8 @@ def put_cdmi_dir_obj(dirpath, dirname):
   Create a directory.
   """
 
-  conn = storage.get_storage()
   try:
-    storage.mkdir(conn, '/%s/%s' % (dirpath, dirname))
+    storage.mkdir('/%s/%s' % (dirpath, dirname))
   except storage.NotFoundException as e:
     return e.msg, 404
   except storage.NotAuthorizedException as e:
