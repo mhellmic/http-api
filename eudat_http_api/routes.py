@@ -277,6 +277,7 @@ def put_cdmi_file_obj(dirpath, filename):
   the data beforehand.
   I do _not_ know the exact meaning of these things.
   """
+
   request.shallow = True
   request.environ['wsgi.input'] = \
       StreamWrapper(request.environ['wsgi.input'])
