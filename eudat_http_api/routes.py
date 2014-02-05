@@ -341,6 +341,8 @@ def get_cdmi_dir_obj(dirpath):
     return e.msg, 404
   except storage.NotAuthorizedException as e:
     return e.msg, 401
+  except storage.StorageException as e:
+    return e.msg, 500
 
   return flask.jsonify(dirlist=dir_list)
 
@@ -361,5 +363,7 @@ def put_cdmi_dir_obj(dirpath, dirname):
     return e.msg, 401
   except storage.ConflictException as e:
     return e.msg, 409
+  except storage.StorageException as e:
+    return e.msg, 500
 
   return flask.jsonify(create='Created')
