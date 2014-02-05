@@ -182,6 +182,27 @@ def read(path, ordered_range_list=[]):
   return gen
 
 
+def write(path, stream):
+  """Write a file from an input stream."""
+  conn = get_storage()
+
+  if conn is None:
+    return None
+
+  file_handle = irodsOpen(conn, path, 'w')
+  if not file_handle:
+    raise NotFoundException('Path does not exist or is not a file: %s'
+                            % (path))
+
+  bytes_written = 0
+  for chunk in stream:
+    bytes_written += file_handle.write(chunk)
+
+  file_handle.close()
+
+  return bytes_written
+
+
 def ls(path):
   """Return a generator of a directory listing."""
   conn = get_storage()
@@ -216,10 +237,6 @@ def ls(path):
   gen = list_generator(coll)
 
   return gen
-
-
-def write(path, stream):
-  pass
 
 
 def mkdir(path):

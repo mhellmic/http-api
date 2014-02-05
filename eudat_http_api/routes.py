@@ -219,6 +219,27 @@ def get_cdmi_file_obj(dirpath, filename):
   return Response(stream_gen)
 
 
+class StreamWrapper(object):
+  """Wrap the WSGI input so it doesn't store everything in memory.
+
+  taken from http://librelist.com/browser//flask/2011/9/9/any-way-to-stream- \
+      file-uploads/#d3f5efabeb0c20e24012605e83ce28ec
+
+  Apparently werkzeug needs a readline method, which I added with
+  the same implementation as read.
+  """
+  def __init__(self, stream):
+    self._stream = stream
+
+  def read(self, buffer_size):
+    rv = self._stream.read(buffer_size)
+    return rv
+
+  def readline(self, buffer_size):
+    rv = self._stream.read(buffer_size)
+    return rv
+
+
 @app.route('/<path:dirpath>/<filename>', methods=['PUT'])
 @auth.requires_auth
 def put_cdmi_file_obj(dirpath, filename):
@@ -227,8 +248,30 @@ def put_cdmi_file_obj(dirpath, filename):
   Should also copy CDMI metadata.
   Should support the CDMI put copy from a
   src URL.
+
+  request.shallow is set to True at the beginning until after
+  the wrapper has been created to make sure that nothing accesses
+  the data beforehand.
+  I do _not_ know the exact meaning of these things.
   """
-  return 'you can put a file here'
+  request.shallow = True
+  request.environ['wsgi.input'] = \
+      StreamWrapper(request.environ['wsgi.input'])
+  request.shallow = False
+
+  path = '/%s/%s' % (dirpath, filename)
+
+  def stream_generator(handle, buffer_size=4194304):
+    while True:
+      data = handle.read(buffer_size)
+      if data == '':
+        break
+      yield data
+
+  gen = stream_generator(request.stream)
+  bytes_written = storage.write(path, gen)
+
+  return 'Created: %d' % (bytes_written), 201
 
 
 @app.route('/<path:dirpath>/', methods=['GET'])
@@ -237,6 +280,8 @@ def get_cdmi_dir_obj(dirpath):
   """Get a directory entry through CDMI.
 
   Get the listing of a directory.
+
+  TODO: find a way to stream the listing.
   """
 
   try:
