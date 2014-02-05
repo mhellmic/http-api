@@ -286,10 +286,41 @@ def mkdir(path):
     elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
       raise NotAuthorizedException('Target creation not allowed: %s'
                                    % (path))
+    else:
+      raise StorageException('Unknown storage exception: %s'
+                             % (path))
 
   close_storage()
 
   return True, ''
+
+
+def rm(path):
+  """Delete a file."""
+  conn = get_storage()
+
+  if conn is None:
+    return None
+
+  file_handle = irodsOpen(conn, path, 'w')
+  if not file_handle:
+    raise NotFoundException('Path does not exist or is not a file: %s'
+                            % (path))
+
+  err = file_handle.delete()
+  if err != 0:
+    if err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
+      raise NotAuthorizedException('Target creation not allowed: %s'
+                                   % (path))
+    else:
+      raise StorageException('Unknown storage exception: %s'
+                             % (path))
+
+  return True, ''
+
+
+def rmdir(path):
+  pass
 
 
 #### Not part of the interface anymore

@@ -2,6 +2,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""Interface functions and the URLs they match.
+
+We have to be careful with the order of the function.
+Flask lets you specify URLs with trailing slashes and
+redirects the client, if she types the URL without the
+slash. In the namespace, however, we have constructs
+for files and directories whose only difference is the
+trailing slash.
+If the URLs without trailing slash are after the ones
+with in the source code, then the one with trailing
+slash matches and flask autocompletes.
+
+Thus write:
+  @app.route('/home/<file>')
+  @app.route('/home/<dir>/')
+and not:
+  @app.route('/home/<dir>/')
+  @app.route('/home/<file>')
+
+Subtle, but vicious.
+"""
+
 from __future__ import with_statement
 
 import re
@@ -270,9 +292,36 @@ def put_cdmi_file_obj(dirpath, filename):
       yield data
 
   gen = stream_generator(request.stream)
-  bytes_written = storage.write(path, gen)
+  bytes_written = 0
+  try:
+    bytes_written = storage.write(path, gen)
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.StorageException as e:
+    return e.msg, 500
 
   return 'Created: %d' % (bytes_written), 201
+
+
+@app.route('/<path:dirpath>/<filename>', methods=['DELETE'])
+@auth.requires_auth
+def del_cdmi_file_obj(dirpath, filename):
+  """Delete a file through CDMI."""
+
+  try:
+    storage.rm('/%s/%s' % (dirpath, filename))
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.ConflictException as e:
+    return e.msg, 409
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  return flask.jsonify(delete='Deleted: /%s/%s' % (dirpath, filename))
 
 
 @app.route('/<path:dirpath>/', methods=['GET'])
