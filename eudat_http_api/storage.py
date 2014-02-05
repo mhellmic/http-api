@@ -287,8 +287,8 @@ def mkdir(path):
       raise NotAuthorizedException('Target creation not allowed: %s'
                                    % (path))
     else:
-      raise StorageException('Unknown storage exception: %s'
-                             % (path))
+      raise StorageException('Unknown storage exception: %s: %s'
+                             % (path, __getErrorName(err)))
 
   close_storage()
 
@@ -315,8 +315,8 @@ def rm(path):
       raise NotAuthorizedException('Target creation not allowed: %s'
                                    % (path))
     else:
-      raise StorageException('Unknown storage exception: %s'
-                             % (path))
+      raise StorageException('Unknown storage exception: %s: %s'
+                             % (path, __getErrorName(err)))
 
   return True, ''
 
