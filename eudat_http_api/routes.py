@@ -4,6 +4,8 @@
 
 from __future__ import with_statement
 
+import re
+
 from eudat_http_api import app
 from eudat_http_api import requestsdb
 from eudat_http_api import registration_worker
@@ -186,8 +188,29 @@ def get_cdmi_file_obj(dirpath, filename):
   problems with metadata handling, though.
   """
 
+  def parse_range(range_str):
+    start, end = range_str.split('-')
+    try:
+      start = int(start)
+    except:
+      start = storage.START
+
+    try:
+      end = int(end)
+    except:
+      end = storage.END
+
+    return (start, end)
+
+  range_requests = []
+  if request.headers.get('Range'):
+    ranges = request.headers.get('Range')
+    range_regex = re.compile('(\d*-\d*)')
+    matches = range_regex.findall(ranges)
+    range_requests = map(parse_range, matches)
+
   try:
-    stream_gen = storage.read('/%s/%s' % (dirpath, filename), [])
+    stream_gen = storage.read('/%s/%s' % (dirpath, filename), range_requests)
   except storage.NotFoundException as e:
     return e.msg, 404
   except storage.NotAuthorizedException as e:

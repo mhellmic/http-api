@@ -162,20 +162,20 @@ def read(path, ordered_range_list=[]):
             if data == '':
               break
             yield data
+        else:
+          range_size = end - start
+          range_size_acc = 0
+          range_buffer_size = buffer_size
+          file_handle.seek(start)
 
-        range_size = end - start
-        range_size_acc = 0
-        range_buffer_size = buffer_size
-        file_handle.seek(start)
-
-        while range_size_acc < range_size:
-          if (range_size - range_size_acc) < range_buffer_size:
-            range_buffer_size = (range_size - range_size_acc)
-          data = file_handle.read(buffSize=range_buffer_size)
-          if data == '':
-            break
-          yield data
-          range_size_acc += range_buffer_size
+          while range_size_acc < range_size:
+            if (range_size - range_size_acc) < range_buffer_size:
+              range_buffer_size = (range_size - range_size_acc)
+            data = file_handle.read(buffSize=range_buffer_size)
+            if data == '':
+              break
+            yield data
+            range_size_acc += range_buffer_size
 
   gen = stream_generator(file_handle, ordered_range_list)
 
