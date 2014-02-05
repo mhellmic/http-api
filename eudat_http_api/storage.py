@@ -302,12 +302,14 @@ def rm(path):
   if conn is None:
     return None
 
-  file_handle = irodsOpen(conn, path, 'w')
+  file_handle = irodsOpen(conn, path, 'r')
   if not file_handle:
     raise NotFoundException('Path does not exist or is not a file: %s'
                             % (path))
 
-  err = file_handle.delete()
+  file_handle.close()
+
+  err = file_handle.delete(force=True)
   if err != 0:
     if err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
       raise NotAuthorizedException('Target creation not allowed: %s'
