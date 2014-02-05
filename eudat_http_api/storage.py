@@ -182,7 +182,7 @@ def read(path, ordered_range_list=[]):
   return gen
 
 
-def write(path, stream):
+def write(path, stream_gen):
   """Write a file from an input stream."""
   conn = get_storage()
 
@@ -195,7 +195,7 @@ def write(path, stream):
                             % (path))
 
   bytes_written = 0
-  for chunk in stream:
+  for chunk in stream_gen:
     bytes_written += file_handle.write(chunk)
 
   file_handle.close()
