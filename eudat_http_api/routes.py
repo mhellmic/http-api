@@ -367,3 +367,22 @@ def put_cdmi_dir_obj(dirpath, dirname):
     return e.msg, 500
 
   return flask.jsonify(create='Created')
+
+
+@app.route('/<path:dirpath>/<dirname>/', methods=['DELETE'])
+@auth.requires_auth
+def del_cdmi_dir_obj(dirpath, dirname):
+  """Delete a directory through CDMI."""
+
+  try:
+    storage.rmdir('/%s/%s' % (dirpath, dirname))
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.ConflictException as e:
+    return e.msg, 409
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  return flask.jsonify(delete='Deleted: /%s/%s/' % (dirpath, dirname))

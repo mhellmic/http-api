@@ -322,7 +322,40 @@ def rm(path):
 
 
 def rmdir(path):
-  pass
+  """Delete a directory.
+
+  Be careful: it also deletes subdirectories
+  without asking.
+  """
+
+  conn = get_storage()
+
+  if conn is None:
+    return None
+
+  dirname, basename = os.path.split(path)
+  coll = irodsCollection(conn)
+  coll.openCollection(dirname)
+  # see ls()
+  if coll.getId() < 0:
+    raise NotFoundException('Path does not exist or is not a directory: %s'
+                            % (coll.getCollName()))
+
+  err = coll.deleteCollection(basename)
+  if err != 0:
+    if err == USER_FILE_DOES_NOT_EXIST:
+      raise NotFoundException('Path does not exist or is not a directory: %s'
+                              % (path))
+    elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
+      raise NotAuthorizedException('Target creation not allowed: %s'
+                                   % (path))
+    else:
+      raise StorageException('Unknown storage exception: %s: %s'
+                             % (path, __getErrorName(err)))
+
+  close_storage()
+
+  return True, ''
 
 
 #### Not part of the interface anymore
