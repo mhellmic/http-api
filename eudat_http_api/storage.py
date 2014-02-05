@@ -11,6 +11,8 @@ from flask import request
 
 from irods import *
 
+from eudat_http_api import app
+
 
 START = 'file-start'
 END = 'file-end'
@@ -75,6 +77,22 @@ def get_storage():
   return conn
 
 
+def close_storage(exception=None):
+  """Close the storage connection.
+
+  This cannot be called at teardown_request, because it
+  would break streaming. The request context gets closed
+  before or during the streaming and all following requests
+  to the storage would fail.
+  #@app.teardown_request
+  """
+  conn = getattr(g, 'storageconn', None)
+  if conn is not None:
+    conn.disconnect()
+    app.logger.debug('Disconnected a storage connection')
+    g.storageconn = None
+
+
 def authenticate(username, password):
   """Authenticate with username, password.
 
@@ -97,6 +115,7 @@ def authenticate(username, password):
   err = clientLoginWithPassword(conn, password)
   if err == 0:
     g.storageconn = conn
+    app.logger.debug('Created a storage connection')
     return True
   else:
     return False
@@ -177,6 +196,9 @@ def read(path, ordered_range_list=[]):
             yield data
             range_size_acc += range_buffer_size
 
+    file_handle.close()
+    close_storage()
+
   gen = stream_generator(file_handle, ordered_range_list)
 
   return gen
@@ -199,6 +221,7 @@ def write(path, stream_gen):
     bytes_written += file_handle.write(chunk)
 
   file_handle.close()
+  close_storage()
 
   return bytes_written
 
@@ -233,6 +256,7 @@ def ls(path):
       yield sub
     for obj in collection.getObjects():
       yield obj
+    close_storage()
 
   gen = list_generator(coll)
 
@@ -262,6 +286,8 @@ def mkdir(path):
     elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
       raise NotAuthorizedException('Target creation not allowed: %s'
                                    % (path))
+
+  close_storage()
 
   return True, ''
 

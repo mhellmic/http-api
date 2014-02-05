@@ -16,6 +16,7 @@ import flask
 from flask import request
 from flask import Response
 from flask import json
+from flask import stream_with_context
 
 # it seems not to be possible to send
 # http requests forma separate Process
@@ -216,7 +217,7 @@ def get_cdmi_file_obj(dirpath, filename):
   except storage.NotAuthorizedException as e:
     return e.msg, 401
 
-  return Response(stream_gen)
+  return Response(stream_with_context(stream_gen))
 
 
 class StreamWrapper(object):
