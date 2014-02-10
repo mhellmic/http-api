@@ -1,12 +1,24 @@
 <!doctype html>
 <html>
-<title>Request List</title>
+<head>
+    <title>Request List</title>
+</head>
+
 <body>
-<h3>List of registering requests</h3>
+<h1>Registration requests</h1>
+
+<h2>Create request</h2>
+
+<form method="post">
+    Source: <input name="src_url" type="text"/>
+    <input type="submit" name="register"/>
+</form>
+
+<h2>List of registering requests</h2>
 <ul>
-{% for request_id, value in request_dict.iteritems() %}
-<li><a href="{{ value.link }}">{{ request_id }}</a>: {{ value.status }}</li>
-{% endfor %}
+    {% for request_id, value in request_dict.iteritems() %}
+    <li><a href="{{ value.link }}">{{ request_id }}</a>: {{ value.status }}</li>
+    {% endfor %}
 </ul>
 </body>
 </html>
