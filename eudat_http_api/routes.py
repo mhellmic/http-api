@@ -34,7 +34,9 @@ from eudat_http_api import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
 from eudat_http_api import storage
+from eudat_http_api import cdmi
 import flask
+from flask import g
 from flask import request
 from flask import Response
 from flask import json
@@ -70,6 +72,15 @@ def request_wants_json():
   """from http://flask.pocoo.org/snippets/45/"""
   best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
   return best == 'application/json' and \
+      request.accept_mimetypes[best] > \
+      request.accept_mimetypes['text/html']
+
+
+def request_wants_cdmi_object():
+  """adapted from http://flask.pocoo.org/snippets/45/"""
+  best = request.accept_mimetypes \
+      .best_match(['application/cdmi-object', 'text/html'])
+  return best == 'application/cdmi-object' and \
       request.accept_mimetypes[best] > \
       request.accept_mimetypes['text/html']
 
@@ -324,7 +335,14 @@ def del_cdmi_file_obj(dirpath, filename):
   except storage.StorageException as e:
     return e.msg, 500
 
-  return flask.jsonify(delete='Deleted: /%s/%s' % (dirpath, filename))
+  if request_wants_cdmi_object():
+    empty_response = Response(status=204)
+    del empty_response.headers['content-type']
+    return empty_response
+  elif request_wants_json():
+    return flask.jsonify(delete='Deleted: /%s/%s' % (dirpath, filename)), 204
+  else:
+    return 'Deleted: /%s/%s' % (dirpath, filename), 204
 
 
 @app.route('/<path:dirpath>/', methods=['GET'])
@@ -336,6 +354,9 @@ def get_cdmi_dir_obj(dirpath):
 
   TODO: find a way to stream the listing.
   """
+
+  if g.cdmi:
+    pass  # parse CDMI input
 
   try:
     dir_list = [x for x in storage.ls('/%s' % (dirpath))]
