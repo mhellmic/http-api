@@ -70,8 +70,8 @@ def request_wants_json():
   """from http://flask.pocoo.org/snippets/45/"""
   best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
   return best == 'application/json' and \
-         request.accept_mimetypes[best] > \
-         request.accept_mimetypes['text/html']
+      request.accept_mimetypes[best] > \
+      request.accept_mimetypes['text/html']
 
 
 @app.route('/request/', methods=['GET'])
@@ -136,7 +136,8 @@ def post_request():
   request_id = create_request_id()
 
   request = requestsdb.insert_db(
-      'insert into requests(id, status, status_description, src_url) values (?, "W", "waiting to be started", ?)', [request_id, src_url]
+      'insert into requests(id, status, status_description, src_url) \
+          values (?, "W", "waiting to be started", ?)', [request_id, src_url]
   )
   print request
 
@@ -145,7 +146,8 @@ def post_request():
              args=(request_id,))
   p.start()
 
-  return 'your thread has been started, your request id is %s' % (request_id)
+  return 'your thread has been started, your request id is %s' \
+         % (request_id), 201
 
 
 @app.route('/request/<request_id>', methods=['GET'])
