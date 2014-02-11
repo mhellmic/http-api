@@ -20,6 +20,7 @@ class HttpApiTestCase(unittest.TestCase):
 
   def setUp(self):
     self.db_fd, app.config['DB_NAME'] = tempfile.mkstemp()
+    app.config['DEBUG'] = True
     app.config['TESTING'] = True
     self.app = app.test_client()
     requestsdb.init_db()
