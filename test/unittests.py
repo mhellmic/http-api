@@ -60,8 +60,9 @@ class HttpApiTestCase(unittest.TestCase):
                                    'test',
                                    data={'src_url': src_url})
 
-    print rv.status_code
     assert rv.status_code == 201
+    assert re.search(r'<a href="request/(.*)">.*\1.*</a>',
+                     rv.data) is not None
 
 if __name__ == '__main__':
   unittest.main()

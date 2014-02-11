@@ -157,8 +157,11 @@ def post_request():
              args=(request_id,))
   p.start()
 
-  return 'your thread has been started, your request id is %s' \
-         % (request_id), 201
+  if request_wants_json():
+    return flask.jsonify(reques_id=request_id), 201
+  else:
+    return flask.render_template('requestcreated.html',
+        request_id=request_id), 201
 
 
 @app.route('/request/<request_id>', methods=['GET'])
