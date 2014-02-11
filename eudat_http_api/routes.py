@@ -136,10 +136,7 @@ def post_request():
   else:
     req_body = flask.request.form
 
-  print req_body
-
   src_url = req_body['src_url']
-  print src_url
 
   # check if src is a valid URL
 
@@ -150,7 +147,6 @@ def post_request():
       'insert into requests(id, status, status_description, src_url) \
           values (?, "W", "waiting to be started", ?)', [request_id, src_url]
   )
-  print request
 
   # start worker
   p = Thread(target=registration_worker.register_data_object,
