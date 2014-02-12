@@ -4,11 +4,33 @@
 
 from __future__ import with_statement
 
+import re
+
 from flask import g
 from flask import request
+from flask import Response
 from flask import jsonify as flask_jsonify
+from flask import stream_with_context
 
 from eudat_http_api import app
+from eudat_http_api import storage
+
+
+def request_wants_cdmi_object():
+  """adapted from http://flask.pocoo.org/snippets/45/"""
+  best = request.accept_mimetypes \
+      .best_match(['application/cdmi-object', 'text/html'])
+  return best == 'application/cdmi-object' and \
+      request.accept_mimetypes[best] > \
+      request.accept_mimetypes['text/html']
+
+
+def request_wants_json():
+  """from http://flask.pocoo.org/snippets/45/"""
+  best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+  return best == 'application/json' and \
+      request.accept_mimetypes[best] > \
+      request.accept_mimetypes['text/html']
 
 
 @app.before_request
@@ -22,3 +44,193 @@ def check_cdmi():
 
 def jsonify():
   return flask_jsonify()
+
+
+def make_absolute_path(path):
+  if path != '/':
+    return '/%s' % path
+  else:
+    return '/'
+
+
+def get_cdmi_file_obj(path):
+  """Get a file from storage through CDMI.
+
+  We might want to implement 3rd party copy in
+  pull mode here later. That can make introduce
+  problems with metadata handling, though.
+  """
+
+  def parse_range(range_str):
+    start, end = range_str.split('-')
+    try:
+      start = int(start)
+    except:
+      start = storage.START
+
+    try:
+      end = int(end)
+    except:
+      end = storage.END
+
+    return (start, end)
+
+  range_requests = []
+  if request.headers.get('Range'):
+    ranges = request.headers.get('Range')
+    range_regex = re.compile('(\d*-\d*)')
+    matches = range_regex.findall(ranges)
+    range_requests = map(parse_range, matches)
+
+  try:
+    stream_gen = storage.read(path, range_requests)
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+
+  return Response(stream_with_context(stream_gen))
+
+
+class StreamWrapper(object):
+  """Wrap the WSGI input so it doesn't store everything in memory.
+
+  taken from http://librelist.com/browser//flask/2011/9/9/any-way-to-stream- \
+      file-uploads/#d3f5efabeb0c20e24012605e83ce28ec
+
+  Apparently werkzeug needs a readline method, which I added with
+  the same implementation as read.
+  """
+  def __init__(self, stream):
+    self._stream = stream
+
+  def read(self, buffer_size):
+    rv = self._stream.read(buffer_size)
+    return rv
+
+  def readline(self, buffer_size):
+    rv = self._stream.read(buffer_size)
+    return rv
+
+
+def put_cdmi_file_obj(path):
+  """Put a file into storage through CDMI.
+
+  Should also copy CDMI metadata.
+  Should support the CDMI put copy from a
+  src URL.
+
+  request.shallow is set to True at the beginning until after
+  the wrapper has been created to make sure that nothing accesses
+  the data beforehand.
+  I do _not_ know the exact meaning of these things.
+  """
+
+  request.shallow = True
+  request.environ['wsgi.input'] = \
+      StreamWrapper(request.environ['wsgi.input'])
+  request.shallow = False
+
+  def stream_generator(handle, buffer_size=4194304):
+    while True:
+      data = handle.read(buffer_size)
+      if data == '':
+        break
+      yield data
+
+  gen = stream_generator(request.stream)
+  bytes_written = 0
+  try:
+    bytes_written = storage.write(path, gen)
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  return 'Created: %d' % (bytes_written), 201
+
+
+def del_cdmi_file_obj(path):
+  """Delete a file through CDMI."""
+
+  try:
+    storage.rm(path)
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.ConflictException as e:
+    return e.msg, 409
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  if request_wants_cdmi_object():
+    empty_response = Response(status=204)
+    del empty_response.headers['content-type']
+    return empty_response
+  elif request_wants_json():
+    return flask_jsonify(delete='Deleted: %s' % (path)), 204
+  else:
+    return 'Deleted: %s' % (path), 204
+
+
+def get_cdmi_dir_obj(path):
+  """Get a directory entry through CDMI.
+
+  Get the listing of a directory.
+
+  TODO: find a way to stream the listing.
+  """
+
+  if g.cdmi:
+    pass  # parse CDMI input
+
+  try:
+    dir_list = [x for x in storage.ls(path)]
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  return flask_jsonify(dirlist=dir_list)
+
+
+def put_cdmi_dir_obj(path):
+  """Put a directory entry through CDMI.
+
+  Create a directory.
+  """
+
+  try:
+    storage.mkdir(path)
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.ConflictException as e:
+    return e.msg, 409
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  return flask_jsonify(create='Created')
+
+
+def del_cdmi_dir_obj(path):
+  """Delete a directory through CDMI."""
+
+  try:
+    storage.rmdir(path)
+  except storage.NotFoundException as e:
+    return e.msg, 404
+  except storage.NotAuthorizedException as e:
+    return e.msg, 401
+  except storage.ConflictException as e:
+    return e.msg, 409
+  except storage.StorageException as e:
+    return e.msg, 500
+
+  return flask_jsonify(delete='Deleted: %s' % (path))

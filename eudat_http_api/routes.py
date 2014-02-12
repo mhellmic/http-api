@@ -26,21 +26,15 @@ Subtle, but vicious.
 
 from __future__ import with_statement
 
-import re
-
 from eudat_http_api import app
 from eudat_http_api import requestsdb
 from eudat_http_api import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
-from eudat_http_api import storage
 from eudat_http_api import cdmi
 import flask
-from flask import g
 from flask import request
-from flask import Response
 from flask import json
-from flask import stream_with_context
 
 # it seems not to be possible to send
 # http requests forma separate Process
@@ -72,15 +66,6 @@ def request_wants_json():
   """from http://flask.pocoo.org/snippets/45/"""
   best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
   return best == 'application/json' and \
-      request.accept_mimetypes[best] > \
-      request.accept_mimetypes['text/html']
-
-
-def request_wants_cdmi_object():
-  """adapted from http://flask.pocoo.org/snippets/45/"""
-  best = request.accept_mimetypes \
-      .best_match(['application/cdmi-object', 'text/html'])
-  return best == 'application/cdmi-object' and \
       request.accept_mimetypes[best] > \
       request.accept_mimetypes['text/html']
 
@@ -213,198 +198,34 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
 # living in the supported iRODS zones
 
 
-@app.route('/<path:dirpath>/<filename>', methods=['GET'])
+@app.route('/', methods=['GET'])
+@app.route('/<path:objpath>', methods=['GET'])
 @auth.requires_auth
-def get_cdmi_file_obj(dirpath, filename):
-  """Get a file from storage through CDMI.
-
-  We might want to implement 3rd party copy in
-  pull mode here later. That can make introduce
-  problems with metadata handling, though.
-  """
-
-  def parse_range(range_str):
-    start, end = range_str.split('-')
-    try:
-      start = int(start)
-    except:
-      start = storage.START
-
-    try:
-      end = int(end)
-    except:
-      end = storage.END
-
-    return (start, end)
-
-  range_requests = []
-  if request.headers.get('Range'):
-    ranges = request.headers.get('Range')
-    range_regex = re.compile('(\d*-\d*)')
-    matches = range_regex.findall(ranges)
-    range_requests = map(parse_range, matches)
-
-  try:
-    stream_gen = storage.read('/%s/%s' % (dirpath, filename), range_requests)
-  except storage.NotFoundException as e:
-    return e.msg, 404
-  except storage.NotAuthorizedException as e:
-    return e.msg, 401
-
-  return Response(stream_with_context(stream_gen))
-
-
-class StreamWrapper(object):
-  """Wrap the WSGI input so it doesn't store everything in memory.
-
-  taken from http://librelist.com/browser//flask/2011/9/9/any-way-to-stream- \
-      file-uploads/#d3f5efabeb0c20e24012605e83ce28ec
-
-  Apparently werkzeug needs a readline method, which I added with
-  the same implementation as read.
-  """
-  def __init__(self, stream):
-    self._stream = stream
-
-  def read(self, buffer_size):
-    rv = self._stream.read(buffer_size)
-    return rv
-
-  def readline(self, buffer_size):
-    rv = self._stream.read(buffer_size)
-    return rv
-
-
-@app.route('/<path:dirpath>/<filename>', methods=['PUT'])
-@auth.requires_auth
-def put_cdmi_file_obj(dirpath, filename):
-  """Put a file into storage through CDMI.
-
-  Should also copy CDMI metadata.
-  Should support the CDMI put copy from a
-  src URL.
-
-  request.shallow is set to True at the beginning until after
-  the wrapper has been created to make sure that nothing accesses
-  the data beforehand.
-  I do _not_ know the exact meaning of these things.
-  """
-
-  request.shallow = True
-  request.environ['wsgi.input'] = \
-      StreamWrapper(request.environ['wsgi.input'])
-  request.shallow = False
-
-  path = '/%s/%s' % (dirpath, filename)
-
-  def stream_generator(handle, buffer_size=4194304):
-    while True:
-      data = handle.read(buffer_size)
-      if data == '':
-        break
-      yield data
-
-  gen = stream_generator(request.stream)
-  bytes_written = 0
-  try:
-    bytes_written = storage.write(path, gen)
-  except storage.NotFoundException as e:
-    return e.msg, 404
-  except storage.NotAuthorizedException as e:
-    return e.msg, 401
-  except storage.StorageException as e:
-    return e.msg, 500
-
-  return 'Created: %d' % (bytes_written), 201
-
-
-@app.route('/<path:dirpath>/<filename>', methods=['DELETE'])
-@auth.requires_auth
-def del_cdmi_file_obj(dirpath, filename):
-  """Delete a file through CDMI."""
-
-  try:
-    storage.rm('/%s/%s' % (dirpath, filename))
-  except storage.NotFoundException as e:
-    return e.msg, 404
-  except storage.NotAuthorizedException as e:
-    return e.msg, 401
-  except storage.ConflictException as e:
-    return e.msg, 409
-  except storage.StorageException as e:
-    return e.msg, 500
-
-  if request_wants_cdmi_object():
-    empty_response = Response(status=204)
-    del empty_response.headers['content-type']
-    return empty_response
-  elif request_wants_json():
-    return flask.jsonify(delete='Deleted: /%s/%s' % (dirpath, filename)), 204
+def get_cdmi_obj(objpath='/'):
+  absolute_objpath = cdmi.make_absolute_path(objpath)
+  if absolute_objpath[-1] == '/':
+    return cdmi.get_cdmi_dir_obj(absolute_objpath)
   else:
-    return 'Deleted: /%s/%s' % (dirpath, filename), 204
+    return cdmi.get_cdmi_file_obj(absolute_objpath)
 
 
-@app.route('/<path:dirpath>/', methods=['GET'])
+@app.route('/', methods=['PUT'])
+@app.route('/<path:objpath>', methods=['PUT'])
 @auth.requires_auth
-def get_cdmi_dir_obj(dirpath):
-  """Get a directory entry through CDMI.
-
-  Get the listing of a directory.
-
-  TODO: find a way to stream the listing.
-  """
-
-  if g.cdmi:
-    pass  # parse CDMI input
-
-  try:
-    dir_list = [x for x in storage.ls('/%s' % (dirpath))]
-  except storage.NotFoundException as e:
-    return e.msg, 404
-  except storage.NotAuthorizedException as e:
-    return e.msg, 401
-  except storage.StorageException as e:
-    return e.msg, 500
-
-  return flask.jsonify(dirlist=dir_list)
+def put_cdmi_obj(objpath):
+  absolute_objpath = cdmi.make_absolute_path(objpath)
+  if absolute_objpath[-1] == '/':
+    return cdmi.put_cdmi_dir_obj(absolute_objpath)
+  else:
+    return cdmi.put_cdmi_file_obj(absolute_objpath)
 
 
-@app.route('/<path:dirpath>/<dirname>/', methods=['PUT'])
+@app.route('/', methods=['DELETE'])
+@app.route('/<path:objpath>', methods=['DELETE'])
 @auth.requires_auth
-def put_cdmi_dir_obj(dirpath, dirname):
-  """Put a directory entry through CDMI.
-
-  Create a directory.
-  """
-
-  try:
-    storage.mkdir('/%s/%s' % (dirpath, dirname))
-  except storage.NotFoundException as e:
-    return e.msg, 404
-  except storage.NotAuthorizedException as e:
-    return e.msg, 401
-  except storage.ConflictException as e:
-    return e.msg, 409
-  except storage.StorageException as e:
-    return e.msg, 500
-
-  return flask.jsonify(create='Created')
-
-
-@app.route('/<path:dirpath>/<dirname>/', methods=['DELETE'])
-@auth.requires_auth
-def del_cdmi_dir_obj(dirpath, dirname):
-  """Delete a directory through CDMI."""
-
-  try:
-    storage.rmdir('/%s/%s' % (dirpath, dirname))
-  except storage.NotFoundException as e:
-    return e.msg, 404
-  except storage.NotAuthorizedException as e:
-    return e.msg, 401
-  except storage.ConflictException as e:
-    return e.msg, 409
-  except storage.StorageException as e:
-    return e.msg, 500
-
-  return flask.jsonify(delete='Deleted: /%s/%s/' % (dirpath, dirname))
+def del_cdmi_obj(objpath):
+  absolute_objpath = cdmi.make_absolute_path(objpath)
+  if absolute_objpath[-1] == '/':
+    return cdmi.del_cdmi_dir_obj(absolute_objpath)
+  else:
+    return cdmi.del_cdmi_file_obj(absolute_objpath)
