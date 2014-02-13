@@ -99,8 +99,12 @@ def authenticate(username, password):
   Returns True or False.
   Validates an existing connection.
   """
-  err, rodsEnv = getRodsEnv()
+  err, rodsEnv = getRodsEnv()  # Override all values later
   rodsEnv.rodsUserName = username
+
+  rodsEnv.rodsHost = app.config['RODSHOST']
+  rodsEnv.rodsPort = app.config['RODSPORT']
+  rodsEnv.rodsZone = app.config['RODSZONE']
 
   conn, err = rcConnect(rodsEnv.rodsHost,
                         rodsEnv.rodsPort,

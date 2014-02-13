@@ -6,3 +6,7 @@ DEBUG = True
 SECRET_KEY = 'longkeyinthefuture'
 USERNAME = 'httpapi'
 PASSWORD = 'allbutdefault'
+
+RODSHOST = ''
+RODSPORT = 80
+RODSZONE = ''
