@@ -4,7 +4,8 @@ from eudat_http_api import app
 
 parser = OptionParser()
 parser.add_option('-d', '--debug', dest='debug',
-                  help='Run app in debug mode', action='store_true', default=False)
+                  help='Run app in debug mode', action='store_true',
+                  default=False)
 
 (options, args) = parser.parse_args()
 
@@ -13,4 +14,4 @@ if options.debug:
     app.config['DEBUG'] = True
     app.logger.setLevel(logging.ERROR)
 
-app.run(threaded=True, host='0.0.0.0')
+app.run(threaded=True, host='127.0.0.1')
