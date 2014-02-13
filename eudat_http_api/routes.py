@@ -139,7 +139,7 @@ def post_request():
   p.start()
 
   if request_wants_json():
-    return flask.jsonify(reques_id=request_id), 201
+    return flask.jsonify(request_id=request_id), 201
   else:
     return flask.render_template('requestcreated.html',
         request_id=request_id), 201
