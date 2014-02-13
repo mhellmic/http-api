@@ -253,7 +253,7 @@ def ls(path):
   coll.openCollection(path)
   # .getId return -1 if the target does not exist or is not
   # a proper collection (e.g. a file)
-  if coll.getId() < 0:
+  if int(coll.getId()) < 0:
     raise NotFoundException('Path does not exist or is not a directory: %s'
                             % (coll.getCollName()))
 
