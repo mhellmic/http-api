@@ -58,6 +58,14 @@ class ConflictException(StorageException):
     return repr(self.msg)
 
 
+class IsDirException(StorageException):
+  def __init__(self, msg):
+    self.msg = msg
+
+  def __str__(self):
+    return repr(self.msg)
+
+
 def get_storage():
   """Retrieve a storage connection.
 
@@ -143,8 +151,12 @@ def read(path, ordered_range_list=[]):
 
   file_handle = irodsOpen(conn, path, 'r')
   if not file_handle:
-    raise NotFoundException('Path does not exist or is not a file: %s'
-                            % (path))
+    if int(irodsCollection(conn, path).getId()) >= 0:
+      raise IsDirException('Path is a directory: %s'
+                           % (path))
+    else:
+      raise NotFoundException('Path does not exist or is not a file: %s'
+                              % (path))
 
   def stream_generator(file_handle, ordered_range_list, buffer_size=4194304):
     """Generate the bytestream.
