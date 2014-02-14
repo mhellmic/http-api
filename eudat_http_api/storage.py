@@ -161,13 +161,11 @@ def read(path, ordered_range_list=[]):
   file_size = file_handle.getSize()
 
   def get_range_size(x, y, file_size):
-    print x, y
     if x == START:
       x = 0
     if y == END:
-      y = file_size
-    print x, y
-    return y - x
+      y = file_size - 1  # because we adjust all other sizes below
+    return y - x + 1  # http expects the last byte included
 
   if ordered_range_list:
     content_len = sum(map(lambda (x, y): get_range_size(x, y, file_size),
@@ -215,7 +213,7 @@ def read(path, ordered_range_list=[]):
               break
             yield data
         else:
-          range_size = end - start
+          range_size = end - start + 1  # http expects the last byte included
           range_size_acc = 0
           range_buffer_size = buffer_size
           file_handle.seek(start)
