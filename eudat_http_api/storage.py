@@ -158,6 +158,23 @@ def read(path, ordered_range_list=[]):
       raise NotFoundException('Path does not exist or is not a file: %s'
                               % (path))
 
+  file_size = file_handle.getSize()
+
+  def get_range_size(x, y, file_size):
+    print x, y
+    if x == START:
+      x = 0
+    if y == END:
+      y = file_size
+    print x, y
+    return y - x
+
+  if ordered_range_list:
+    content_len = sum(map(lambda (x, y): get_range_size(x, y, file_size),
+                          ordered_range_list))
+  else:
+    content_len = file_size
+
   def stream_generator(file_handle, ordered_range_list, buffer_size=4194304):
     """Generate the bytestream.
 
@@ -217,7 +234,7 @@ def read(path, ordered_range_list=[]):
 
   gen = stream_generator(file_handle, ordered_range_list)
 
-  return gen
+  return gen, file_size, content_len
 
 
 def write(path, stream_gen):

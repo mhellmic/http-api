@@ -83,13 +83,22 @@ def get_cdmi_file_obj(path):
     range_requests = map(parse_range, matches)
 
   try:
-    stream_gen = storage.read(path, range_requests)
+    stream_gen, file_size, content_len = storage.read(path, range_requests)
   except storage.NotFoundException as e:
     return e.msg, 404
   except storage.NotAuthorizedException as e:
     return e.msg, 401
 
-  return Response(stream_with_context(stream_gen))
+  response_headers = {}
+  response_headers['Content-Length'] = content_len
+
+  response_status = 200
+  if file_size != content_len:
+    response_status = 206
+
+  return Response(stream_with_context(stream_gen),
+                  headers=response_headers,
+                  status=response_status)
 
 
 class StreamWrapper(object):
