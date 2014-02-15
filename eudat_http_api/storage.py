@@ -194,6 +194,10 @@ def read(path, ordered_range_list=[]):
     of the file to allow for range requests that only specify
     one the two.
     """
+    multipart = False
+    if len(ordered_range_list) > 1:
+      multipart = True
+
     if not ordered_range_list:
       while True:
         data = file_handle.read(buffSize=buffer_size)
@@ -202,6 +206,9 @@ def read(path, ordered_range_list=[]):
         yield data
     else:
       for start, end in ordered_range_list:
+        if multipart:
+          yield MULTI_DELIM
+
         if start == START:
           start = 0
 

@@ -96,7 +96,20 @@ def get_cdmi_file_obj(path):
   if file_size != content_len:
     response_status = 206
 
-  return Response(stream_with_context(stream_gen),
+  def wrap_multipart_stream_gen(stream_gen, delim='frontier'):
+    # yield 'prologue'
+    for data in stream_gen:
+      if data == storage.MULTI_DELIM:
+        yield '--%s\n\n' % delim
+        # yield '--%s\n%s\n\n' % (delim, header)
+      else:
+        yield data
+    yield '--%s--' % delim
+    # yield 'epilogue'
+
+  wrapped_stream_gen = wrap_multipart_stream_gen(stream_gen)
+
+  return Response(stream_with_context(wrapped_stream_gen),
                   headers=response_headers,
                   status=response_status)
 
