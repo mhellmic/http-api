@@ -82,8 +82,12 @@ def get_cdmi_file_obj(path):
     matches = range_regex.findall(ranges)
     range_requests = map(parse_range, matches)
 
+  print 'range requests', range_requests
   try:
-    stream_gen, file_size, content_len = storage.read(path, range_requests)
+    (stream_gen,
+     file_size,
+     content_len,
+     range_list) = storage.read(path, range_requests)
   except storage.NotFoundException as e:
     return e.msg, 404
   except storage.NotAuthorizedException as e:
@@ -95,19 +99,35 @@ def get_cdmi_file_obj(path):
   response_status = 200
   if file_size != content_len:
     response_status = 206
+    if len(range_list) > 1:
+      multipart = True
+    else:
+      response_headers['Content-Range'] = '%d-%d/%d' % (range_list[0][0],
+                                                        range_list[0][1],
+                                                        file_size)
 
-  def wrap_multipart_stream_gen(stream_gen, delim='frontier'):
-    # yield 'prologue'
-    for data in stream_gen:
-      if data == storage.MULTI_DELIM:
-        yield '--%s\n\n' % delim
-        # yield '--%s\n%s\n\n' % (delim, header)
+  multipart_frontier = 'frontier'
+  if multipart:
+      del response_headers['Content-Length']
+      response_headers['Content-Type'] = ('multipart/byteranges; boundary = %s'
+                                          % multipart_frontier)
+
+  def wrap_multipart_stream_gen(stream_gen, delim):
+    multipart = False
+    for segment_size, data in stream_gen:
+      if segment_size:
+        multipart = True
+        app.logger.debug('started a multipart segment')
+        #yield '\n--%s\n\n%s' % (delim, data)
+        yield '\n--%s\nContent-Length: %d\n\n%s' % (delim, segment_size, data)
       else:
         yield data
-    yield '--%s--' % delim
-    # yield 'epilogue'
+    if multipart:
+      yield '\n--%s--' % delim
+      # yield 'epilogue'
 
-  wrapped_stream_gen = wrap_multipart_stream_gen(stream_gen)
+  wrapped_stream_gen = wrap_multipart_stream_gen(stream_gen,
+                                                 multipart_frontier)
 
   return Response(stream_with_context(wrapped_stream_gen),
                   headers=response_headers,

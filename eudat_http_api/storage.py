@@ -173,7 +173,8 @@ def read(path, ordered_range_list=[]):
   else:
     content_len = file_size
 
-  def stream_generator(file_handle, ordered_range_list, buffer_size=4194304):
+  def stream_generator(file_handle, file_size,
+                       ordered_range_list, buffer_size=4194304):
     """Generate the bytestream.
 
     Default chunking is 4 MByte.
@@ -193,8 +194,14 @@ def read(path, ordered_range_list=[]):
     The special values START and END represent the start and end
     of the file to allow for range requests that only specify
     one the two.
+
+    In case of a multirange request, the delimiter shows when a new
+    segment begins (by evaluating to True). It carries also
+    information about the segment size.
     """
     multipart = False
+    delimiter = False
+    print 'range list', ordered_range_list
     if len(ordered_range_list) > 1:
       multipart = True
 
@@ -203,27 +210,31 @@ def read(path, ordered_range_list=[]):
         data = file_handle.read(buffSize=buffer_size)
         if data == '':
           break
-        yield data
+        yield delimiter, data
     else:
       for start, end in ordered_range_list:
-        if multipart:
-          yield MULTI_DELIM
-
         if start == START:
           start = 0
 
         if end == END:
           file_handle.seek(start)
+          if multipart:
+            delimiter = file_size - start + 1
+
           while True:
             data = file_handle.read(buffSize=buffer_size)
             if data == '':
               break
-            yield data
+            yield delimiter, data
+            delimiter = False
         else:
           range_size = end - start + 1  # http expects the last byte included
           range_size_acc = 0
           range_buffer_size = buffer_size
           file_handle.seek(start)
+
+          if multipart:
+            delimiter = range_size
 
           while range_size_acc < range_size:
             if (range_size - range_size_acc) < range_buffer_size:
@@ -231,15 +242,16 @@ def read(path, ordered_range_list=[]):
             data = file_handle.read(buffSize=range_buffer_size)
             if data == '':
               break
-            yield data
+            yield delimiter, data
+            delimiter = False
             range_size_acc += range_buffer_size
 
     file_handle.close()
     close_storage()
 
-  gen = stream_generator(file_handle, ordered_range_list)
+  gen = stream_generator(file_handle, file_size, ordered_range_list)
 
-  return gen, file_size, content_len
+  return gen, file_size, content_len, ordered_range_list
 
 
 def write(path, stream_gen):
