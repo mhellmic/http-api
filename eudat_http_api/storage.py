@@ -133,7 +133,7 @@ def authenticate(username, password):
     return False
 
 
-def read(path, ordered_range_list=[]):
+def read(path, range_list=[]):
   """Read a file from the backend storage.
 
   Returns a bytestream.
@@ -160,12 +160,21 @@ def read(path, ordered_range_list=[]):
 
   file_size = file_handle.getSize()
 
+  def adjust_range_size(x, y, file_size):
+    if y > file_size:
+      y = END
+    return (x, y)
+
   def get_range_size(x, y, file_size):
     if x == START:
       x = 0
     if y == END:
       y = file_size - 1  # because we adjust all other sizes below
     return y - x + 1  # http expects the last byte included
+
+  range_list = map(lambda (x, y): adjust_range_size(x, y, file_size),
+                   range_list)
+  ordered_range_list = sorted(range_list)
 
   if ordered_range_list:
     content_len = sum(map(lambda (x, y): get_range_size(x, y, file_size),
