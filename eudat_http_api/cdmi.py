@@ -97,6 +97,7 @@ def get_cdmi_file_obj(path):
   response_headers['Content-Length'] = content_len
 
   response_status = 200
+  multipart = False
   if file_size != content_len:
     response_status = 206
     if len(range_list) > 1:
