@@ -105,7 +105,6 @@ def get_cdmi_file_obj(path):
     matches = range_regex.findall(ranges)
     range_requests = map(parse_range, matches)
 
-  print 'range requests', range_requests
   try:
     (stream_gen,
      file_size,
