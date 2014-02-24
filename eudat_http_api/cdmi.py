@@ -7,12 +7,13 @@ from __future__ import with_statement
 import re
 import os
 
+from urlparse import urljoin
+
 from flask import g
 from flask import redirect
 from flask import render_template
 from flask import request
 from flask import Response
-from flask import url_for
 from flask import jsonify as flask_jsonify
 from flask import stream_with_context
 
@@ -55,6 +56,22 @@ def make_absolute_path(path):
     return '/%s' % path
   else:
     return '/'
+
+
+def get_parent_path(path):
+  return os.path.dirname(path[:-1])
+
+
+def create_dirlist_dict(dir_list, path):
+  """Returns a dictionary with the directory entries."""
+  def make_abs_link(name, path):
+    return urljoin(path, name)
+
+  nav_links = [('.', path),
+               ('..', get_parent_path(path))]
+
+  return nav_links + map(lambda x: (x.name, make_abs_link(x.name, path)),
+                         dir_list)
 
 
 def get_cdmi_file_obj(path):
@@ -101,6 +118,8 @@ def get_cdmi_file_obj(path):
 
   response_headers = {}
   response_headers['Content-Length'] = content_len
+  # Do not try to guess the type
+  #response_headers['Content-Type'] = 'application/octet-stream'
 
   response_status = 200
   multipart = False
@@ -248,12 +267,12 @@ def get_cdmi_dir_obj(path):
   if request_wants_cdmi_object():
     pass
   elif request_wants_json():
-    return flask_jsonify(dirlist=dir_list)
+    return flask_jsonify(dirlist=create_dirlist_dict(dir_list, path))
   else:
     return render_template('dirlisting.html',
                            dirlist=dir_list,
                            path=path,
-                           parent_path=os.path.dirname(path[:-1]))
+                           parent_path=get_parent_path(path))
 
 
 def put_cdmi_dir_obj(path):
