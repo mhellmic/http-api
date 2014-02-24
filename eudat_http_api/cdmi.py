@@ -5,10 +5,14 @@
 from __future__ import with_statement
 
 import re
+import os
 
 from flask import g
+from flask import redirect
+from flask import render_template
 from flask import request
 from flask import Response
+from flask import url_for
 from flask import jsonify as flask_jsonify
 from flask import stream_with_context
 
@@ -88,6 +92,8 @@ def get_cdmi_file_obj(path):
      file_size,
      content_len,
      range_list) = storage.read(path, range_requests)
+  except storage.IsDirException as e:
+    return redirect('%s/' % path)
   except storage.NotFoundException as e:
     return e.msg, 404
   except storage.NotAuthorizedException as e:
@@ -239,7 +245,15 @@ def get_cdmi_dir_obj(path):
   except storage.StorageException as e:
     return e.msg, 500
 
-  return flask_jsonify(dirlist=dir_list)
+  if request_wants_cdmi_object():
+    pass
+  elif request_wants_json():
+    return flask_jsonify(dirlist=dir_list)
+  else:
+    return render_template('dirlisting.html',
+                           dirlist=dir_list,
+                           path=path,
+                           parent_path=os.path.dirname(path[:-1]))
 
 
 def put_cdmi_dir_obj(path):

@@ -17,6 +17,37 @@ from eudat_http_api import app
 START = 'file-start'
 END = 'file-end'
 
+MULTI_DELIM = '@DELMI@'
+
+
+class StorageObject(object):
+  name = None
+  metadata = None
+  objtype = None
+
+  def __init__(self):
+    self.name = ''
+    self.metadata = {}
+
+
+class StorageDir(StorageObject):
+  objtype = 'dir'
+
+  def __init__(self, name, meta={}):
+    super(StorageDir, self).__init__()
+    self.name = name
+    self.meta = meta
+
+
+class StorageFile(StorageObject):
+  objtype = 'file'
+
+  def __init__(self, obj, meta={}, size=0):
+    super(StorageFile, self).__init__()
+    self.name, _ = obj
+    self.meta = meta
+    self.size = size
+
 
 class StorageException(Exception):
   def __init__(self, msg):
@@ -312,9 +343,9 @@ def ls(path):
 
   def list_generator(collection):
     for sub in collection.getSubCollections():
-      yield sub
+      yield StorageDir(sub)
     for obj in collection.getObjects():
-      yield obj
+      yield StorageFile(obj)
     close_storage()
 
   gen = list_generator(coll)
