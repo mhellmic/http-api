@@ -59,7 +59,7 @@ def make_absolute_path(path):
 
 
 def get_parent_path(path):
-  return os.path.dirname(path[:-1])
+  return os.path.dirname(path[:-1]) + '/'
 
 
 def create_dirlist_dict(dir_list, path):
@@ -67,11 +67,13 @@ def create_dirlist_dict(dir_list, path):
   def make_abs_link(name, path):
     return urljoin(path, name)
 
-  nav_links = [('.', path),
-               ('..', get_parent_path(path))]
+  nav_links = [storage.StorageDir('.', path),
+               storage.StorageDir('..', get_parent_path(path))]
 
-  return nav_links + map(lambda x: (x.name, make_abs_link(x.name, path)),
-                         dir_list)
+  return map(lambda x: {'name': x.name,
+                        'path': x.path,
+                        'metadata': storage.stat(x.path, True)},
+             nav_links + dir_list)
 
 
 def get_cdmi_file_obj(path):

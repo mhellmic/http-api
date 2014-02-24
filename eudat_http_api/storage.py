@@ -22,29 +22,36 @@ MULTI_DELIM = '@DELMI@'
 
 class StorageObject(object):
   name = None
+  path = None
   metadata = None
   objtype = None
 
   def __init__(self):
     self.name = ''
+    self.path = ''
     self.metadata = {}
 
 
 class StorageDir(StorageObject):
   objtype = 'dir'
 
-  def __init__(self, name, meta={}):
+  def __init__(self, name, path, meta={}):
     super(StorageDir, self).__init__()
     self.name = name
+    self.path = path
     self.meta = meta
 
 
 class StorageFile(StorageObject):
   objtype = 'file'
+  size = None
+  resc = None
 
-  def __init__(self, obj, meta={}, size=0):
+  def __init__(self, name, path, resc=None, meta={}, size=0):
     super(StorageFile, self).__init__()
-    self.name, _ = obj
+    self.name = name
+    self.path = path
+    self.resc = resc
     self.meta = meta
     self.size = size
 
@@ -162,6 +169,52 @@ def authenticate(username, password):
     return True
   else:
     return False
+
+
+def stat(path, metadata=None):
+  """Return detailed information about the object.
+
+  The metadata argument speficies if and which
+  user-specified metadata should be read.
+
+  For this, we first have to check if we're reading
+  a dir or a file to ask to the right information.
+
+  For the future, there should be a standard what
+  stat() returns.
+  """
+  conn = get_storage()
+
+  if conn is None:
+    return None
+
+  obj_info = dict()
+
+  path_is_dir = False
+  obj_handle = irodsOpen(conn, path, 'r')
+  if not obj_handle:
+    obj_handle = irodsCollection(conn, path)
+    if int(obj_handle.getId()) >= 0:
+      path_is_dir = True
+    else:
+      raise NotFoundException('Path does not exist or is not a file: %s'
+                              % (path))
+
+  if path_is_dir:
+    obj_info['children'] = (obj_handle.getLenSubCollections() +
+                            obj_handle.getLenObjects())
+    obj_info['ID'] = obj_handle.getId()
+
+  else:
+    obj_info['size'] = obj_handle.getSize()
+    obj_info['resc'] = obj_handle.getResourceName()
+    obj_info['repl_num'] = obj_handle.getReplNumber()
+
+  if metadata is not None:
+    user_metadata = obj_handle.getUserMetadata()
+    obj_info['user_metadata'] = user_metadata
+
+  return obj_info
 
 
 def read(path, range_list=[]):
@@ -343,9 +396,10 @@ def ls(path):
 
   def list_generator(collection):
     for sub in collection.getSubCollections():
-      yield StorageDir(sub)
-    for obj in collection.getObjects():
-      yield StorageFile(obj)
+      sub_slash = '%s/' % sub  # from irods there are no slashes appended
+      yield StorageDir(sub_slash, os.path.join(path, sub_slash))
+    for name, resc in collection.getObjects():
+      yield StorageFile(name, os.path.join(path, name), resc)
     close_storage()
 
   gen = list_generator(coll)
