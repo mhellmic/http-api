@@ -150,7 +150,7 @@ def get_cdmi_file_obj(path):
       else:
         yield data
     if multipart:
-      yield '\n--%s--' % delim
+      yield '\n--%s--\n' % delim
       # yield 'epilogue'
 
   wrapped_stream_gen = wrap_multipart_stream_gen(stream_gen,
