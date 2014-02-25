@@ -136,7 +136,7 @@ def get_cdmi_file_obj(path):
   multipart_frontier = 'frontier'
   if multipart:
       del response_headers['Content-Length']
-      response_headers['Content-Type'] = ('multipart/byteranges; boundary = %s'
+      response_headers['Content-Type'] = ('multipart/byteranges; boundary=%s'
                                           % multipart_frontier)
 
   def wrap_multipart_stream_gen(stream_gen, delim):
