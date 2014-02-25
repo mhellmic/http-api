@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+  <title>Listing of {{ path }}</title>
+</head>
+
+<body>
+<h1>Listing of {{ path }}</h1>
+
+<ul>
+    <li><a href="{{ path }}">[l]</a>.</li>
+    <li><a href="{{ parent_path }}">[l]</a>..</li>
+    {% for item in dirlist %}
+    <li><a href="{{ path }}{{ item.name }}">[l]</a>
+    {% if item.objtype == 'dir' %}(dir) {% endif %}{{ item.name }}</li>
+    {% endfor %}
+</ul>
+</body>
+</html>
