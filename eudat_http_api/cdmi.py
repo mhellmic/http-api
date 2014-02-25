@@ -129,9 +129,9 @@ def get_cdmi_file_obj(path):
     if len(range_list) > 1:
       multipart = True
     else:
-      response_headers['Content-Range'] = '%d-%d/%d' % (range_list[0][0],
-                                                        range_list[0][1],
-                                                        file_size)
+      response_headers['Content-Range'] = 'bytes %d-%d/%d' % (range_list[0][0],
+                                                              range_list[0][1],
+                                                              file_size)
 
   multipart_frontier = 'frontier'
   if multipart:
@@ -148,7 +148,7 @@ def get_cdmi_file_obj(path):
         #yield '\n--%s\n\n%s' % (delim, data)
         yield ('\n--%s\n'
                'Content-Length: %d\n'
-               'Content-Range: %d-%d\n'
+               'Content-Range: bytes %d-%d\n'
                '\n%s') % (delim, segment_size,
                           segment_start, segment_end, data)
         #% (delim, segment_size, data)
