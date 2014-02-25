@@ -303,13 +303,17 @@ def read(path, range_list=[]):
         data = file_handle.read(buffSize=buffer_size)
         if data == '':
           break
-        yield delimiter, data
+        yield delimiter, 0, file_size, data
     else:
       for start, end in ordered_range_list:
         if start == START:
           start = 0
 
+        segment_start = start
+        segment_end = end
+
         if end == END:
+          segment_end = file_size
           file_handle.seek(start)
           if multipart:
             delimiter = file_size - start + 1
@@ -318,7 +322,7 @@ def read(path, range_list=[]):
             data = file_handle.read(buffSize=buffer_size)
             if data == '':
               break
-            yield delimiter, data
+            yield delimiter, segment_start, segment_end, data
             delimiter = False
         else:
           range_size = end - start + 1  # http expects the last byte included
@@ -335,7 +339,7 @@ def read(path, range_list=[]):
             data = file_handle.read(buffSize=range_buffer_size)
             if data == '':
               break
-            yield delimiter, data
+            yield delimiter, segment_start, segment_end, data
             delimiter = False
             range_size_acc += range_buffer_size
 

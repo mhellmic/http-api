@@ -141,12 +141,17 @@ def get_cdmi_file_obj(path):
 
   def wrap_multipart_stream_gen(stream_gen, delim):
     multipart = False
-    for segment_size, data in stream_gen:
+    for segment_size, segment_start, segment_end, data in stream_gen:
       if segment_size:
         multipart = True
         app.logger.debug('started a multipart segment')
         #yield '\n--%s\n\n%s' % (delim, data)
-        yield '\n--%s\nContent-Length: %d\n\n%s' % (delim, segment_size, data)
+        yield ('\n--%s\n'
+               'Content-Length: %d\n'
+               'Content-Range: %d-%d\n'
+               '\n%s') % (delim, segment_size,
+                          segment_start, segment_end, data)
+        #% (delim, segment_size, data)
       else:
         yield data
     if multipart:
