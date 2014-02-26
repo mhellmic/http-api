@@ -14,4 +14,4 @@ if options.debug:
     app.config['DEBUG'] = True
     app.logger.setLevel(logging.ERROR)
 
-app.run(threaded=True, host='127.0.0.1')
+app.run(threaded=True, host=app.config['HOST'], port=app.config['PORT'])
