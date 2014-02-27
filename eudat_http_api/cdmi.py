@@ -139,7 +139,7 @@ def get_cdmi_file_obj(path):
       response_headers['Content-Type'] = ('multipart/byteranges; boundary=%s'
                                           % multipart_frontier)
 
-  def wrap_multipart_stream_gen(stream_gen, delim):
+  def wrap_multipart_stream_gen(stream_gen, delim, file_size):
     multipart = False
     for segment_size, segment_start, segment_end, data in stream_gen:
       if segment_size:
@@ -148,9 +148,10 @@ def get_cdmi_file_obj(path):
         #yield '\n--%s\n\n%s' % (delim, data)
         yield ('\n--%s\n'
                'Content-Length: %d\n'
-               'Content-Range: bytes %d-%d\n'
+               'Content-Range: bytes %d-%d/%d\n'
                '\n%s') % (delim, segment_size,
-                          segment_start, segment_end, data)
+                          segment_start, segment_end,
+                          file_size, data)
         #% (delim, segment_size, data)
       else:
         yield data
@@ -159,7 +160,8 @@ def get_cdmi_file_obj(path):
       # yield 'epilogue'
 
   wrapped_stream_gen = wrap_multipart_stream_gen(stream_gen,
-                                                 multipart_frontier)
+                                                 multipart_frontier,
+                                                 file_size)
 
   return Response(stream_with_context(wrapped_stream_gen),
                   headers=response_headers,
