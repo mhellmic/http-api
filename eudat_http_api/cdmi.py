@@ -17,7 +17,7 @@ from flask import stream_with_context
 from eudat_http_api import app
 from eudat_http_api import common
 from eudat_http_api import metadata
-from eudat_http_api import storage
+from eudat_http_api import localstorage as storage
 
 
 def request_wants_cdmi_object():
