@@ -1,5 +1,3 @@
-
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """Interface functions and the URLs they match.
