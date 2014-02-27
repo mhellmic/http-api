@@ -72,7 +72,7 @@ def create_dirlist_dict(dir_list, path):
 
   return map(lambda x: {'name': x.name,
                         'path': x.path,
-                        'metadata': storage.stat(x.path, True)},
+                        'metadata': metadata.stat(x.path, True)},
              nav_links + dir_list)
 
 
