@@ -1,5 +1,3 @@
-
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from __future__ import with_statement
@@ -10,7 +8,9 @@ import requests
 from eudat_http_api import app
 from eudat_http_api import requestsdb
 from eudat_http_api import cdmiclient
+from eudat_http_api.models import RegistrationRequest
 
+#jj: this should be moved to model?
 request_statuses = {
     'waiting to be started': 'W',
     'started': 'S',
@@ -23,13 +23,8 @@ request_statuses = {
     }
 
 def register_data_object(request_id):
-  db_conn = requestsdb.connect_db()
-  request = requestsdb.query_db_single_with_conn(db_conn,
-      'select * from requests where id = :id', {'id': request_id}
-      )
-  request_status = request['status']
-
   app.logger.debug('starting to process request with id = %s' % (request_id,))
+  r = RegistrationRequest.query.get(request_id)
 
   steps = [
       create_dst_url,
@@ -41,25 +36,24 @@ def register_data_object(request_id):
       ]
 
   for s in steps:
-    s(request, db_conn)
+    s(r)
 
-def create_dst_url(request, db_conn):
+def create_dst_url(request):
   pass
 
-def check_src(request, db_conn):
-  if request['pid']:
+def check_src(request):
+  if request.pid:
     return
 
-    continue_request(db_conn, request, request_statuses['started'])
+    continue_request(request, request_statuses['started'])
   # check existence and correct permissions on source
-  #_, response = cdmiclient.head('%s?%s' % (request['src_url'], 'metadata'))
-  _, response = cdmiclient.head('%s' % (request['src_url']))
+  _, response = cdmiclient.head('%s' % (request.src_url))
   if response.status_code > 299:
-    abort_request(db_conn, request, 'Source file is not available')
+    abort_request(request, 'Source file is not available')
   else:
-    continue_request(db_conn, request, request_statuses['src checked'])
+    continue_request(request, request_statuses['src checked'])
 
-  metadata, response = cdmiclient.cdmi_get('%s?%s' % (request['src_url'], 'metadata'))
+  metadata, response = cdmiclient.cdmi_get('%s?%s' % (request.src_url, 'metadata'))
   metadata_json = json.loads(metadata.read())
 
   # also check the content of metadata; if it conforms to datacite3
@@ -69,26 +63,30 @@ def check_src(request, db_conn):
   # but still do only one request
 
 
-def check_dst_permissions(request, db_conn):
-  if request['pid']:
+def check_dst_permissions(request):
+  if request.pid:
     return
 
+  #jj: I don't agree with the logic here. Shall we really use CDMI to interact
+  #with the destination?
+  if 1==1:
+      return
   # check existence and correct permissions on dsts
   metadata, response = cdmiclient.get('%s?%s' % (request['dst_url'], 'metadata'))
   if response.status_code > 299:
-    abort_request(db_conn, request, 'Dst location is not available')
+    abort_request(request, 'Dst location is not available')
   else:
-    continue_request(db_conn, request, request_statuses['dst checked'])
+    continue_request(request, request_statuses['dst checked'])
 
-def check_checksum_match(request, db_conn):
+def check_checksum_match(request):
   if request['pid']:
     return
 
-def get_handle(request, db_conn):
-  if request['pid']:
+def get_handle(request):
+  if request.pid:
     return
 
-def copy_data_object(request, db_conn):
+def copy_data_object(request):
   # check src and dst permissions
   # check checksum
   # copy
@@ -96,8 +94,8 @@ def copy_data_object(request, db_conn):
   # possibly just do a CDMI PUT { copy: <src> }
   pass
 
-def abort_request(db_conn, request, reason_string):
+def abort_request(request, reason_string):
   pass
 
-def continue_request(db_conn, request, stage_string):
+def continue_request(request, stage_string):
   pass
