@@ -33,7 +33,7 @@ from eudat_http_api import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
 from eudat_http_api import cdmi
-from models import RegistrationRequest
+from models import RegistrationRequest, RegistrationRequestSerializer
 import flask
 from flask import request
 from flask import json
@@ -62,26 +62,13 @@ def request_wants_json():
 @auth.requires_auth
 def get_requests(page=1):
   """Get a list of all requests."""
-
-
   requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc()).paginate(page, REQUESTS_PER_PAGE, False)
 
-
-  #jj: there must be a better way of doing this than translation of all
-  # response_dict = {}
-  # for r in requests:
-  #   response_dict[r['id']] = {
-  #       'status': r['status_description'],
-  #       'link': '%s%s' % (flask.request.url, r['id'])
-  #   }
-  #
-  # if request_wants_json():
-  #   return flask.jsonify(response_dict)
-  # else:
+  #TODO: pagination in json?
+  if request_wants_json():
+      return flask.jsonify({"requests": RegistrationRequestSerializer(requests.items, many=True).data})
 
   return flask.render_template('requests.html', requests=requests)
-
-
 
 
 @app.route('/request/', methods=['POST'])
@@ -106,24 +93,13 @@ def post_request():
     req_body = flask.request.form
 
   src_url = req_body['src_url']
-
-  # check if src is a valid URL
-
-  # push request information to request DB
-  # request_id = create_request_id()
-
-  # request = requestsdb.insert_db(
-  #     'insert into requests(id, status, status_description, src_url) \
-  #         values (?, "W", "waiting to be started", ?)', [request_id, src_url]
-  # )
-
+  #TODO: check if src is a valid URL
   r = RegistrationRequest(src_url=src_url, status_description='W', timestamp=datetime.utcnow())
   db.session.add(r)
   db.session.commit()
 
-
   # start worker
-  p = Thread(target=registration_worker.register_data_object,
+  p=Thread(target=registration_worker.register_data_object,
              args=(r.id))
   p.start()
 
@@ -137,19 +113,16 @@ def post_request():
 @auth.requires_auth
 def get_request(request_id):
   """Poll the status of a request by ID."""
-
-  # fetch id information from DB
-  # request = requestsdb.query_db_single('select * from requests where id = :id',
-  #                                      {'id': request_id})
   r = RegistrationRequest.query.get(request_id)
+
+  #TODO: json error?
   if r is None:
       return abort(404)
 
-  # return request status
   if request_wants_json():
-      return json.dumps(r)
+      return flask.jsonify({'request': RegistrationRequestSerializer(r).data})
 
-  return flask.render_template('singleRequest.html', request=r)
+  return flask.render_template('singleRequest.html', r=r)
 
 
 #### /registered container ####

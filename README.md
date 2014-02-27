@@ -9,4 +9,5 @@ Required python packages
 - flask
 - requests
 - Flask-SQLAlchemy
+- marshmallow
 

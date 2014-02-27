@@ -1,5 +1,5 @@
 from eudat_http_api import db
-
+from marshmallow import Serializer, fields
 
 class RegistrationRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -19,3 +19,8 @@ class RegistrationRequest(db.Model):
 
     def __repr__(self):
         return "<Request id=%r stat=%r>" % (self.id, self.status_description)
+
+
+class RegistrationRequestSerializer(Serializer):
+    class Meta:
+        fields = ('id', 'src_url', 'status_description', 'timestamp', 'checksum', 'pid')
