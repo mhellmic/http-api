@@ -58,10 +58,12 @@ def request_wants_json():
 
 
 @app.route('/request/', methods=['GET'])
-@app.route('/request/?page=<int:page>')
 @auth.requires_auth
-def get_requests(page=1):
-  """Get a list of all requests."""
+def get_requests():
+  """Get a requests list."""
+
+  page = int(request.args.get('page', '1'))
+
   requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc()).paginate(page, REQUESTS_PER_PAGE, False)
 
   #TODO: pagination in json?
@@ -74,7 +76,7 @@ def get_requests(page=1):
 @app.route('/request/', methods=['POST'])
 @auth.requires_auth
 def post_request():
-  """Submit a new request to register a file.
+  """Submit a new registration request
 
   Specify in the message body:
   src: url of the source file
@@ -85,7 +87,6 @@ def post_request():
   """
   app.logger.debug('Entering post_request()')
 
-  # get the src_url
   req_body = None
   if flask.request.headers.get('Content-Type') == 'application/json':
     req_body = json.loads(flask.request.data)
