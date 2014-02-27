@@ -37,7 +37,7 @@ from models import RegistrationRequest, RegistrationRequestSerializer
 import flask
 from flask import request
 from flask import json
-from flask import redirect, abort
+from flask import redirect, abort, url_for
 from config import REQUESTS_PER_PAGE
 
 # it seems not to be possible to send
@@ -61,14 +61,19 @@ def request_wants_json():
 @auth.requires_auth
 def get_requests():
   """Get a requests list."""
-
   page = int(request.args.get('page', '1'))
-
   requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc()).paginate(page, REQUESTS_PER_PAGE, False)
 
-  #TODO: pagination in json?
+  #links in hal standard
+  navi = dict()
+  navi['self'] = {'href':url_for('get_requests', page=page)}
+  if requests.has_next:
+      navi['next'] = {'href':url_for('get_requests', page=requests.next_num)}
+  if requests.has_prev:
+      navi['prev'] = {'href':url_for('get_requests', page=requests.prev_num)}
+
   if request_wants_json():
-      return flask.jsonify({"requests": RegistrationRequestSerializer(requests.items, many=True).data})
+      return flask.jsonify({"requests": RegistrationRequestSerializer(requests.items, many=True).data, "_links": navi})
 
   return flask.render_template('requests.html', requests=requests)
 
