@@ -122,14 +122,12 @@ def get_storage():
   return conn
 
 
+@app.teardown_request
 def close_storage(exception=None):
   """Close the storage connection.
 
-  This cannot be called at teardown_request, because it
-  would break streaming. The request context gets closed
-  before or during the streaming and all following requests
-  to the storage would fail.
-  #@app.teardown_request
+  Running this as teardown_request function,
+  it probably requires stream_with_context
   """
   conn = getattr(g, 'storageconn', None)
   if conn is not None:
@@ -343,7 +341,6 @@ def read(path, range_list=[]):
             range_size_acc += range_buffer_size
 
     file_handle.close()
-    close_storage()
 
   gen = stream_generator(file_handle, file_size, ordered_range_list)
 
@@ -367,7 +364,6 @@ def write(path, stream_gen):
     bytes_written += file_handle.write(chunk)
 
   file_handle.close()
-  close_storage()
 
   return bytes_written
 
@@ -403,7 +399,6 @@ def ls(path):
       yield StorageDir(sub_slash, os.path.join(path, sub_slash))
     for name, resc in collection.getObjects():
       yield StorageFile(name, os.path.join(path, name), resc)
-    close_storage()
 
   gen = list_generator(coll)
 
@@ -436,8 +431,6 @@ def mkdir(path):
     else:
       raise StorageException('Unknown storage exception: %s: %s'
                              % (path, __getErrorName(err)))
-
-  close_storage()
 
   return True, ''
 
@@ -499,8 +492,6 @@ def rmdir(path):
     else:
       raise StorageException('Unknown storage exception: %s: %s'
                              % (path, __getErrorName(err)))
-
-  close_storage()
 
   return True, ''
 
