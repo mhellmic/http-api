@@ -6,7 +6,6 @@ import json
 import requests
 
 from eudat_http_api import app
-from eudat_http_api import requestsdb
 from eudat_http_api import cdmiclient
 from eudat_http_api.models import RegistrationRequest
 

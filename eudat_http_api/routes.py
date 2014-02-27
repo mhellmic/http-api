@@ -28,7 +28,6 @@ from __future__ import with_statement
 from datetime import datetime
 
 from eudat_http_api import app, db
-from eudat_http_api import requestsdb
 from eudat_http_api import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth

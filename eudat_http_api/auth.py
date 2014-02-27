@@ -4,8 +4,7 @@ from __future__ import with_statement
 
 from functools import wraps
 from flask import request, Response
-from eudat_http_api import storage
-from config import USE_IRODS_AUTHENTICATION
+from eudat_http_api import storage, app
 
 
 class AuthException(Exception):
@@ -24,7 +23,7 @@ def check_auth(username, password):
 
   Do irods authentication
   """
-    if USE_IRODS_AUTHENTICATION == False:
+    if app.config['USE_IRODS_AUTHENTICATION'] == False:
         return True
 
     try:
