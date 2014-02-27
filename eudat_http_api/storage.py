@@ -12,6 +12,7 @@ from flask import request
 from irods import *
 
 from eudat_http_api import app
+from eudat_http_api import common
 
 
 START = 'file-start'
@@ -418,7 +419,7 @@ def mkdir(path):
   if conn is None:
     return None
 
-  dirname, basename = os.path.split(path)
+  dirname, basename = common.split_path(path)
   coll = irodsCollection(conn)
   coll.openCollection(dirname)
   # see ls()
@@ -481,7 +482,7 @@ def rmdir(path):
   if conn is None:
     return None
 
-  dirname, basename = os.path.split(path)
+  dirname, basename = common.split_path(path)
   coll = irodsCollection(conn)
   coll.openCollection(dirname)
   # see ls()

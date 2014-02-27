@@ -5,7 +5,6 @@
 from __future__ import with_statement
 
 import re
-import os
 
 from urlparse import urljoin
 
@@ -18,6 +17,8 @@ from flask import jsonify as flask_jsonify
 from flask import stream_with_context
 
 from eudat_http_api import app
+from eudat_http_api import common
+from eudat_http_api import metadata
 from eudat_http_api import storage
 
 
@@ -58,17 +59,13 @@ def make_absolute_path(path):
     return '/'
 
 
-def get_parent_path(path):
-  return os.path.dirname(path[:-1]) + '/'
-
-
 def create_dirlist_dict(dir_list, path):
   """Returns a dictionary with the directory entries."""
   def make_abs_link(name, path):
     return urljoin(path, name)
 
   nav_links = [storage.StorageDir('.', path),
-               storage.StorageDir('..', get_parent_path(path))]
+               storage.StorageDir('..', common.split_path(path)[0])]
 
   return map(lambda x: {'name': x.name,
                         'path': x.path,
@@ -280,7 +277,7 @@ def get_cdmi_dir_obj(path):
     return render_template('dirlisting.html',
                            dirlist=dir_list,
                            path=path,
-                           parent_path=get_parent_path(path))
+                           parent_path=common.split_path(path)[0])
 
 
 def put_cdmi_dir_obj(path):
