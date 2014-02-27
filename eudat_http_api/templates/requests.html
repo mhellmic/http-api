@@ -16,9 +16,12 @@
 
 <h2>List of registration requests</h2>
 <ul>
-    {% for request in requests %}
+    {% for request in requests.items %}
       {% include 'request.html' %}
     {% endfor %}
+
+    {% if requests.has_prev %}<a href="{{ url_for('get_requests', page = requests.prev_num) }}"><< Newer requests</a>{% else %}<< Newer requests{% endif %} |
+    {% if requests.has_next %}<a href="{{ url_for('get_requests', page = requests.next_num) }}">Older requests >></a>{% else %}Older requests >>{% endif %}
 </ul>
 </body>
 </html>

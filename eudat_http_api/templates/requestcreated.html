@@ -10,6 +10,8 @@
 <p>
   Your request ID is <a href="{{ url_for('get_request',request_id=request.id) }}">{{ request.id }}</a>.
   Follow the link to see the progress.
+
+  <a href="{{ url_for('get_requests') }}">Back to request list</a>
 </p>
 </body>
 </html>

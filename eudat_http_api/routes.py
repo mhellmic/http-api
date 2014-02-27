@@ -38,6 +38,7 @@ import flask
 from flask import request
 from flask import json
 from flask import redirect, abort
+from config import REQUESTS_PER_PAGE
 
 # it seems not to be possible to send
 # http requests from a separate Process
@@ -57,10 +58,14 @@ def request_wants_json():
 
 
 @app.route('/request/', methods=['GET'])
+@app.route('/request/?page=<int:page>')
 @auth.requires_auth
-def get_requests():
+def get_requests(page=1):
   """Get a list of all requests."""
-  requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc())
+
+
+  requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc()).paginate(page, REQUESTS_PER_PAGE, False)
+
 
   #jj: there must be a better way of doing this than translation of all
   # response_dict = {}
