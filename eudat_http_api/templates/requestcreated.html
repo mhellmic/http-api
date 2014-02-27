@@ -5,10 +5,10 @@
 </head>
 
 <body>
-<h1>Registration request</h1>
+<h1>Registration request created</h1>
 
 <p>
-  Your request ID is <a href="/request/{{ request_id }}">{{ request_id }}</a>.
+  Your request ID is <a href="{{ url_for('get_request',request_id=request.id) }}">{{ request.id }}</a>.
   Follow the link to see the progress.
 </p>
 </body>

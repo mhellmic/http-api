@@ -25,41 +25,27 @@ Subtle, but vicious.
 """
 
 from __future__ import with_statement
+from datetime import datetime
 
-from eudat_http_api import app
+from eudat_http_api import app, db
 from eudat_http_api import requestsdb
 from eudat_http_api import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
 from eudat_http_api import cdmi
+from models import RegistrationRequest
 import flask
 from flask import request
 from flask import json
+from flask import redirect, abort
 
 # it seems not to be possible to send
-# http requests forma separate Process
+# http requests from a separate Process
 #from multiprocessing import Process
 from threading import Thread
 
 import requests
 
-
-@app.route('/hello', methods=['GET'])
-def get_hello():
-  return 'hello'
-
-
-@app.route('/google', methods=['GET'])
-def get_google():
-  return requests.get('http://google.com').url
-
-
-@app.route('/redir', methods=['GET'])
-def get_redir():
-  return flask.redirect(flask.url_for('get_hello'), 302)
-
-
-#### /request container ####
 
 
 def request_wants_json():
@@ -74,30 +60,23 @@ def request_wants_json():
 @auth.requires_auth
 def get_requests():
   """Get a list of all requests."""
-  requests = requestsdb.query_db('select * from requests', ())
+  requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc())
 
-  response_dict = {}
-  for r in requests:
-    response_dict[r['id']] = {
-        'status': r['status_description'],
-        'link': '%s%s' % (flask.request.url, r['id'])
-    }
+  #jj: there must be a better way of doing this than translation of all
+  # response_dict = {}
+  # for r in requests:
+  #   response_dict[r['id']] = {
+  #       'status': r['status_description'],
+  #       'link': '%s%s' % (flask.request.url, r['id'])
+  #   }
+  #
+  # if request_wants_json():
+  #   return flask.jsonify(response_dict)
+  # else:
 
-  if request_wants_json():
-    return flask.jsonify(response_dict)
-  else:
-    return flask.render_template('requests.html', request_dict=response_dict)
-
-
-def make_request_id_creator():
-  import random
-
-  def rnd():
-    return str(random.random())[2:]
-  return rnd
+  return flask.render_template('requests.html', requests=requests)
 
 
-create_request_id = make_request_id_creator()
 
 
 @app.route('/request/', methods=['POST'])
@@ -126,23 +105,27 @@ def post_request():
   # check if src is a valid URL
 
   # push request information to request DB
-  request_id = create_request_id()
+  # request_id = create_request_id()
 
-  request = requestsdb.insert_db(
-      'insert into requests(id, status, status_description, src_url) \
-          values (?, "W", "waiting to be started", ?)', [request_id, src_url]
-  )
+  # request = requestsdb.insert_db(
+  #     'insert into requests(id, status, status_description, src_url) \
+  #         values (?, "W", "waiting to be started", ?)', [request_id, src_url]
+  # )
+
+  r = RegistrationRequest(src_url=src_url, status_description='W', timestamp=datetime.utcnow())
+  db.session.add(r)
+  db.session.commit()
+
 
   # start worker
   p = Thread(target=registration_worker.register_data_object,
-             args=(request_id,))
+             args=(r.id))
   p.start()
 
   if request_wants_json():
-    return flask.jsonify(request_id=request_id), 201
+    return flask.jsonify(request_id=r.id), 201
   else:
-    return flask.render_template('requestcreated.html',
-        request_id=request_id), 201
+    return flask.render_template('requestcreated.html',request=r), 201
 
 
 @app.route('/request/<request_id>', methods=['GET'])
@@ -151,11 +134,17 @@ def get_request(request_id):
   """Poll the status of a request by ID."""
 
   # fetch id information from DB
-  request = requestsdb.query_db_single('select * from requests where id = :id',
-                                       {'id': request_id})
+  # request = requestsdb.query_db_single('select * from requests where id = :id',
+  #                                      {'id': request_id})
+  r = RegistrationRequest.query.get(request_id)
+  if r is None:
+      return abort(404)
 
   # return request status
-  return json.dumps(request['status_description'])
+  if request_wants_json():
+      return json.dumps(r)
+
+  return flask.render_template('singleRequest.html', request=r)
 
 
 #### /registered container ####

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Request {{ request.id }}</title>
+</head>
+<body>
+  <h1>Request {{ request.id }} </h1>
+
+   {% include 'request.html' %}
+
+   <a href="{{ url_for('get_requests') }}">All requests</a>
+
+</body>
+</html>

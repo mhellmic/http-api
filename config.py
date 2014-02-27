@@ -1,12 +1,16 @@
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-DB_NAME = '/tmp/requests.db'
+# DB_NAME = '/tmp/requests.db'
 DEBUG = True
 SECRET_KEY = 'longkeyinthefuture'
 USERNAME = 'httpapi'
 PASSWORD = 'allbutdefault'
 
-RODSHOST = ''
-RODSPORT = 80
-RODSZONE = ''
+USE_IRODS_AUTHENTICATION = False
+
+SQLALCHEMY_DATABASE_URI = 'sqlite:///'+os.path.join(basedir, 'http.db')
+
+RODSHOST = 'localhost'
+RODSPORT = 1247
+RODSZONE = 'tempZone'
