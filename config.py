@@ -1,4 +1,3 @@
-
 DEBUG = True
 SECRET_KEY = 'longkeyinthefuture'
 USERNAME = 'httpapi'

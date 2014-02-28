@@ -6,94 +6,7 @@ import errno
 import os
 import stat as sys_stat
 
-
-START = 'file-start'
-END = 'file-end'
-
-MULTI_DELIM = '@DELMI@'
-
-
-class StorageObject(object):
-  name = None
-  path = None
-  metadata = None
-  objtype = None
-
-  def __init__(self):
-    self.name = ''
-    self.path = ''
-    self.metadata = {}
-
-
-class StorageDir(StorageObject):
-  objtype = 'dir'
-
-  def __init__(self, name, path, meta={}):
-    super(StorageDir, self).__init__()
-    self.name = name
-    self.path = path
-    self.meta = meta
-
-
-class StorageFile(StorageObject):
-  objtype = 'file'
-  size = None
-  resc = None
-
-  def __init__(self, name, path, meta={}, size=0):
-    super(StorageFile, self).__init__()
-    self.name = name
-    self.path = path
-    self.meta = meta
-    self.size = size
-
-
-class StorageException(Exception):
-  def __init__(self, msg):
-    self.msg = msg
-
-  def __str__(self):
-    return repr(self.msg)
-
-
-class InternalException(StorageException):
-  def __init__(self, msg):
-    self.msg = msg
-
-  def __str__(self):
-    return repr(self.msg)
-
-
-class NotFoundException(StorageException):
-  def __init__(self, msg):
-    self.msg = msg
-
-  def __str__(self):
-    return repr(self.msg)
-
-
-class NotAuthorizedException(StorageException):
-  def __init__(self, msg):
-    self.msg = msg
-
-  def __str__(self):
-    return repr(self.msg)
-
-
-class ConflictException(StorageException):
-  def __init__(self, msg):
-    self.msg = msg
-
-  def __str__(self):
-    return repr(self.msg)
-
-
-class IsDirException(StorageException):
-  def __init__(self, msg):
-    self.msg = msg
-
-  def __str__(self):
-    return repr(self.msg)
+from eudat_http_api.storage_common import *
 
 
 def authenticate(username, password):
@@ -232,7 +145,6 @@ def read(path, range_list=[]):
   If a range exceeds the size of the object, the
   bytestream goes until the object end.
   """
-  print path
   try:
     file_handle = open(path, 'rb')
   except IOError as e:
@@ -281,7 +193,6 @@ def ls(path):
   """Return a generator of a directory listing."""
 
   def get_obj_type(path):
-    print path
     basedir, name = os.path.split(path)
     if os.path.isfile(path):
       return StorageFile(name, path)
@@ -289,7 +200,6 @@ def ls(path):
       return StorageDir(name, path)
 
   try:
-    print os.listdir(path)
     return (map(lambda x: get_obj_type(os.path.join(path, x)),
                 os.listdir(path)))
   except IOError:
