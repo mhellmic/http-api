@@ -171,7 +171,7 @@ def authenticate(username, password):
 def stat(path, metadata=None):
   """Return detailed information about the object.
 
-  The metadata argument speficies if and which
+  The metadata argument specifies if and which
   user-specified metadata should be read.
 
   For this, we first have to check if we're reading
