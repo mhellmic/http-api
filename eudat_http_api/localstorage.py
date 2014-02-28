@@ -2,7 +2,9 @@
 
 from __future__ import with_statement
 
+import errno
 import os
+import stat as sys_stat
 
 
 START = 'file-start'
@@ -38,11 +40,10 @@ class StorageFile(StorageObject):
   size = None
   resc = None
 
-  def __init__(self, name, path, resc=None, meta={}, size=0):
+  def __init__(self, name, path, meta={}, size=0):
     super(StorageFile, self).__init__()
     self.name = name
     self.path = path
-    self.resc = resc
     self.meta = meta
     self.size = size
 
@@ -116,7 +117,28 @@ def stat(path, metadata=None):
   For the future, there should be a standard what
   stat() returns.
   """
-  pass
+  obj_info = dict()
+
+  try:
+    stat_result = os.stat(path)
+  except IOError:
+    raise NotFoundException('Path does not exist or is not a file: %s'
+                            % (path))
+
+  if sys_stat.IS_DIR(stat_result.st_mode):
+    obj_info['children'] = len(os.walk(path).next()[2])
+    obj_info['ID'] = None
+
+  else:
+    obj_info['size'] = stat_result.st_size
+    obj_info['resc'] = None
+    obj_info['repl_num'] = 1
+
+  if metadata is not None:
+    user_metadata = dict()
+    obj_info['user_metadata'] = user_metadata
+
+  return obj_info
 
 
 def stream_generator(file_handle, file_size,
@@ -210,9 +232,14 @@ def read(path, range_list=[]):
   If a range exceeds the size of the object, the
   bytestream goes until the object end.
   """
+  print path
   try:
     file_handle = open(path, 'rb')
-  except IOError:
+  except IOError as e:
+    if e.errno == errno.EISDIR:
+      raise IsDirException('Path is a directory: %s'
+                           % (path))
+
     raise NotFoundException('Path does not exist or is not a file: %s'
                             % (path))
 
@@ -252,7 +279,22 @@ def write(path, stream_gen):
 
 def ls(path):
   """Return a generator of a directory listing."""
-  pass
+
+  def get_obj_type(path):
+    print path
+    basedir, name = os.path.split(path)
+    if os.path.isfile(path):
+      return StorageFile(name, path)
+    else:
+      return StorageDir(name, path)
+
+  try:
+    print os.listdir(path)
+    return (map(lambda x: get_obj_type(os.path.join(path, x)),
+                os.listdir(path)))
+  except IOError:
+    raise NotFoundException('Path does not exist or is not a file: %s'
+                            % (path))
 
 
 def mkdir(path):
