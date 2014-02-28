@@ -44,13 +44,11 @@ class StorageDir(StorageObject):
 class StorageFile(StorageObject):
   objtype = 'file'
   size = None
-  resc = None
 
-  def __init__(self, name, path, resc=None, meta={}, size=0):
+  def __init__(self, name, path, meta={}, size=0):
     super(StorageFile, self).__init__()
     self.name = name
     self.path = path
-    self.resc = resc
     self.meta = meta
     self.size = size
 
@@ -411,7 +409,7 @@ def ls(path):
       sub_slash = '%s/' % sub  # from irods there are no slashes appended
       yield StorageDir(sub_slash, os.path.join(path, sub_slash))
     for name, resc in collection.getObjects():
-      yield StorageFile(name, os.path.join(path, name), resc)
+      yield StorageFile(name, os.path.join(path, name))
 
   gen = list_generator(coll)
 
