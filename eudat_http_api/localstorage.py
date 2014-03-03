@@ -38,7 +38,7 @@ def stat(path, metadata=None):
     raise NotFoundException('Path does not exist or is not a file: %s'
                             % (path))
 
-  if sys_stat.IS_DIR(stat_result.st_mode):
+  if sys_stat.S_ISDIR(stat_result.st_mode):
     obj_info['children'] = len(os.walk(path).next()[2])
     obj_info['ID'] = None
 
