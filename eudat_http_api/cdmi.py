@@ -4,7 +4,7 @@ from __future__ import with_statement
 
 import re
 
-from urlparse import urljoin
+from urlparse import urljoin, urlparse
 
 from flask import g
 from flask import redirect
@@ -148,7 +148,8 @@ def get_cdmi_file_obj(path):
          content_len,
          range_list) = storage.read(path, range_requests)
     except storage.IsDirException as e:
-        return redirect('%s/' % path)
+        params = urlparse(request.url).query
+        return redirect('%s/?%s' % (path, params))
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
