@@ -12,6 +12,7 @@ from flask import render_template
 from flask import request
 from flask import Response
 from flask import jsonify as flask_jsonify
+from flask import json as flask_json
 from flask import stream_with_context
 
 from eudat_http_api import app
@@ -300,7 +301,8 @@ def get_cdmi_dir_obj(path):
     """
 
     if g.cdmi:
-        pass  # parse CDMI input
+        if request.args.get('metadata', None) is not None:
+            return get_cdmi_metadata(path)
 
     try:
         dir_list = [x for x in storage.ls(path)]
@@ -312,7 +314,10 @@ def get_cdmi_dir_obj(path):
         return e.msg, 500
 
     if request_wants_cdmi_object():
-        pass
+        cdmi_json_gen = get_cdmi_json_generator(dir_list, path)
+        #json_stream_wrapper = wrap_with_json_generator(cdmi_dict_gen)
+        return Response(stream_with_context(cdmi_json_gen))
+        #return Response(stream_template('cdmi_dir.json', objectId=2, objectName='bla'))
     elif request_wants_json():
         return flask_jsonify(dirlist=create_dirlist_dict(dir_list, path))
     else:
@@ -320,6 +325,44 @@ def get_cdmi_dir_obj(path):
                                dirlist=dir_list,
                                path=path,
                                parent_path=common.split_path(path)[0])
+
+
+def get_cdmi_metadata(path):
+    return flask_jsonify(metadata=metadata.stat(path, True))
+
+
+def stream_template(template_name, **context):
+    app.update_template_context(context)
+    t = app.jinja_env.get_template(template_name)
+    rv = t.stream(context)
+    rv.enable_buffering(5)
+    return rv
+
+
+def get_cdmi_json_generator(dir_listing, path):
+    meta = metadata.stat(path, True)
+    yield '{\n'
+    yield '"objectType": "application/cdmi-container",\n'
+    yield '"objectID": "%s",\n' % meta.get('objectID', None)
+    yield '"objectName": "%s",\n' % meta.get('name', None)
+    yield '"parentURI": "%s",\n' % meta.get('base', None)
+    yield '"parentID": "%s",\n' % meta.get('parentID', None)
+    #'domainURI': '%s',
+    #'capabilitiesURI': '%s',
+    #'completionStatus': '%s',
+    #'percentComplete': '%s',  # optional
+    yield '"metadata": %s,\n' % flask_json.dumps(meta)
+    #'exports': {},  # optional
+    #'snapshots': [],  # optional
+    yield '"childrenrange": "0-%s",\n' % meta.get('children', None)
+    yield '"children": ['
+    for i, child in enumerate(dir_listing):
+        if i > 0:
+            yield ',"%s"' % child.name
+        else:
+            yield '"%s"' % child.name
+    yield ']\n'
+    yield '}'
 
 
 def put_cdmi_dir_obj(path):

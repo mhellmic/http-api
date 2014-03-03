@@ -109,6 +109,9 @@ def stat(path, metadata=None):
       raise NotFoundException('Path does not exist or is not a file: %s'
                               % (path))
 
+  base, name = common.split_path(path)
+  obj_info['base'] = '%s/' % base
+  obj_info['name'] = name
   if path_is_dir:
     obj_info['children'] = (obj_handle.getLenSubCollections() +
                             obj_handle.getLenObjects())
