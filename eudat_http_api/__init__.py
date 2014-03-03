@@ -6,7 +6,7 @@ app.config.from_object('config')
 
 if not app.debug:
   import logging
-  from SysLogHandler import SysLogHandler
+  from logging.handlers import SysLogHandler
   file_handler = SysLogHandler()
   file_handler.setLevel(logging.WARNING)
   app.logger.addHandler(file_handler)
