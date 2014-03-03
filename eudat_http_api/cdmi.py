@@ -315,9 +315,8 @@ def get_cdmi_dir_obj(path):
 
     if request_wants_cdmi_object():
         cdmi_json_gen = get_cdmi_json_generator(dir_list, path)
-        #json_stream_wrapper = wrap_with_json_generator(cdmi_dict_gen)
-        return Response(stream_with_context(cdmi_json_gen))
-        #return Response(stream_template('cdmi_dir.json', objectId=2, objectName='bla'))
+        json_stream_wrapper = wrap_with_json_generator(cdmi_json_gen)
+        return Response(stream_with_context(json_stream_wrapper))
     elif request_wants_json():
         return flask_jsonify(dirlist=create_dirlist_dict(dir_list, path))
     else:
@@ -341,28 +340,45 @@ def stream_template(template_name, **context):
 
 def get_cdmi_json_generator(dir_listing, path):
     meta = metadata.stat(path, True)
-    yield '{\n'
-    yield '"objectType": "application/cdmi-container",\n'
-    yield '"objectID": "%s",\n' % meta.get('objectID', None)
-    yield '"objectName": "%s",\n' % meta.get('name', None)
-    yield '"parentURI": "%s",\n' % meta.get('base', None)
-    yield '"parentID": "%s",\n' % meta.get('parentID', None)
+    yield ('objectType', '"application/cdmi-container"')
+    yield ('objectID', '"%s"' % meta.get('objectID', None))
+    yield ('objectName', '"%s"' % meta.get('name', None))
+    yield ('parentURI', '"%s"' % meta.get('base', None))
+    yield ('parentID', '"%s"' % meta.get('parentID', None))
     #'domainURI': '%s',
     #'capabilitiesURI': '%s',
     #'completionStatus': '%s',
     #'percentComplete': '%s',  # optional
-    yield '"metadata": %s,\n' % flask_json.dumps(meta)
+    yield ('metadata', '%s' % flask_json.dumps(meta))
     #'exports': {},  # optional
     #'snapshots': [],  # optional
-    yield '"childrenrange": "0-%s",\n' % meta.get('children', None)
-    yield '"children": ['
-    for i, child in enumerate(dir_listing):
+    yield ('childrenrange', '"0-%s"' % meta.get('children', None))
+    yield ('children', json_list_gen(dir_listing, lambda x: x.name))
+
+
+def wrap_with_json_generator(gen):
+    yield '{\n'
+    for i, (key, value) in enumerate(gen):
         if i > 0:
-            yield ',"%s"' % child.name
+            yield ',\n'
+        yield '  "%s": ' % key
+        try:
+            for part_value in value:
+                yield part_value
+        except TypeError:
+            yield value
+
+    yield '\n}'
+
+
+def json_list_gen(iterable, func):
+    yield '[\n'
+    for i, el in enumerate(iterable):
+        if i > 0:
+            yield ',\n  "%s"' % func(el)
         else:
-            yield '"%s"' % child.name
-    yield ']\n'
-    yield '}'
+            yield '  "%s"' % func(el)
+    yield '\n  ]'
 
 
 def put_cdmi_dir_obj(path):
