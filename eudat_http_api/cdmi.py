@@ -39,7 +39,10 @@ def request_wants_json():
 
 @app.before_request
 def check_cdmi():
-  if request.headers.get('Content-Type').startswith('application/cdmi'):
+  content_type = request.headers.get('Content-Type')
+  # some frontends might not create a content-type header if
+  # the client specified nothing
+  if content_type is not None and content_type.startswith('application/cdmi'):
     g.cdmi = True
     g.cdmi_version = request.headers.get('X-CDMI-Specification-Version')
   else:
