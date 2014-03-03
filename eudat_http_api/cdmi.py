@@ -113,7 +113,9 @@ def get_cdmi_file_obj(path):
     return e.msg, 401
 
   response_headers = {}
-  response_headers['Content-Length'] = content_len
+  # do not send the content-length to enable
+  # transfer-encoding chunked
+  #response_headers['Content-Length'] = content_len
   # Do not try to guess the type
   #response_headers['Content-Type'] = 'application/octet-stream'
 
@@ -130,7 +132,7 @@ def get_cdmi_file_obj(path):
 
   multipart_frontier = 'frontier'
   if multipart:
-      del response_headers['Content-Length']
+      #del response_headers['Content-Length']
       response_headers['Content-Type'] = ('multipart/byteranges; boundary=%s'
                                           % multipart_frontier)
 
