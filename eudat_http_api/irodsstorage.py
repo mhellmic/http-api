@@ -123,7 +123,7 @@ def stat(path, metadata=None):
         obj_info['repl_num'] = obj_handle.getReplNumber()
 
     if metadata is not None:
-        user_metadata = _get_user_metadata(conn, path, metadata)
+        user_metadata = __get_user_metadata(conn, path, metadata)
         obj_info['user_metadata'] = user_metadata
 
     return obj_info
@@ -135,10 +135,10 @@ def get_user_metadata(path, user_metadata=None):
     if conn is None:
         return None
 
-    return _get_user_metadata(conn, path, user_metadata)
+    return __get_user_metadata(conn, path, user_metadata)
 
 
-def _get_user_metadata(conn, path, user_metadata):
+def __get_user_metadata(conn, path, user_metadata):
     obj_info = dict()
 
     obj_handle = irodsOpen(conn, path, 'r')
