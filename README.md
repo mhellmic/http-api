@@ -22,6 +22,7 @@ Instructions:
     # follow install instructions in irodspython/PyRods/
 
     cd http-api
+    ./db_create.py
     python run.py
 
 Find more detailed instructions including how to install in a virtualenv here:
