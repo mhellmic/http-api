@@ -14,15 +14,15 @@ Required python packages:
 
 Instructions:
 
-    pip install flask requests Flask-SQLAlchemy marshmallow
-
     git clone https://github.com/EudatHttpApi/http-api.git
+
+    pip install -r requirements.txt
 
     git clone https://code.google.com/p/irodspython/
     # follow install instructions in irodspython/PyRods/
 
     cd http-api
-    ./service\_twistd.sh start
+    python run.py
 
 Find more detailed instructions including how to install in a virtualenv here:
 https://github.com/EudatHttpApi/http-api/wiki/Installation-guide

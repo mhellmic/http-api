@@ -1,4 +1,3 @@
-from config import DATABASE_URI
 
 from eudat_http_api import db, models
 
