@@ -123,8 +123,36 @@ def stat(path, metadata=None):
     obj_info['repl_num'] = obj_handle.getReplNumber()
 
   if metadata is not None:
-    user_metadata = obj_handle.getUserMetadata()
+    user_metadata = _get_user_metadata(conn, path, metadata)
+
     obj_info['user_metadata'] = user_metadata
+
+  return obj_info
+
+
+def get_user_metadata(path, user_metadata=None):
+  conn = get_storage()
+
+  if conn is None:
+    return None
+
+  return _get_user_metadata(conn, path, user_metadata)
+
+
+def _get_user_metadata(conn, path, user_metadata):
+  obj_info = dict()
+
+  obj_handle = irodsOpen(conn, path, 'r')
+  if not obj_handle:
+    obj_handle = irodsCollection(conn, path)
+    if int(obj_handle.getId()) >= 0:
+      pass
+    else:
+      raise NotFoundException('Path does not exist or is not a file: %s'
+                              % (path))
+
+  user_metadata = obj_handle.getUserMetadata()
+  obj_info['user_metadata'] = user_metadata
 
   try:
     # select only the keys that were asked for
@@ -133,7 +161,7 @@ def stat(path, metadata=None):
     # dictionaries-in-python
     # http://stackoverflow.com/questions/5352546/best-way-to-extract-subset- \
     # of-key-value-pairs-from-python-dictionary-object
-    subset_keys = metadata & obj_info.viewkeys()
+    subset_keys = user_metadata & obj_info.viewkeys()
     sub_obj_info = dict([(k, obj_info[k]) for k in subset_keys])
     obj_info = sub_obj_info
   except TypeError:

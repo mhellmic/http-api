@@ -325,7 +325,7 @@ def get_cdmi_dir_obj(path):
 
 
 def get_cdmi_metadata(path):
-    return flask_jsonify(metadata=metadata.stat(path, True))
+    return flask_jsonify(metadata=metadata.get_user_metadata(path))
 
 
 def stream_template(template_name, **context):
