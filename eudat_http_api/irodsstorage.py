@@ -110,7 +110,7 @@ def stat(path, metadata=None):
                                     % (path))
 
     base, name = common.split_path(path)
-    obj_info['base'] = '%s/' % base
+    obj_info['base'] = base
     obj_info['name'] = name
     if path_is_dir:
         obj_info['children'] = (obj_handle.getLenSubCollections() +
