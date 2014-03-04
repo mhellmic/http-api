@@ -15,11 +15,51 @@ from flask import jsonify as flask_jsonify
 from flask import json as flask_json
 from flask import stream_with_context
 
+from functools import partial
+
 from eudat_http_api import app
 from eudat_http_api import common
 from eudat_http_api import metadata
 from eudat_http_api import storage
 
+
+class CdmiException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+class MalformedArgException(CdmiException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+cdmi_body_fields = set([
+    'objectType',
+    'objectId',
+    'objectName',
+    'parentURI',
+    'parentID',
+    'domainURI',
+    'capabilitiesURI',
+    'completionStatus',
+    'percentComplete',
+    'metadata',
+    'exports',
+    'snapshots',
+    'childrenrange',
+    'children',
+    'mimetype',
+    'metadata',
+    'valuerange',
+    'valuetransferencoding',
+    'value',
+    ])
 
 cdmi_container_envelope = {
     'objectType': 'application/cdmi-container',
@@ -298,10 +338,6 @@ def get_cdmi_dir_obj(path):
     TODO: find a way to stream the listing.
     """
 
-    if g.cdmi:
-        if request.args.get('metadata', None) is not None:
-            return get_cdmi_metadata(path)
-
     try:
         dir_list = [x for x in storage.ls(path)]
     except storage.NotFoundException as e:
@@ -313,8 +349,16 @@ def get_cdmi_dir_obj(path):
 
     if request_wants_cdmi_object():
         cdmi_json_gen = get_cdmi_json_generator(dir_list, path)
-        json_stream_wrapper = wrap_with_json_generator(cdmi_json_gen)
+        filters = get_cdmi_filters(request.args)
+        if filters:
+            filtered_gen = ((a, b(filters[a])) for a, b in cdmi_json_gen
+                            if a in filters)
+        else:
+            filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
+
+        json_stream_wrapper = wrap_with_json_generator(filtered_gen)
         return Response(stream_with_context(json_stream_wrapper))
+
     elif request_wants_json():
         return flask_jsonify(dirlist=create_dirlist_dict(dir_list, path))
     else:
@@ -324,8 +368,41 @@ def get_cdmi_dir_obj(path):
                                parent_path=common.split_path(path)[0])
 
 
-def get_cdmi_metadata(path):
-    return flask_jsonify(metadata=metadata.get_user_metadata(path))
+def get_cdmi_filters(args_dict):
+    print args_dict
+    cdmi_args = []
+    cdmi_filter = dict()
+    for arg_key in args_dict.iterkeys():
+        if any(map(lambda s: arg_key.startswith(s), cdmi_body_fields)):
+            cdmi_args = arg_key.split(';')
+            break
+
+    if not cdmi_args:
+        return dict()
+
+    re_range = re.compile('(\d+)-(\d+)')
+    key, value = None, None
+    for arg in cdmi_args:
+        try:
+            key, value = arg.split(':')
+        except ValueError:
+            key, value = arg, None
+        print key, value
+        if key == 'children':
+            try:
+                value = map(int, re_range.match(value).groups())
+                cdmi_filter.update({'childrenrange': value})
+            except (AttributeError, TypeError):
+                value = (0, None)
+
+        #elif key == 'metadata':
+        #    key, value = arg.split(':')
+
+        print key, value
+        cdmi_filter.update({key: value})
+
+    print cdmi_filter
+    return cdmi_filter
 
 
 def stream_template(template_name, **context):
@@ -337,21 +414,36 @@ def stream_template(template_name, **context):
 
 
 def get_cdmi_json_generator(dir_listing, path):
-    meta = metadata.stat(path, True)
-    yield ('objectType', '"application/cdmi-container"')
-    yield ('objectID', '"%s"' % meta.get('objectID', None))
-    yield ('objectName', '"%s"' % meta.get('name', None))
-    yield ('parentURI', '"%s"' % meta.get('base', None))
-    yield ('parentID', '"%s"' % meta.get('parentID', None))
+    meta = metadata.stat(path, user_metadata=None)
+
+    def get_childrenrange(num_children, range_tuple=(0, None)):
+        range_start, range_end = range_tuple
+        if range_end is None or range_end > num_children:
+            range_end = num_children
+        return '"%s-%s"' % (range_start, range_end)
+
+    def get_usermetadata(path, metadata=None):
+        from eudat_http_api import metadata
+        return '%s' % flask_json.dumps(
+            metadata.get_user_metadata(path, metadata))
+
+    yield ('objectType', lambda x=None: '"application/cdmi-container"')
+    yield ('objectID', lambda x=None: '"%s"' % meta.get('objectID', None))
+    yield ('objectName', lambda x=None: '"%s"' % meta.get('name', None))
+    yield ('parentURI', lambda x=None: '"%s"' % meta.get('base', None))
+    yield ('parentID', lambda x=None: '"%s"' % meta.get('parentID', None))
     #'domainURI': '%s',
     #'capabilitiesURI': '%s',
     #'completionStatus': '%s',
     #'percentComplete': '%s',  # optional
-    yield ('metadata', '%s' % flask_json.dumps(meta))
+    yield ('metadata', partial(get_usermetadata, path))
     #'exports': {},  # optional
     #'snapshots': [],  # optional
-    yield ('childrenrange', '"0-%s"' % meta.get('children', None))
-    yield ('children', json_list_gen(dir_listing, lambda x: x.name))
+    yield ('childrenrange', partial(get_childrenrange,
+                                    meta.get('children', None)))
+
+    yield ('children', lambda t=(0, -1): json_list_gen(dir_listing[t[0]:t[1]],
+                                                       lambda x: x.name))
 
 
 def wrap_with_json_generator(gen):
