@@ -54,6 +54,14 @@ def stat(path, metadata=None):
     return obj_info
 
 
+def get_user_metadata(path, user_metadata=None):
+    return dict()
+
+
+def set_user_metadata(path, user_metadata):
+    pass
+
+
 def read(path, range_list=[]):
     """Read a file from the backend storage.
 
