@@ -80,6 +80,20 @@ def authenticate(username, password):
         return False
 
 
+def __get_irods_obj_handle(conn, path):
+    path_is_dir = False
+    obj_handle = irodsOpen(conn, path, 'r')
+    if not obj_handle:
+        obj_handle = irodsCollection(conn, path)
+        if int(obj_handle.getId()) >= 0:
+            path_is_dir = True
+        else:
+            raise NotFoundException('Path does not exist or is not a file: %s'
+                                    % (path))
+
+    return obj_handle, path_is_dir
+
+
 def stat(path, metadata=None):
     """Return detailed information about the object.
 
@@ -99,15 +113,7 @@ def stat(path, metadata=None):
 
     obj_info = dict()
 
-    path_is_dir = False
-    obj_handle = irodsOpen(conn, path, 'r')
-    if not obj_handle:
-        obj_handle = irodsCollection(conn, path)
-        if int(obj_handle.getId()) >= 0:
-            path_is_dir = True
-        else:
-            raise NotFoundException('Path does not exist or is not a file: %s'
-                                    % (path))
+    obj_handle, path_is_dir = __get_irods_obj_handle(conn, path)
 
     base, name = common.split_path(path)
     obj_info['base'] = base
@@ -126,28 +132,42 @@ def stat(path, metadata=None):
         user_metadata = __get_user_metadata(conn, path, metadata)
         obj_info['user_metadata'] = user_metadata
 
+    try:
+        obj_handle.close()
+    except AttributeError:
+        pass  # obj is a collection, which cannot be closed
+
     return obj_info
 
 
 def get_user_metadata(path, user_metadata=None):
+    """Gets user_metadata from irods and filters them by the user_metadata arg.
+
+    see __get_user_metadata
+    """
     conn = get_storage()
 
     if conn is None:
         return None
 
-    return __get_user_metadata(conn, path, user_metadata)
+    obj_handle, _ = __get_irods_obj_handle(conn, path)
+
+    user_meta = __get_user_metadata(conn, obj_handle,  path, user_metadata)
+
+    try:
+        obj_handle.close()
+    except AttributeError:
+        pass  # obj is a collection, which cannot be closed
+
+    return user_meta
 
 
-def __get_user_metadata(conn, path, user_metadata):
-    obj_handle = irodsOpen(conn, path, 'r')
-    if not obj_handle:
-        obj_handle = irodsCollection(conn, path)
-        if int(obj_handle.getId()) >= 0:
-            pass
-        else:
-            raise NotFoundException('Path does not exist or is not a file: %s'
-                                    % (path))
+def __get_user_metadata(conn, obj_handle, path, user_metadata):
+    """ get user metadata from irods and filter by the user_metadata argument.
 
+    The user_metadata argument should be an iterable holding the metadata
+    key to get. If it's not iterable, this returns all metadata.
+    """
     irods_user_metadata = obj_handle.getUserMetadata()
     # convert the irods format into a dict with a value tuple
     dict_gen = ((key, (val1, val2)) for key, val1, val2 in irods_user_metadata)
@@ -167,6 +187,35 @@ def __get_user_metadata(conn, path, user_metadata):
         pass
 
     return user_meta
+
+
+def set_user_metadata(path, user_metadata):
+    """ Set a number of user metadata entries.
+
+    user_metadata should be a dict() holding the metadata keys to set.
+    Even though irods supports 2 valu field per metadata item, this
+    only sets one.
+    If user_metadata is not a dict(), the function throws an exception.
+    """
+    conn = get_storage()
+
+    if conn is None:
+        return None
+
+    obj_handle, _ = __get_irods_obj_handle(conn, path)
+
+    __set_user_metadata(conn, path, user_metadata)
+
+    try:
+        obj_handle.close()
+    except AttributeError:
+        pass  # obj is a collection, which cannot be closed
+
+
+def __set_user_metadata(conn, path, user_metadata):
+    """Performs the work for set_user_metadata."""
+    for key, val in user_metadata:
+        obj_handle.addUserMetadata(key, val)
 
 
 def read(path, range_list=[]):
