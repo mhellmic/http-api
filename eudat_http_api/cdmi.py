@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 
+import base64
 import re
 
 from urlparse import urljoin, urlparse
@@ -241,6 +242,22 @@ def get_cdmi_file_obj(path):
                                                    multipart_frontier,
                                                    file_size)
 
+    if request_wants_cdmi_object():
+        if len(range_list) > 1:
+            pass  # throw a terrifying exception here, cdmi must not multipart!
+        cdmi_json_gen = get_cdmi_json_file_generator(path,
+                                                     wrapped_stream_gen,
+                                                     file_size)
+        filters = get_cdmi_filters(request.args)
+        if filters:
+            filtered_gen = ((a, b(filters[a])) for a, b in cdmi_json_gen
+                            if a in filters)
+        else:
+            filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
+
+        json_stream_wrapper = wrap_with_json_generator(filtered_gen)
+        return Response(stream_with_context(json_stream_wrapper))
+
     return Response(stream_with_context(wrapped_stream_gen),
                     headers=response_headers,
                     status=response_status)
@@ -348,7 +365,7 @@ def get_cdmi_dir_obj(path):
         return e.msg, 500
 
     if request_wants_cdmi_object():
-        cdmi_json_gen = get_cdmi_json_generator(dir_list, path)
+        cdmi_json_gen = get_cdmi_json_dir_generator(path, dir_list)
         filters = get_cdmi_filters(request.args)
         if filters:
             filtered_gen = ((a, b(filters[a])) for a, b in cdmi_json_gen
@@ -369,7 +386,6 @@ def get_cdmi_dir_obj(path):
 
 
 def get_cdmi_filters(args_dict):
-    print args_dict
     cdmi_args = []
     cdmi_filter = dict()
     for arg_key in args_dict.iterkeys():
@@ -387,7 +403,6 @@ def get_cdmi_filters(args_dict):
             key, value = arg.split(':')
         except ValueError:
             key, value = arg, None
-        print key, value
         if key == 'children':
             try:
                 value = map(int, re_range.match(value).groups())
@@ -395,13 +410,14 @@ def get_cdmi_filters(args_dict):
             except (AttributeError, TypeError):
                 value = (0, None)
 
-        #elif key == 'metadata':
-        #    key, value = arg.split(':')
+        elif key == 'value':
+            try:
+                value = map(int, re_range.match(value).groups())
+            except (AttributeError, TypeError):
+                value = (0, None)
 
-        print key, value
         cdmi_filter.update({key: value})
 
-    print cdmi_filter
     return cdmi_filter
 
 
@@ -413,21 +429,37 @@ def stream_template(template_name, **context):
     return rv
 
 
-def get_cdmi_json_generator(dir_listing, path):
+def get_cdmi_json_file_generator(path, value_gen, file_size):
+    return get_cdmi_json_generator(path, 'object',
+                                   value_gen=value_gen,
+                                   file_size=file_size)
+
+
+def get_cdmi_json_dir_generator(path, dir_listing):
+    return get_cdmi_json_generator(path, 'container', dir_listing=dir_listing)
+
+
+def get_cdmi_json_generator(path, obj_type, **data):
     meta = metadata.stat(path, user_metadata=None)
 
-    def get_childrenrange(num_children, range_tuple=(0, None)):
+    def get_range(range_max, range_tuple=(0, None)):
         range_start, range_end = range_tuple
-        if range_end is None or range_end > num_children:
-            range_end = num_children
-        return '"%s-%s"' % (range_start, range_end)
+        if range_end is None or range_end > range_max:
+            range_end = range_max
+        yield '"%s-%s"' % (range_start, range_end)
 
     def get_usermetadata(path, metadata=None):
         from eudat_http_api import metadata
-        return '%s' % flask_json.dumps(
+        yield '%s' % flask_json.dumps(
             metadata.get_user_metadata(path, metadata))
 
-    yield ('objectType', lambda x=None: '"application/cdmi-container"')
+    def wrap_json_string(gen):
+        yield '"'
+        for part in gen:
+            yield base64.b64encode(part)
+        yield '"'
+
+    yield ('objectType', lambda x=None: '"application/cdmi-%s"' % obj_type)
     yield ('objectID', lambda x=None: '"%s"' % meta.get('objectID', None))
     yield ('objectName', lambda x=None: '"%s"' % meta.get('name', None))
     yield ('parentURI',
@@ -441,11 +473,18 @@ def get_cdmi_json_generator(dir_listing, path):
     yield ('metadata', partial(get_usermetadata, path))
     #'exports': {},  # optional
     #'snapshots': [],  # optional
-    yield ('childrenrange', partial(get_childrenrange,
-                                    meta.get('children', None)))
+    if obj_type == 'container':
+        yield ('childrenrange', partial(get_range,
+                                        meta.get('children', None)))
 
-    yield ('children', lambda t=(0, -1): json_list_gen(dir_listing[t[0]:t[1]],
-                                                       lambda x: x.name))
+        yield ('children', lambda t=(0, -1): json_list_gen(
+            data['dir_listing'][t[0]:t[1]], lambda x: x.name))
+
+    if obj_type == 'object':
+        yield ('mimetype', lambda x=None: '"mime"')
+        yield ('valuerange', partial(get_range, data['file_size']))
+        yield ('valuetransferencoding', lambda x=None: '"base64"')
+        yield ('value', lambda x=None: wrap_json_string(data['value_gen']))
 
 
 def wrap_with_json_generator(gen):
