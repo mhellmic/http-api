@@ -32,7 +32,7 @@ class CdmiException(Exception):
         return repr(self.msg)
 
 
-class MalformedArgException(CdmiException):
+class MalformedArgumentValueException(CdmiException):
     def __init__(self, msg):
         self.msg = msg
 
@@ -173,7 +173,17 @@ def get_cdmi_file_obj(path):
         return (start, end)
 
     range_requests = []
-    if request.headers.get('Range'):
+    cdmi_filters = []
+    if request_wants_cdmi_object():
+        try:
+            cdmi_filters = get_cdmi_filters(request.args)
+        except MalformedArgumentValueException as e:
+            return e.msg, 400
+        try:
+            range_requests = cdmi_filters['value']
+        except KeyError:
+            pass
+    elif request.headers.get('Range'):
         ranges = request.headers.get('Range')
         range_regex = re.compile('(\d*-\d*)')
         matches = range_regex.findall(ranges)
@@ -248,10 +258,9 @@ def get_cdmi_file_obj(path):
         cdmi_json_gen = get_cdmi_json_file_generator(path,
                                                      wrapped_stream_gen,
                                                      file_size)
-        filters = get_cdmi_filters(request.args)
-        if filters:
-            filtered_gen = ((a, b(filters[a])) for a, b in cdmi_json_gen
-                            if a in filters)
+        if cdmi_filters:
+            filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                            if a in cdmi_filters)
         else:
             filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
@@ -354,6 +363,12 @@ def get_cdmi_dir_obj(path):
 
     TODO: find a way to stream the listing.
     """
+    cdmi_filters = []
+    if request_wants_cdmi_object():
+        try:
+            cdmi_filters = get_cdmi_filters(request.args)
+        except MalformedArgumentValueException as e:
+            return e.msg, 400
 
     try:
         dir_list = [x for x in storage.ls(path)]
@@ -366,10 +381,9 @@ def get_cdmi_dir_obj(path):
 
     if request_wants_cdmi_object():
         cdmi_json_gen = get_cdmi_json_dir_generator(path, dir_list)
-        filters = get_cdmi_filters(request.args)
-        if filters:
-            filtered_gen = ((a, b(filters[a])) for a, b in cdmi_json_gen
-                            if a in filters)
+        if cdmi_filters:
+            filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                            if a in cdmi_filters)
         else:
             filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
@@ -408,13 +422,17 @@ def get_cdmi_filters(args_dict):
                 value = map(int, re_range.match(value).groups())
                 cdmi_filter.update({'childrenrange': value})
             except (AttributeError, TypeError):
-                value = (0, None)
+                raise MalformedArgumentValueException(
+                    'Could not parse value: key: %s - value: %s' % (key, value)
+                    )
 
         elif key == 'value':
             try:
-                value = map(int, re_range.match(value).groups())
+                value = [map(int, re_range.match(value).groups())]
             except (AttributeError, TypeError):
-                value = (0, None)
+                raise MalformedArgumentValueException(
+                    'Could not parse value: key: %s - value: %s' % (key, value)
+                    )
 
         cdmi_filter.update({key: value})
 
