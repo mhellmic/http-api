@@ -430,7 +430,9 @@ def get_cdmi_json_generator(dir_listing, path):
     yield ('objectType', lambda x=None: '"application/cdmi-container"')
     yield ('objectID', lambda x=None: '"%s"' % meta.get('objectID', None))
     yield ('objectName', lambda x=None: '"%s"' % meta.get('name', None))
-    yield ('parentURI', lambda x=None: '"%s"' % meta.get('base', None))
+    yield ('parentURI',
+           lambda x=None: '"%s"' % common.add_trailing_slash(
+               meta.get('base', None)))
     yield ('parentID', lambda x=None: '"%s"' % meta.get('parentID', None))
     #'domainURI': '%s',
     #'capabilitiesURI': '%s',
