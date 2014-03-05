@@ -246,7 +246,6 @@ def read(path, range_list=[]):
         """
         multipart = False
         delimiter = False
-        print 'range list', ordered_range_list
         if len(ordered_range_list) > 1:
             multipart = True
 
