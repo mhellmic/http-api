@@ -139,8 +139,6 @@ def get_user_metadata(path, user_metadata=None):
 
 
 def __get_user_metadata(conn, path, user_metadata):
-    obj_info = dict()
-
     obj_handle = irodsOpen(conn, path, 'r')
     if not obj_handle:
         obj_handle = irodsCollection(conn, path)
@@ -150,8 +148,10 @@ def __get_user_metadata(conn, path, user_metadata):
             raise NotFoundException('Path does not exist or is not a file: %s'
                                     % (path))
 
-    user_metadata = obj_handle.getUserMetadata()
-    obj_info['user_metadata'] = user_metadata
+    irods_user_metadata = obj_handle.getUserMetadata()
+    # convert the irods format into a dict with a value tuple
+    dict_gen = ((key, (val1, val2)) for key, val1, val2 in irods_user_metadata)
+    user_meta = dict(dict_gen)
 
     try:
         # select only the keys that were asked for
@@ -160,13 +160,13 @@ def __get_user_metadata(conn, path, user_metadata):
         # dictionaries-in-python
         # http://stackoverflow.com/questions/5352546/best-way-to-extract- \
         # subset-of-key-value-pairs-from-python-dictionary-object
-        subset_keys = user_metadata & obj_info.viewkeys()
-        sub_obj_info = dict([(k, obj_info[k]) for k in subset_keys])
-        obj_info = sub_obj_info
+        subset_keys = user_metadata & user_meta.viewkeys()
+        sub_user_meta = dict([(k, user_meta[k]) for k in subset_keys])
+        user_meta = sub_user_meta
     except TypeError:
         pass
 
-    return obj_info
+    return user_meta
 
 
 def read(path, range_list=[]):
