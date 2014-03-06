@@ -122,7 +122,7 @@ def read_stream_generator(file_handle, file_size,
 
     if not ordered_range_list:
         while True:
-            data = file_handle.read(buffSize=buffer_size)
+            data = file_handle.read(buffer_size)
             if data == '':
                 break
             yield delimiter, 0, file_size, data
@@ -141,7 +141,7 @@ def read_stream_generator(file_handle, file_size,
                     delimiter = file_size - start + 1
 
                 while True:
-                    data = file_handle.read(buffSize=buffer_size)
+                    data = file_handle.read(buffer_size)
                     if data == '':
                         break
                     yield delimiter, segment_start, segment_end, data
@@ -159,7 +159,7 @@ def read_stream_generator(file_handle, file_size,
                 while range_size_acc < range_size:
                     if (range_size - range_size_acc) < range_buffer_size:
                         range_buffer_size = (range_size - range_size_acc)
-                    data = file_handle.read(buffSize=range_buffer_size)
+                    data = file_handle.read(range_buffer_size)
                     if data == '':
                         break
                     yield delimiter, segment_start, segment_end, data
