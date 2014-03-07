@@ -129,7 +129,7 @@ def stat(path, metadata=None):
         obj_info['repl_num'] = obj_handle.getReplNumber()
 
     if metadata is not None:
-        user_metadata = __get_user_metadata(conn, path, metadata)
+        user_metadata = __get_user_metadata(conn, obj_handle, path, metadata)
         obj_info['user_metadata'] = user_metadata
 
     try:
