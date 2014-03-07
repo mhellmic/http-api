@@ -48,7 +48,7 @@ def stat(path, metadata=None):
         obj_info['repl_num'] = 1
 
     if metadata is not None:
-        user_metadata = dict()
+        user_metadata = get_user_metadata(path, metadata)
         obj_info['user_metadata'] = user_metadata
 
     return obj_info
