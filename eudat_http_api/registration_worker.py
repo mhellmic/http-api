@@ -37,6 +37,8 @@ def register_data_object(request_id):
   for s in steps:
     s(r)
 
+  return True
+
 def create_dst_url(request):
   pass
 
