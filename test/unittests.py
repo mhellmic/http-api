@@ -16,7 +16,9 @@ from eudat_http_api import db
 class HttpApiTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.db_fd, app.config['SQLALCHEMY_DATABASE_URI'] = tempfile.mkstemp()
+        self.db_fd, self.db_filename = tempfile.mkstemp()
+        app.config['SQLALCHEMY_DATABASE_URI'] = '%s%s' % ('sqlite:///',
+                                                self.db_filename)
         app.config['DEBUG'] = True
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -24,7 +26,7 @@ class HttpApiTestCase(unittest.TestCase):
 
     def tearDown(self):
         os.close(self.db_fd)
-        os.unlink(app.config['SQLALCHEMY_DATABASE_URI'])
+        os.unlink(self.db_filename)
 
     # from https://gist.github.com/jarus/1160696
     def open_with_auth(self, url, method, username, password, data=None):
@@ -41,9 +43,7 @@ class HttpApiTestCase(unittest.TestCase):
                                  headers=headers)
 
     def test_requestsdb_empty_html(self):
-        with patch('eudat_http_api.auth.check_auth', return_value=True), \
-                patch('eudat_http_api.registration_worker.' +
-                      'register_data_object', return_value=True):
+        with patch('eudat_http_api.auth.check_auth', return_value=True):
             rv = self.open_with_auth('/request/', 'GET',
                                      'mhellmic',
                                      'test')
@@ -57,7 +57,7 @@ class HttpApiTestCase(unittest.TestCase):
         src_url = 'http://test.eudat.eu/file.txt'
         with patch('eudat_http_api.auth.check_auth', return_value=True), \
                 patch('eudat_http_api.registration_worker.' +
-                      'register_data_object', return_value=True):
+                      'register_data_object'):
             rv = self.open_with_auth('/request/', 'POST',
                                      'mhellmic',
                                      'test',
@@ -66,6 +66,7 @@ class HttpApiTestCase(unittest.TestCase):
             assert rv.status_code == 201
             assert re.search(r'<a href="request/(.*)">.*\1.*</a>',
                              rv.data) is not None
+
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stderr)
