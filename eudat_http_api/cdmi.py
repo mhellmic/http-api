@@ -137,7 +137,7 @@ def make_absolute_path(path):
 
 
 def create_dirlist_dict(dir_list, path):
-    """Returns a dictionary with the directory entries."""
+    """Returns a list with the directory entries."""
     def make_abs_link(name, path):
         return urljoin(path, name)
 
