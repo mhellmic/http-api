@@ -5,8 +5,14 @@ from __future__ import with_statement
 import errno
 import os
 import stat as sys_stat
+from eudat_http_api import app
 
 from eudat_http_api.storage_common import *
+
+
+def sanitize_path(path):
+    app.logger.debug('Path sanitization: %s for %s'%(app.config['BASE_PATH'], path))
+    return app.config['BASE_PATH'] + os.path.realpath(path)
 
 
 def authenticate(username, password):
@@ -31,6 +37,8 @@ def stat(path, metadata=None):
     stat() returns.
     """
     obj_info = dict()
+
+    path = sanitize_path(path)
 
     try:
         stat_result = os.stat(path)
@@ -73,6 +81,9 @@ def read(path, range_list=[]):
     If a range exceeds the size of the object, the
     bytestream goes until the object end.
     """
+
+    path = sanitize_path(path)
+
     try:
         file_handle = open(path, 'rb')
     except IOError as e:
@@ -120,6 +131,7 @@ def write(path, stream_gen):
 def ls(path):
     """Return a generator of a directory listing."""
 
+    path = sanitize_path(path)
     def get_obj_type(path):
         basedir, name = os.path.split(path)
         if os.path.isfile(path):

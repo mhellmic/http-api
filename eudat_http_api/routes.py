@@ -167,11 +167,12 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
 
 
 #### internally used CDMI requests ####
-
+# jj: what does it mean internally? every one can access those methods
 
 # These requests are to access files that are
 # living in the supported iRODS zones
 
+# jj: can we remove those? we don't need that and it has some security ramifications when local storage is used
 
 @app.route('/', methods=['GET'])
 @app.route('/<path:objpath>', methods=['GET'])
