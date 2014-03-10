@@ -20,11 +20,7 @@ def check_auth(username, password):
 
   Contact the auth-service to check the
   credentials.
-
-  Do irods authentication
   """
-    if app.config['USE_IRODS_AUTHENTICATION'] == False:
-        return True
 
     try:
         return storage.authenticate(username, password)
