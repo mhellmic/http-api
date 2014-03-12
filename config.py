@@ -19,4 +19,5 @@ RODSZONE = 'tempZone'
 HOST = '127.0.0.1'
 PORT = 8080
 
-STORAGE = 'local'
+STORAGE = 'irods'
+# STORAGE = 'local'

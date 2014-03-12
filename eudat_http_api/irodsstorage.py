@@ -65,11 +65,12 @@ def authenticate(username, password):
                           rodsEnv.rodsPort,
                           rodsEnv.rodsUserName,
                           rodsEnv.rodsZone
-                          )
+    )
 
     if err.status != 0:
-        raise InternalException('Connecting to iRODS failed: %s'
-                                % (__getErrorName(err.status)))
+        app.logger.error('Connecting to iRODS failed %s'
+                         % __getErrorName(err.status))
+        raise InternalException('Connecting to iRODS failed')
 
     err = clientLoginWithPassword(conn, password)
     if err == 0:
@@ -88,8 +89,7 @@ def __get_irods_obj_handle(conn, path):
         if int(obj_handle.getId()) >= 0:
             path_is_dir = True
         else:
-            raise NotFoundException('Path does not exist or is not a file: %s'
-                                    % (path))
+            raise NotFoundException('Path does not exist or is not a file')
 
     return obj_handle, path_is_dir
 
@@ -152,7 +152,7 @@ def get_user_metadata(path, user_metadata=None):
 
     obj_handle, _ = __get_irods_obj_handle(conn, path)
 
-    user_meta = __get_user_metadata(conn, obj_handle,  path, user_metadata)
+    user_meta = __get_user_metadata(conn, obj_handle, path, user_metadata)
 
     try:
         obj_handle.close()
@@ -237,11 +237,9 @@ def read(path, range_list=[]):
     file_handle = irodsOpen(conn, path, 'r')
     if not file_handle:
         if int(irodsCollection(conn, path).getId()) >= 0:
-            raise IsDirException('Path is a directory: %s'
-                                 % (path))
+            raise IsDirException('Path is a directory')
         else:
-            raise NotFoundException('Path does not exist or is not a file: %s'
-                                    % (path))
+            raise NotFoundException('Path does not exist or is not a file')
 
     file_size = file_handle.getSize()
 
@@ -280,8 +278,7 @@ def write(path, stream_gen):
 
     file_handle = irodsOpen(conn, path, 'w')
     if not file_handle:
-        raise NotFoundException('Path does not exist or is not a file: %s'
-                                % (path))
+        raise NotFoundException('Path does not exist or is not a file')
 
     bytes_written = 0
     for chunk in stream_gen:
@@ -304,8 +301,7 @@ def ls(path):
     # .getId return -1 if the target does not exist or is not
     # a proper collection (e.g. a file)
     if int(coll.getId()) < 0:
-        raise NotFoundException('Path does not exist or is not a directory: %s'
-                                % (coll.getCollName()))
+        raise NotFoundException('Path does not exist or is not a directory')
 
     # TODO: remove this if it turns out that we don't need it!
     # test if the path actually points to a dir by trying
@@ -314,8 +310,7 @@ def ls(path):
     f = irodsOpen(conn, path, 'r')
     if f:
         f.close()
-        raise NotFoundException('Target is not a directory: %s'
-                                % (coll.getCollName()))
+        raise NotFoundException('Target is not a directory')
 
     def list_generator(collection):
         for sub in collection.getSubCollections():
@@ -340,20 +335,18 @@ def mkdir(path):
     coll.openCollection(dirname)
     # see ls()
     if coll.getId() < 0:
-        raise NotFoundException('Path does not exist or is not a directory: %s'
-                                % (coll.getCollName()))
+        raise NotFoundException('Path does not exist or is not a directory')
 
     err = coll.createCollection(basename)
     if err != 0:
         if err == CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
-            raise ConflictException('Target already exists: %s'
-                                    % (path))
+            raise ConflictException('Target already exists')
         elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
-            raise NotAuthorizedException('Target creation not allowed: %s'
-                                         % (path))
+            raise NotAuthorizedException('Target creation not allowed')
         else:
-            raise StorageException('Unknown storage exception: %s: %s'
-                                   % (path, __getErrorName(err)))
+            app.logger.error('Unknown storage exception: %s: %s'
+                             % (path, __getErrorName(err)))
+            raise StorageException('Unknown storage exception')
 
     return True, ''
 
@@ -367,19 +360,18 @@ def rm(path):
 
     file_handle = irodsOpen(conn, path, 'r')
     if not file_handle:
-        raise NotFoundException('Path does not exist or is not a file: %s'
-                                % (path))
+        raise NotFoundException('Path does not exist or is not a file')
 
     file_handle.close()
 
     err = file_handle.delete(force=True)
     if err != 0:
         if err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
-            raise NotAuthorizedException('Target creation not allowed: %s'
-                                         % (path))
+            raise NotAuthorizedException('Target creation not allowed')
         else:
-            raise StorageException('Unknown storage exception: %s: %s'
-                                   % (path, __getErrorName(err)))
+            app.logger.error('Unknown storage exception: %s: %s'
+                             % (path, __getErrorName(err)))
+            raise StorageException('Unknown storage exception')
 
     return True, ''
 
@@ -401,21 +393,18 @@ def rmdir(path):
     coll.openCollection(dirname)
     # see ls()
     if coll.getId() < 0:
-        raise NotFoundException('Path does not exist or is not a directory: %s'
-                                % (coll.getCollName()))
+        raise NotFoundException('Path does not exist or is not a directory')
 
     err = coll.deleteCollection(basename)
     if err != 0:
         if err == USER_FILE_DOES_NOT_EXIST:
-            raise NotFoundException(
-                'Path does not exist or is not a directory: %s'
-                % (path))
+            raise NotFoundException('Path does not exist or is not a directory')
         elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
-            raise NotAuthorizedException('Target creation not allowed: %s'
-                                         % (path))
+            raise NotAuthorizedException('Target creation not allowed')
         else:
-            raise StorageException('Unknown storage exception: %s: %s'
-                                   % (path, __getErrorName(err)))
+            app.logger.error('Unknown storage exception: %s: %s'
+                             % (path, __getErrorName(err)))
+            raise StorageException('Unknown storage exception')
 
     return True, ''
 

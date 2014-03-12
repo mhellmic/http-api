@@ -49,8 +49,7 @@ def stat(path, metadata=None):
     try:
         stat_result = os.stat(path)
     except IOError:
-        raise NotFoundException('Path does not exist or is not a file: %s'
-                                % path)
+        raise NotFoundException('Path does not exist or is not a file')
 
     if sys_stat.S_ISDIR(stat_result.st_mode):
         obj_info['children'] = len(os.walk(path).next()[2])
