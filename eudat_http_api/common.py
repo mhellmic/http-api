@@ -20,3 +20,5 @@ def add_trailing_slash(path):
             return '%s/' % path
     except IndexError:
         return path
+    except TypeError:
+        return path
