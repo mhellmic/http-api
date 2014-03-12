@@ -11,8 +11,14 @@ from eudat_http_api.storage_common import *
 
 
 def sanitize_path(path):
-    app.logger.debug('Path sanitization: %s for %s'%(app.config['BASE_PATH'], path))
-    return app.config['BASE_PATH'] + os.path.realpath(path)
+    app.logger.debug('Path sanitation: %s for %s' % (app.config['BASE_PATH'], path))
+    normalized = os.path.normpath(os.path.join(app.config['BASE_PATH'], path))
+    prefix = os.path.commonprefix({app.config['BASE_PATH'], normalized})
+    if prefix != app.config['BASE_PATH']:
+        return app.config['BASE_PATH']
+
+    return normalized
+
 
 
 def authenticate(username, password):
@@ -44,7 +50,7 @@ def stat(path, metadata=None):
         stat_result = os.stat(path)
     except IOError:
         raise NotFoundException('Path does not exist or is not a file: %s'
-                                % (path))
+                                % path)
 
     if sys_stat.S_ISDIR(stat_result.st_mode):
         obj_info['children'] = len(os.walk(path).next()[2])
@@ -89,10 +95,10 @@ def read(path, range_list=[]):
     except IOError as e:
         if e.errno == errno.EISDIR:
             raise IsDirException('Path is a directory: %s'
-                                 % (path))
+                                 % path)
 
         raise NotFoundException('Path does not exist or is not a file: %s'
-                                % (path))
+                                % path)
 
     file_size = os.path.getsize(path)
 
@@ -132,6 +138,7 @@ def ls(path):
     """Return a generator of a directory listing."""
 
     path = sanitize_path(path)
+
     def get_obj_type(path):
         basedir, name = os.path.split(path)
         if os.path.isfile(path):
@@ -144,7 +151,7 @@ def ls(path):
                     os.listdir(path)))
     except IOError:
         raise NotFoundException('Path does not exist or is not a file: %s'
-                                % (path))
+                                % path)
 
 
 def mkdir(path):
