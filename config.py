@@ -10,7 +10,7 @@ SQLALCHEMY_DATABASE_URI = 'sqlite:///'+os.path.join(basedir, 'http.db')
 REQUESTS_PER_PAGE = 5
 
 # only used by local storage, all request outside given path are prevented
-BASE_PATH = "/tmp"
+BASE_PATH = "/tmp/"
 
 RODSHOST = 'localhost'
 RODSPORT = 1247

@@ -12,7 +12,7 @@ from eudat_http_api.storage_common import *
 
 def sanitize_path(path):
     app.logger.debug('Path sanitation: %s for %s' % (app.config['BASE_PATH'], path))
-    normalized = os.path.normpath(os.path.join(app.config['BASE_PATH'], path))
+    normalized = os.path.normpath(app.config['BASE_PATH']+path)
     prefix = os.path.commonprefix({app.config['BASE_PATH'], normalized})
     if prefix != app.config['BASE_PATH']:
         return app.config['BASE_PATH']
@@ -94,11 +94,9 @@ def read(path, range_list=[]):
         file_handle = open(path, 'rb')
     except IOError as e:
         if e.errno == errno.EISDIR:
-            raise IsDirException('Path is a directory: %s'
-                                 % path)
+            raise IsDirException('Path is a directory')
 
-        raise NotFoundException('Path does not exist or is not a file: %s'
-                                % path)
+        raise NotFoundException('Path does not exist or is not a file')
 
     file_size = os.path.getsize(path)
 
@@ -150,8 +148,7 @@ def ls(path):
         return (map(lambda x: get_obj_type(os.path.join(path, x)),
                     os.listdir(path)))
     except IOError:
-        raise NotFoundException('Path does not exist or is not a file: %s'
-                                % path)
+        raise NotFoundException('Path does not exist or is not a file')
 
 
 def mkdir(path):

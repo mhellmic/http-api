@@ -5,7 +5,7 @@ from eudat_http_api import localstorage
 
 
 class LocalStorageTest(unittest.TestCase):
-    BASE_PATH = '/tmp'
+    BASE_PATH = '/tmp/'
 
     def setUp(self):
         app.config['BASE_PATH'] = LocalStorageTest.BASE_PATH
@@ -16,6 +16,8 @@ class LocalStorageTest(unittest.TestCase):
         paths = dict()
         paths['../../etc'] = LocalStorageTest.BASE_PATH
         paths['a/b/c'] = os.path.join(LocalStorageTest.BASE_PATH, 'a/b/c')
+        paths['/foo'] = os.path.join(LocalStorageTest.BASE_PATH, 'foo')
+
 
         for test, result in paths.items():
             print 'Testing %s expected result %s' % (test, result)
