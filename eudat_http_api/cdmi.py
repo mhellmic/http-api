@@ -170,7 +170,7 @@ def get_cdmi_file_obj(path):
         except:
             end = storage.END
 
-        return (start, end)
+        return start, end
 
     range_requests = []
     cdmi_filters = []
@@ -202,11 +202,10 @@ def get_cdmi_file_obj(path):
     except storage.NotAuthorizedException as e:
         return e.msg, 401
 
-    response_headers = {}
+    response_headers = {'Content-Length': content_len}
     # do not send the content-length to enable
     # transfer-encoding chunked -- do not use chunked to let it
     # work with ROOT, no effect on mem usage anyway
-    response_headers['Content-Length'] = content_len
     # Do not try to guess the type
     #response_headers['Content-Type'] = 'application/octet-stream'
 

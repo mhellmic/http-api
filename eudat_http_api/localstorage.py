@@ -128,7 +128,7 @@ def read(path, range_list=[]):
 
 def write(path, stream_gen):
     """Write a file from an input stream."""
-    pass
+    return 0
 
 
 def ls(path):
@@ -152,12 +152,14 @@ def ls(path):
 
 def mkdir(path):
     """Create a directory."""
-    pass
+    path = sanitize_path(path)
+    os.makedirs(path)
 
 
 def rm(path):
     """Delete a file."""
-    pass
+    path = sanitize_path(path)
+    os.remove(path)
 
 
 def rmdir(path):
@@ -166,4 +168,5 @@ def rmdir(path):
     Be careful: it also deletes subdirectories
     without asking.
     """
-    pass
+    path = sanitize_path(path)
+    os.removedirs(path)

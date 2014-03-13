@@ -11,6 +11,11 @@ Required python packages:
 - Flask-SQLAlchemy
 - marshmallow
 
+Testing:
+
+- mock
+- nose
+
 
 Instructions:
 
