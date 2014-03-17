@@ -5,11 +5,11 @@ app = Flask(__name__)
 app.config.from_object('config')
 
 if not app.debug:
-  import logging
-  from logging.handlers import SysLogHandler
-  file_handler = SysLogHandler()
-  file_handler.setLevel(logging.WARNING)
-  app.logger.addHandler(file_handler)
+    import logging
+    from logging.handlers import SysLogHandler
+    file_handler = SysLogHandler()
+    file_handler.setLevel(logging.WARNING)
+    app.logger.addHandler(file_handler)
 
 db = SQLAlchemy(app)
 
