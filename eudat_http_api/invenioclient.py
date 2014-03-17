@@ -2,14 +2,14 @@
 
 from __future__ import with_statement
 
+from flask import current_app
 from flask import g
 
 import requests
 
-from eudat_http_api import app
 
 def get_invenio_key():
-  return app.config['INVENIO_KEY']
+  return current_app.config['INVENIO_KEY']
 
 def get_metadata(obj_id):
   """Get the metadata of obj as python dict."""

@@ -8,10 +8,10 @@
 <h1>Registration request created</h1>
 
 <p>
-  Your request ID is <a href="{{ url_for('get_request',request_id=reg.id) }}">{{ reg.id }}</a>.
+  Your request ID is <a href="{{ url_for('.get_request',request_id=reg.id) }}">{{ reg.id }}</a>.
   Follow the link to see the progress.
 
-  <a href="{{ url_for('get_requests') }}">Back to request list</a>
+  <a href="{{ url_for('.get_requests') }}">Back to request list</a>
 </p>
 </body>
 </html>

@@ -7,7 +7,7 @@ import re
 
 from urlparse import urljoin, urlparse
 
-from flask import g
+from flask import current_app
 from flask import redirect
 from flask import render_template
 from flask import request
@@ -18,10 +18,9 @@ from flask import stream_with_context
 
 from functools import partial
 
-from eudat_http_api import app
 from eudat_http_api import common
 from eudat_http_api import metadata
-from eudat_http_api import storage
+from eudat_http_api.http_storage import storage
 
 
 class CdmiException(Exception):
@@ -114,15 +113,6 @@ def request_wants_json():
     return best == 'application/json' and \
         request.accept_mimetypes[best] > \
         request.accept_mimetypes['text/html']
-
-
-@app.before_request
-def check_cdmi():
-    if request_wants_cdmi_object():
-        g.cdmi = True
-        g.cdmi_version = request.headers.get('X-CDMI-Specification-Version')
-    else:
-        g.cdmi = False
 
 
 def jsonify():
@@ -232,7 +222,7 @@ def get_cdmi_file_obj(path):
         for segment_size, segment_start, segment_end, data in stream_gen:
             if segment_size:
                 multipart = True
-                app.logger.debug('started a multipart segment')
+                current_app.logger.debug('started a multipart segment')
                 #yield '\n--%s\n\n%s' % (delim, data)
                 yield ('\n--%s\n'
                        'Content-Length: %d\n'
@@ -444,8 +434,8 @@ def get_cdmi_filters(args_dict):
 
 
 def stream_template(template_name, **context):
-    app.update_template_context(context)
-    t = app.jinja_env.get_template(template_name)
+    current_app.update_template_context(context)
+    t = current_app.jinja_env.get_template(template_name)
     rv = t.stream(context)
     rv.enable_buffering(5)
     return rv

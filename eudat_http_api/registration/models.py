@@ -1,5 +1,9 @@
-from eudat_http_api import db
+#from eudat_http_api import db
+from flask.ext.sqlalchemy import SQLAlchemy
 from marshmallow import Serializer, fields
+
+db = SQLAlchemy()
+
 
 class RegistrationRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)

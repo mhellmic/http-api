@@ -1,7 +1,7 @@
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-DEBUG = True
+DEBUG = False
 SECRET_KEY = 'longkeyinthefuture'
 USERNAME = 'httpapi'
 PASSWORD = 'allbutdefault'

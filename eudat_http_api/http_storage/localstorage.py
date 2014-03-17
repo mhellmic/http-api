@@ -5,20 +5,19 @@ from __future__ import with_statement
 import errno
 import os
 import stat as sys_stat
-from eudat_http_api import app
+from flask import current_app
 
-from eudat_http_api.storage_common import *
+from eudat_http_api.http_storage.storage_common import *
 
 
 def sanitize_path(path):
-    app.logger.debug('Path sanitation: %s for %s' % (app.config['BASE_PATH'], path))
-    normalized = os.path.normpath(app.config['BASE_PATH']+path)
-    prefix = os.path.commonprefix({app.config['BASE_PATH'], normalized})
-    if prefix != app.config['BASE_PATH']:
-        return app.config['BASE_PATH']
+    current_app.logger.debug('Path sanitation: %s for %s' % (current_app.config['BASE_PATH'], path))
+    normalized = os.path.normpath(current_app.config['BASE_PATH']+path)
+    prefix = os.path.commonprefix({current_app.config['BASE_PATH'], normalized})
+    if prefix != current_app.config['BASE_PATH']:
+        return current_app.config['BASE_PATH']
 
     return normalized
-
 
 
 def authenticate(username, password):

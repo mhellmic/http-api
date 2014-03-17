@@ -9,24 +9,28 @@ import logging
 import sys
 
 from mock import patch
-from eudat_http_api import app
-from eudat_http_api import db
+from eudat_http_api import create_app
+
+db_fd, db_filename = tempfile.mkstemp()
+SQLALCHEMY_DATABASE_URI = '%s%s' % ('sqlite:///', db_filename)
+STORAGE = 'local'
+DEBUG = True
+TESTING = True
 
 
 class HttpApiTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.db_fd, self.db_filename = tempfile.mkstemp()
-        app.config['SQLALCHEMY_DATABASE_URI'] = '%s%s' % ('sqlite:///',
-                                                self.db_filename)
-        app.config['DEBUG'] = True
-        app.config['TESTING'] = True
+        app = create_app(__name__)
+        with app.app_context():
+            from eudat_http_api.registration.models import db
+            db.create_all()
+
         self.app = app.test_client()
-        db.create_all()
 
     def tearDown(self):
-        os.close(self.db_fd)
-        os.unlink(self.db_filename)
+        os.close(db_fd)
+        os.unlink(db_filename)
 
     # from https://gist.github.com/jarus/1160696
     def open_with_auth(self, url, method, username, password, data=None):
@@ -56,7 +60,7 @@ class HttpApiTestCase(unittest.TestCase):
     def test_requestsdb_post_html(self):
         src_url = 'http://test.eudat.eu/file.txt'
         with patch('eudat_http_api.auth.check_auth', return_value=True), \
-                patch('eudat_http_api.registration_worker.' +
+                patch('eudat_http_api.registration.registration_worker.' +
                       'register_data_object'):
             rv = self.open_with_auth('/request/', 'POST',
                                      'mhellmic',

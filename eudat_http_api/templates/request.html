@@ -1,6 +1,6 @@
 
    <table>
-       <tr><td>Id</td><td><a href="{{ url_for('get_request', request_id=r.id) }}">{{ r.id }}</a></td></tr>
+       <tr><td>Id</td><td><a href="{{ url_for('.get_request', request_id=r.id) }}">{{ r.id }}</a></td></tr>
        <tr><td>Source</td><td>{{ r.src_url }}</td></tr>
        <tr><td>Created</td><td>{{ r.timestamp }}</td></tr>
    </table>

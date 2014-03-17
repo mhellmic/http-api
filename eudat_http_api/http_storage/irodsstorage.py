@@ -4,15 +4,16 @@ from __future__ import with_statement
 
 import os
 
+from flask import current_app
 from flask import g
 from flask import request
 
 from irods import *
 
-from eudat_http_api import app
 from eudat_http_api import common
+from eudat_http_api.http_storage import http_storage
 
-from eudat_http_api.storage_common import *
+from eudat_http_api.http_storage.storage_common import *
 
 
 def get_storage():
@@ -34,7 +35,7 @@ def get_storage():
     return conn
 
 
-@app.teardown_request
+@http_storage.teardown_request
 def close_storage(exception=None):
     """Close the storage connection.
 
@@ -44,7 +45,7 @@ def close_storage(exception=None):
     conn = getattr(g, 'storageconn', None)
     if conn is not None:
         conn.disconnect()
-        app.logger.debug('Disconnected a storage connection')
+        current_app.logger.debug('Disconnected a storage connection')
         g.storageconn = None
 
 
@@ -57,9 +58,9 @@ def authenticate(username, password):
     err, rodsEnv = getRodsEnv()  # Override all values later
     rodsEnv.rodsUserName = username
 
-    rodsEnv.rodsHost = app.config['RODSHOST']
-    rodsEnv.rodsPort = app.config['RODSPORT']
-    rodsEnv.rodsZone = app.config['RODSZONE']
+    rodsEnv.rodsHost = current_app.config['RODSHOST']
+    rodsEnv.rodsPort = current_app.config['RODSPORT']
+    rodsEnv.rodsZone = current_app.config['RODSZONE']
 
     conn, err = rcConnect(rodsEnv.rodsHost,
                           rodsEnv.rodsPort,
@@ -68,14 +69,14 @@ def authenticate(username, password):
     )
 
     if err.status != 0:
-        app.logger.error('Connecting to iRODS failed %s'
+        current_app.logger.error('Connecting to iRODS failed %s'
                          % __getErrorName(err.status))
         raise InternalException('Connecting to iRODS failed')
 
     err = clientLoginWithPassword(conn, password)
     if err == 0:
         g.storageconn = conn
-        app.logger.debug('Created a storage connection')
+        current_app.logger.debug('Created a storage connection')
         return True
     else:
         return False
@@ -344,7 +345,7 @@ def mkdir(path):
         elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
             raise NotAuthorizedException('Target creation not allowed')
         else:
-            app.logger.error('Unknown storage exception: %s: %s'
+            current_app.logger.error('Unknown storage exception: %s: %s'
                              % (path, __getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
@@ -369,7 +370,7 @@ def rm(path):
         if err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
             raise NotAuthorizedException('Target creation not allowed')
         else:
-            app.logger.error('Unknown storage exception: %s: %s'
+            current_app.logger.error('Unknown storage exception: %s: %s'
                              % (path, __getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
@@ -398,12 +399,13 @@ def rmdir(path):
     err = coll.deleteCollection(basename)
     if err != 0:
         if err == USER_FILE_DOES_NOT_EXIST:
-            raise NotFoundException('Path does not exist or is not a directory')
+            raise NotFoundException(
+                'Path does not exist or is not a directory')
         elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
             raise NotAuthorizedException('Target creation not allowed')
         else:
-            app.logger.error('Unknown storage exception: %s: %s'
-                             % (path, __getErrorName(err)))
+            current_app.logger.error('Unknown storage exception: %s: %s'
+                                     % (path, __getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
     return True, ''

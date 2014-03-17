@@ -5,9 +5,10 @@ from __future__ import with_statement
 import json
 import requests
 
-from eudat_http_api import app
+from flask import current_app
+#from eudat_http_api import app
 from eudat_http_api import cdmiclient
-from eudat_http_api.models import RegistrationRequest
+from eudat_http_api.registration.models import RegistrationRequest
 
 #jj: this should be moved to model?
 request_statuses = {
@@ -22,7 +23,7 @@ request_statuses = {
     }
 
 def register_data_object(request_id):
-  app.logger.debug('starting to process request with id = %s' % (request_id,))
+  current_app.logger.debug('starting to process request with id = %s' % (request_id,))
   r = RegistrationRequest.query.get(request_id)
 
   steps = [

@@ -4,7 +4,7 @@ from __future__ import with_statement
 
 from functools import wraps
 from flask import request, Response
-from eudat_http_api import storage, app
+from eudat_http_api.http_storage import storage
 
 
 class AuthException(Exception):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import logging
 from optparse import OptionParser
-from eudat_http_api import app
+from eudat_http_api import create_app
 
 parser = OptionParser()
 parser.add_option('-d', '--debug', dest='debug',
@@ -9,6 +9,8 @@ parser.add_option('-d', '--debug', dest='debug',
                   default=False)
 
 (options, args) = parser.parse_args()
+
+app = create_app('config')
 
 if options.debug:
     print ' * Setting debug mode'
