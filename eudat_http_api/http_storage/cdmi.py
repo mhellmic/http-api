@@ -115,10 +115,6 @@ def request_wants_json():
         request.accept_mimetypes['text/html']
 
 
-def jsonify():
-    return flask_jsonify()
-
-
 def make_absolute_path(path):
     if path != '/':
         return '/%s' % path
