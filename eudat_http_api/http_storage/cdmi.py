@@ -391,7 +391,12 @@ def _get_cdmi_filters(args_dict):
     cdmi_filter = dict()
     for arg_key in args_dict.iterkeys():
         if any(map(lambda s: arg_key.startswith(s), cdmi_body_fields)):
-            cdmi_args = arg_key.split(';')
+            if re.match('^[\w:-]+(;[\w:-]+)*;?$', arg_key) is None:
+                raise MalformedArgumentValueException(
+                    'Could not parse the argument expression: %s' % arg_key)
+
+            # remove empty args from ;; or a trailing ;
+            cdmi_args = filter(lambda s: s != '', arg_key.split(';'))
             break
 
     if not cdmi_args:

@@ -121,7 +121,7 @@ class TestCDMI:
         assert result == {}
 
         result = cdmi._get_cdmi_filters({'non_cdmi_argument': None})
-        assert result == {}
+        assert len(result) == 0
 
         result = cdmi._get_cdmi_filters({'children:2-10': None})
         assert len(result) == 2
@@ -134,6 +134,14 @@ class TestCDMI:
         assert len(result) == 1
         assert 'value' in result
         assert result['value'] == [[2, 10]]
+
+        result = cdmi._get_cdmi_filters({'metadata:meta_prefix': None})
+        assert len(result) == 1
+        assert 'metadata' in result
+        assert result['metadata'] == 'meta_prefix'
+
+        result = cdmi._get_cdmi_filters({';parentURI': None})
+        assert len(result) == 0
 
     def test_get_cdmi_filter_valid_multi(self):
         from eudat_http_api.http_storage import cdmi
@@ -180,8 +188,9 @@ class TestCDMI:
         assert_raises(cdmi.MalformedArgumentValueException,
                       cdmi._get_cdmi_filters, {'value:2-': None})
 
-        assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi._get_cdmi_filters, {';parentURI': None})
+        # this doesn't even get recognized as cdmi argument
+        #assert_raises(cdmi.MalformedArgumentValueException,
+        #              cdmi._get_cdmi_filters, {';parentURI': None})
 
     def test_get_cdmi_json_generator_valid(self):
         from eudat_http_api.http_storage import cdmi
