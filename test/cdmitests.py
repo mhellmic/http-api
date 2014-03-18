@@ -45,21 +45,21 @@ class TestCDMI:
         from eudat_http_api.http_storage import cdmi
 
         with patch('eudat_http_api.metadata.stat'):
-            result = cdmi.create_dirlist_dict([], '/home/')
+            result = cdmi._create_dirlist_dict([], '/home/')
             assert len(result) == 2
             assert result[0]['path'] == '/home/'
             assert result[0]['name'] == '.'
             assert result[1]['path'] == '/'
             assert result[1]['name'] == '..'
 
-            result = cdmi.create_dirlist_dict([], '/home')
+            result = cdmi._create_dirlist_dict([], '/home')
             assert len(result) == 2
             assert result[0]['path'] == '/home'
             assert result[0]['name'] == '.'
             assert result[1]['path'] == '/'
             assert result[1]['name'] == '..'
 
-            result = cdmi.create_dirlist_dict([], '/')
+            result = cdmi._create_dirlist_dict([], '/')
             assert len(result) == 2
             assert result[0]['path'] == '/'
             assert result[0]['name'] == '.'
@@ -71,7 +71,7 @@ class TestCDMI:
         from eudat_http_api.http_storage import storage
 
         with patch('eudat_http_api.metadata.stat'):
-            result = cdmi.create_dirlist_dict(
+            result = cdmi._create_dirlist_dict(
                 [storage.StorageDir('test', '/home/test/')],
                 '/home/')
             assert len(result) == 3
@@ -80,7 +80,7 @@ class TestCDMI:
             assert result[2]['path'] == '/home/test/'
             assert result[2]['name'] == 'test'
 
-            result = cdmi.create_dirlist_dict(
+            result = cdmi._create_dirlist_dict(
                 [storage.StorageDir('test', '/home/test')],
                 '/home/')
             assert len(result) == 3
@@ -94,7 +94,7 @@ class TestCDMI:
         from eudat_http_api.http_storage import storage
 
         with patch('eudat_http_api.metadata.stat'):
-            result = cdmi.create_dirlist_dict(
+            result = cdmi._create_dirlist_dict(
                 [storage.StorageDir('test', '/home/test')],
                 '/home/')
             assert len(result) == 3
@@ -106,20 +106,20 @@ class TestCDMI:
     def test_get_cdmi_filters_valid_single(self):
         from eudat_http_api.http_storage import cdmi
 
-        result = cdmi.get_cdmi_filters({})
+        result = cdmi._get_cdmi_filters({})
         assert result == {}
 
-        result = cdmi.get_cdmi_filters({'non_cdmi_argument': None})
+        result = cdmi._get_cdmi_filters({'non_cdmi_argument': None})
         assert result == {}
 
-        result = cdmi.get_cdmi_filters({'children:2-10': None})
+        result = cdmi._get_cdmi_filters({'children:2-10': None})
         assert len(result) == 2
         assert 'children' in result
         assert 'childrenrange' in result
         assert result['children'] == [2, 10]
         assert result['childrenrange'] == [2, 10]
 
-        result = cdmi.get_cdmi_filters({'value:2-10': None})
+        result = cdmi._get_cdmi_filters({'value:2-10': None})
         assert len(result) == 1
         assert 'value' in result
         assert result['value'] == [[2, 10]]
@@ -127,20 +127,20 @@ class TestCDMI:
     def test_get_cdmi_filter_valid_multi(self):
         from eudat_http_api.http_storage import cdmi
 
-        result = cdmi.get_cdmi_filters({'non_cdmi_argument': None,
-                                        'objectType': None})
+        result = cdmi._get_cdmi_filters({'non_cdmi_argument': None,
+                                         'objectType': None})
         assert len(result) == 1
         assert 'objectType' in result
         assert result['objectType'] is None
 
-        result = cdmi.get_cdmi_filters({'objectId;objectName': None})
+        result = cdmi._get_cdmi_filters({'objectId;objectName': None})
         assert len(result) == 2
         assert 'objectId' in result
         assert 'objectName' in result
         assert result['objectId'] is None
         assert result['objectName'] is None
 
-        result = cdmi.get_cdmi_filters({'parentURI;parentID;': None})
+        result = cdmi._get_cdmi_filters({'parentURI;parentID;': None})
         print result
         assert len(result) == 2
         assert 'parentURI' in result
@@ -152,25 +152,25 @@ class TestCDMI:
         from eudat_http_api.http_storage import cdmi
 
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'children:2e-10': None})
+                      cdmi._get_cdmi_filters, {'children:2e-10': None})
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'children:2e3-10': None})
+                      cdmi._get_cdmi_filters, {'children:2e3-10': None})
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'children:-10': None})
+                      cdmi._get_cdmi_filters, {'children:-10': None})
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'children:2-': None})
+                      cdmi._get_cdmi_filters, {'children:2-': None})
 
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'value:2e-10': None})
+                      cdmi._get_cdmi_filters, {'value:2e-10': None})
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'value:2e3-10': None})
+                      cdmi._get_cdmi_filters, {'value:2e3-10': None})
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'value:-10': None})
+                      cdmi._get_cdmi_filters, {'value:-10': None})
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {'value:2-': None})
+                      cdmi._get_cdmi_filters, {'value:2-': None})
 
         assert_raises(cdmi.MalformedArgumentValueException,
-                      cdmi.get_cdmi_filters, {';parentURI': None})
+                      cdmi._get_cdmi_filters, {';parentURI': None})
 
     def test_get_cdmi_json_generator_valid(self):
         from eudat_http_api.http_storage import cdmi
@@ -180,18 +180,18 @@ class TestCDMI:
 
         with patch('eudat_http_api.metadata.stat'), \
                 patch('eudat_http_api.metadata.get_user_metadata'):
-            result = cdmi.get_cdmi_json_generator('/home/test/',
-                                                  'container',
-                                                  dir_listing=[])
+            result = cdmi._get_cdmi_json_generator('/home/test/',
+                                                   'container',
+                                                   dir_listing=[])
 
             result_list = list(result)
             for field in self.cdmi_container_mandatory_list:
                 assert field in result_list
 
-            result = cdmi.get_cdmi_json_generator('/home/test',
-                                                  'object',
-                                                  value_gen=fake_gen(),
-                                                  file_size=7)
+            result = cdmi._get_cdmi_json_generator('/home/test',
+                                                   'object',
+                                                   value_gen=fake_gen(),
+                                                   file_size=7)
 
             result_list = list(result)
             for field in self.cdmi_object_mandatory_list:

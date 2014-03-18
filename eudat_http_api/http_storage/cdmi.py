@@ -166,7 +166,7 @@ def get_cdmi_file_obj(path):
     cdmi_filters = []
     if request_wants_cdmi_object():
         try:
-            cdmi_filters = get_cdmi_filters(request.args)
+            cdmi_filters = _get_cdmi_filters(request.args)
         except MalformedArgumentValueException as e:
             return e.msg, 400
         try:
@@ -244,16 +244,16 @@ def get_cdmi_file_obj(path):
     if request_wants_cdmi_object():
         if len(range_list) > 1:
             pass  # throw a terrifying exception here, cdmi must not multipart!
-        cdmi_json_gen = get_cdmi_json_file_generator(path,
-                                                     wrapped_stream_gen,
-                                                     file_size)
+        cdmi_json_gen = _get_cdmi_json_file_generator(path,
+                                                      wrapped_stream_gen,
+                                                      file_size)
         if cdmi_filters:
             filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
                             if a in cdmi_filters)
         else:
             filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
-        json_stream_wrapper = wrap_with_json_generator(filtered_gen)
+        json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
         return Response(stream_with_context(json_stream_wrapper))
 
     return Response(stream_with_context(wrapped_stream_gen),
@@ -355,7 +355,7 @@ def get_cdmi_dir_obj(path):
     cdmi_filters = []
     if request_wants_cdmi_object():
         try:
-            cdmi_filters = get_cdmi_filters(request.args)
+            cdmi_filters = _get_cdmi_filters(request.args)
         except MalformedArgumentValueException as e:
             return e.msg, 400
 
@@ -369,18 +369,18 @@ def get_cdmi_dir_obj(path):
         return e.msg, 500
 
     if request_wants_cdmi_object():
-        cdmi_json_gen = get_cdmi_json_dir_generator(path, dir_list)
+        cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_list)
         if cdmi_filters:
             filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
                             if a in cdmi_filters)
         else:
             filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
-        json_stream_wrapper = wrap_with_json_generator(filtered_gen)
+        json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
         return Response(stream_with_context(json_stream_wrapper))
 
     elif request_wants_json():
-        return flask_jsonify(dirlist=create_dirlist_dict(dir_list, path))
+        return flask_jsonify(dirlist=_create_dirlist_dict(dir_list, path))
     else:
         return render_template('dirlisting.html',
                                dirlist=dir_list,
@@ -388,7 +388,7 @@ def get_cdmi_dir_obj(path):
                                parent_path=common.split_path(path)[0])
 
 
-def get_cdmi_filters(args_dict):
+def _get_cdmi_filters(args_dict):
     cdmi_args = []
     cdmi_filter = dict()
     for arg_key in args_dict.iterkeys():
@@ -433,17 +433,17 @@ def get_cdmi_filters(args_dict):
     return cdmi_filter
 
 
-def get_cdmi_json_file_generator(path, value_gen, file_size):
-    return get_cdmi_json_generator(path, 'object',
-                                   value_gen=value_gen,
-                                   file_size=file_size)
+def _get_cdmi_json_file_generator(path, value_gen, file_size):
+    return _get_cdmi_json_generator(path, 'object',
+                                    value_gen=value_gen,
+                                    file_size=file_size)
 
 
-def get_cdmi_json_dir_generator(path, dir_listing):
-    return get_cdmi_json_generator(path, 'container', dir_listing=dir_listing)
+def _get_cdmi_json_dir_generator(path, dir_listing):
+    return _get_cdmi_json_generator(path, 'container', dir_listing=dir_listing)
 
 
-def get_cdmi_json_generator(path, obj_type, **data):
+def _get_cdmi_json_generator(path, obj_type, **data):
     meta = metadata.stat(path, user_metadata=None)
 
     def get_range(range_max, range_tuple=(0, None)):
@@ -500,7 +500,7 @@ def get_cdmi_json_generator(path, obj_type, **data):
         yield ('value', lambda x=None: wrap_json_string(data['value_gen']))
 
 
-def wrap_with_json_generator(gen):
+def _wrap_with_json_generator(gen):
     yield '{\n'
     for i, (key, value) in enumerate(gen):
         if i > 0:
