@@ -1,6 +1,8 @@
 from mock import patch
 from nose.tools import assert_raises
 
+import json
+
 from eudat_http_api import create_app
 
 
@@ -41,67 +43,76 @@ class TestCDMI:
         app = create_app(__name__)
         self.client = app.test_client()
 
+    def get_dirlist_entry_info(self, dirlist):
+        return map(lambda (x, y): json.loads(y), dirlist)
+
     def test_create_dirlist_dict_empty(self):
         from eudat_http_api.http_storage import cdmi
 
-        with patch('eudat_http_api.metadata.stat'):
-            result = cdmi._create_dirlist_dict([], '/home/')
+        with patch('eudat_http_api.metadata.stat', return_value={}):
+            result = list(cdmi._create_dirlist_gen([], '/home/'))
             assert len(result) == 2
-            assert result[0]['path'] == '/home/'
-            assert result[0]['name'] == '.'
-            assert result[1]['path'] == '/'
-            assert result[1]['name'] == '..'
+            entry_info = self.get_dirlist_entry_info(result)
+            assert entry_info[0]['path'] == '/home/'
+            assert entry_info[0]['name'] == '.'
+            assert entry_info[1]['path'] == '/'
+            assert entry_info[1]['name'] == '..'
 
-            result = cdmi._create_dirlist_dict([], '/home')
+            result = list(cdmi._create_dirlist_gen([], '/home'))
             assert len(result) == 2
-            assert result[0]['path'] == '/home'
-            assert result[0]['name'] == '.'
-            assert result[1]['path'] == '/'
-            assert result[1]['name'] == '..'
+            entry_info = self.get_dirlist_entry_info(result)
+            assert entry_info[0]['path'] == '/home'
+            assert entry_info[0]['name'] == '.'
+            assert entry_info[1]['path'] == '/'
+            assert entry_info[1]['name'] == '..'
 
-            result = cdmi._create_dirlist_dict([], '/')
+            result = list(cdmi._create_dirlist_gen([], '/'))
             assert len(result) == 2
-            assert result[0]['path'] == '/'
-            assert result[0]['name'] == '.'
-            assert result[1]['path'] == ''
-            assert result[1]['name'] == '..'
+            entry_info = self.get_dirlist_entry_info(result)
+            assert entry_info[0]['path'] == '/'
+            assert entry_info[0]['name'] == '.'
+            assert entry_info[1]['path'] == ''
+            assert entry_info[1]['name'] == '..'
 
     def test_create_dirlist_dict_one_dir(self):
         from eudat_http_api.http_storage import cdmi
         from eudat_http_api.http_storage import storage
 
-        with patch('eudat_http_api.metadata.stat'):
-            result = cdmi._create_dirlist_dict(
+        with patch('eudat_http_api.metadata.stat', return_value={}):
+            result = list(cdmi._create_dirlist_gen(
                 [storage.StorageDir('test', '/home/test/')],
-                '/home/')
+                '/home/'))
             assert len(result) == 3
-            assert result[0]['name'] == '.'
-            assert result[1]['name'] == '..'
-            assert result[2]['path'] == '/home/test/'
-            assert result[2]['name'] == 'test'
+            entry_info = self.get_dirlist_entry_info(result)
+            assert entry_info[0]['name'] == '.'
+            assert entry_info[1]['name'] == '..'
+            assert entry_info[2]['path'] == '/home/test/'
+            assert entry_info[2]['name'] == 'test'
 
-            result = cdmi._create_dirlist_dict(
+            result = list(cdmi._create_dirlist_gen(
                 [storage.StorageDir('test', '/home/test')],
-                '/home/')
+                '/home/'))
             assert len(result) == 3
-            assert result[0]['name'] == '.'
-            assert result[1]['name'] == '..'
-            assert result[2]['path'] == '/home/test'
-            assert result[2]['name'] == 'test'
+            entry_info = self.get_dirlist_entry_info(result)
+            assert entry_info[0]['name'] == '.'
+            assert entry_info[1]['name'] == '..'
+            assert entry_info[2]['path'] == '/home/test'
+            assert entry_info[2]['name'] == 'test'
 
     def test_create_dirlist_dict_one_file(self):
         from eudat_http_api.http_storage import cdmi
         from eudat_http_api.http_storage import storage
 
-        with patch('eudat_http_api.metadata.stat'):
-            result = cdmi._create_dirlist_dict(
+        with patch('eudat_http_api.metadata.stat', return_value={}):
+            result = list(cdmi._create_dirlist_gen(
                 [storage.StorageDir('test', '/home/test')],
-                '/home/')
+                '/home/'))
             assert len(result) == 3
-            assert result[0]['name'] == '.'
-            assert result[1]['name'] == '..'
-            assert result[2]['path'] == '/home/test'
-            assert result[2]['name'] == 'test'
+            entry_info = self.get_dirlist_entry_info(result)
+            assert entry_info[0]['name'] == '.'
+            assert entry_info[1]['name'] == '..'
+            assert entry_info[2]['path'] == '/home/test'
+            assert entry_info[2]['name'] == 'test'
 
     def test_get_cdmi_filters_valid_single(self):
         from eudat_http_api.http_storage import cdmi
