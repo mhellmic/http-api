@@ -11,9 +11,33 @@ TESTING = True
 
 class TestCDMI:
     client = None
+    cdmi_mandatory_list = [
+        'objectType',
+        'objectID',
+        'objectName',
+        'parentURI',
+        'parentID',
+        'domainURI',
+        'capabilitiesURI',
+        'completionStatus',
+        'percentComplete',
+        'metadata',
+        'exports',
+        'snapshots',
+    ]
+
+    cdmi_container_mandatory_list = cdmi_mandatory_list + [
+        'childrenrange',
+        'children',
+    ]
+
+    cdmi_object_mandatory_list = cdmi_mandatory_list + [
+        'value',
+        'valuetransferencoding',
+        'valuerange',
+    ]
 
     def setup(self):
-
         app = create_app(__name__)
         self.client = app.test_client()
 
@@ -148,13 +172,27 @@ class TestCDMI:
         assert_raises(cdmi.MalformedArgumentValueException,
                       cdmi.get_cdmi_filters, {';parentURI': None})
 
+    def test_get_cdmi_json_generator_valid(self):
+        from eudat_http_api.http_storage import cdmi
 
-#def test_get_cdmi_json_file_generator_valid():
-#    def fake_value_gen():
-#        yield 'content'
-#
-#    with patch('metadata.stat'), \
-#            patch('metadata.get_user_metadata'):
-#                result = cdmi.get_cdmi_json_file_generator('/home/test',
-#                                                           fake_value_gen(),
-#                                                           7)
+        def fake_gen():
+            yield 'content'
+
+        with patch('eudat_http_api.metadata.stat'), \
+                patch('eudat_http_api.metadata.get_user_metadata'):
+            result = cdmi.get_cdmi_json_generator('/home/test/',
+                                                  'container',
+                                                  dir_listing=[])
+
+            result_list = list(result)
+            for field in self.cdmi_container_mandatory_list:
+                assert field in result_list
+
+            result = cdmi.get_cdmi_json_generator('/home/test',
+                                                  'object',
+                                                  value_gen=fake_gen(),
+                                                  file_size=7)
+
+            result_list = list(result)
+            for field in self.cdmi_object_mandatory_list:
+                assert field in result_list
