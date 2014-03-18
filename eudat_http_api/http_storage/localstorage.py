@@ -173,3 +173,7 @@ def rmdir(path):
     """
     path = sanitize_path(path)
     os.removedirs(path)
+
+
+def teardown(exception=None):
+    pass

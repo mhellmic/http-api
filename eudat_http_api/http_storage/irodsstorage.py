@@ -11,7 +11,6 @@ from flask import request
 from irods import *
 
 from eudat_http_api import common
-from eudat_http_api.http_storage import http_storage
 
 from eudat_http_api.http_storage.storage_common import *
 
@@ -35,8 +34,7 @@ def get_storage():
     return conn
 
 
-@http_storage.teardown_request
-def close_storage(exception=None):
+def teardown(exception=None):
     """Close the storage connection.
 
     Running this as teardown_request function,

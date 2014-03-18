@@ -40,3 +40,8 @@ def del_cdmi_obj(objpath):
         return cdmi.del_cdmi_dir_obj(absolute_objpath)
     else:
         return cdmi.del_cdmi_file_obj(absolute_objpath)
+
+
+@http_storage.teardown_request
+def teardown(exception=None):
+    return cdmi.teardown(exception)

@@ -548,3 +548,7 @@ def del_cdmi_dir_obj(path):
         return e.msg, 500
 
     return flask_jsonify(delete='Deleted: %s' % (path))
+
+
+def teardown(exception=None):
+    return storage.teardown(exception)
