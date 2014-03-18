@@ -463,6 +463,15 @@ def get_cdmi_json_generator(path, obj_type, **data):
             yield base64.b64encode(part)
         yield '"'
 
+    def json_list_gen(iterable, func):
+        yield '[\n'
+        for i, el in enumerate(iterable):
+            if i > 0:
+                yield ',\n  "%s"' % func(el)
+            else:
+                yield '  "%s"' % func(el)
+        yield '\n  ]'
+
     yield ('objectType', lambda x=None: '"application/cdmi-%s"' % obj_type)
     yield ('objectID', lambda x=None: '"%s"' % meta.get('objectID', None))
     yield ('objectName', lambda x=None: '"%s"' % meta.get('name', None))
@@ -504,16 +513,6 @@ def wrap_with_json_generator(gen):
             yield value
 
     yield '\n}'
-
-
-def json_list_gen(iterable, func):
-    yield '[\n'
-    for i, el in enumerate(iterable):
-        if i > 0:
-            yield ',\n  "%s"' % func(el)
-        else:
-            yield '  "%s"' % func(el)
-    yield '\n  ]'
 
 
 def put_cdmi_dir_obj(path):
