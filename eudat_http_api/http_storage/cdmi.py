@@ -433,14 +433,6 @@ def get_cdmi_filters(args_dict):
     return cdmi_filter
 
 
-def stream_template(template_name, **context):
-    current_app.update_template_context(context)
-    t = current_app.jinja_env.get_template(template_name)
-    rv = t.stream(context)
-    rv.enable_buffering(5)
-    return rv
-
-
 def get_cdmi_json_file_generator(path, value_gen, file_size):
     return get_cdmi_json_generator(path, 'object',
                                    value_gen=value_gen,
