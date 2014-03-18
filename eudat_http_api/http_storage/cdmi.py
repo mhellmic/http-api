@@ -3,6 +3,7 @@
 from __future__ import with_statement
 
 import base64
+import json
 import re
 
 from urlparse import urljoin, urlparse
@@ -506,7 +507,7 @@ def _wrap_with_json_generator(gen):
             for part_value in value:
                 yield part_value
         except TypeError:
-            yield value
+            yield json.dumps(value)
 
     yield '\n}'
 
