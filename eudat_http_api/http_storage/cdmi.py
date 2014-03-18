@@ -18,6 +18,7 @@ from flask import json as flask_json
 from flask import stream_with_context
 
 from functools import partial
+from itertools import imap, chain, islice
 
 from eudat_http_api import common
 from eudat_http_api import metadata
@@ -123,18 +124,16 @@ def make_absolute_path(path):
         return '/'
 
 
-def create_dirlist_dict(dir_list, path):
+def _create_dirlist_gen(dir_gen, path):
     """Returns a list with the directory entries."""
-    def make_abs_link(name, path):
-        return urljoin(path, name)
-
     nav_links = [storage.StorageDir('.', path),
                  storage.StorageDir('..', common.split_path(path)[0])]
 
-    return map(lambda x: {'name': x.name,
-                          'path': x.path,
-                          'metadata': metadata.stat(x.path, True)},
-               nav_links + dir_list)
+    return imap(lambda x: (x.name, json.dumps(
+                           {'name': x.name,
+                            'path': x.path,
+                            'metadata': metadata.stat(x.path, True)})),
+                chain(nav_links, dir_gen))
 
 
 def get_cdmi_file_obj(path):
@@ -357,7 +356,7 @@ def get_cdmi_dir_obj(path):
             return e.msg, 400
 
     try:
-        dir_list = [x for x in storage.ls(path)]
+        dir_gen = storage.ls(path)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
@@ -366,7 +365,7 @@ def get_cdmi_dir_obj(path):
         return e.msg, 500
 
     if request_wants_cdmi_object():
-        cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_list)
+        cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_gen)
         if cdmi_filters:
             filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
                             if a in cdmi_filters)
@@ -377,10 +376,12 @@ def get_cdmi_dir_obj(path):
         return Response(stream_with_context(json_stream_wrapper))
 
     elif request_wants_json():
-        return flask_jsonify(dirlist=_create_dirlist_dict(dir_list, path))
+        dir_gen_wrapper = _create_dirlist_gen(dir_gen, path)
+        json_stream_wrapper = _wrap_with_json_generator(dir_gen_wrapper)
+        return Response(stream_with_context(json_stream_wrapper))
     else:
         return render_template('dirlisting.html',
-                               dirlist=dir_list,
+                               dirlist=dir_gen,
                                path=path,
                                parent_path=common.split_path(path)[0])
 
@@ -436,8 +437,8 @@ def _get_cdmi_json_file_generator(path, value_gen, file_size):
                                     file_size=file_size)
 
 
-def _get_cdmi_json_dir_generator(path, dir_listing):
-    return _get_cdmi_json_generator(path, 'container', dir_listing=dir_listing)
+def _get_cdmi_json_dir_generator(path, list_gen):
+    return _get_cdmi_json_generator(path, 'container', dir_listing=list_gen)
 
 
 def _get_cdmi_json_generator(path, obj_type, **data):
@@ -487,8 +488,8 @@ def _get_cdmi_json_generator(path, obj_type, **data):
         yield ('childrenrange', partial(get_range,
                                         meta.get('children', None)))
 
-        yield ('children', lambda t=(0, -1): json_list_gen(
-            data['dir_listing'][t[0]:t[1]], lambda x: x.name))
+        yield ('children', lambda t=(0, None): json_list_gen(
+            islice(data['dir_listing'], t[0], t[1]), lambda x: x.name))
 
     if obj_type == 'object':
         yield ('mimetype', lambda x=None: '"mime"')
