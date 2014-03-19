@@ -264,7 +264,7 @@ def read(path, range_list=[]):
     else:
         content_len = file_size
 
-    gen = read_stream_generator(file_handle, file_size, ordered_range_list)
+    gen = irods_read_stream_generator(file_handle, file_size, ordered_range_list)
     return gen, file_size, content_len, ordered_range_list
 
 
