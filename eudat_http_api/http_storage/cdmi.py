@@ -6,7 +6,7 @@ import base64
 import json
 import re
 
-from urlparse import urljoin, urlparse
+from urlparse import urlparse
 
 from flask import current_app
 from flask import redirect
