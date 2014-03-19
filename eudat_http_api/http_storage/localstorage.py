@@ -56,12 +56,8 @@ def stat(path, metadata=None):
         except OSError:
             obj_info['children'] = None
 
-        obj_info['ID'] = None
-
     else:
         obj_info['size'] = stat_result.st_size
-        obj_info['resc'] = None
-        obj_info['repl_num'] = 1
 
     if metadata is not None:
         user_metadata = get_user_metadata(path, metadata)
