@@ -264,7 +264,9 @@ def read(path, range_list=[]):
     else:
         content_len = file_size
 
-    gen = irods_read_stream_generator(file_handle, file_size, ordered_range_list)
+    gen = irods_read_stream_generator(file_handle,
+                                      file_size,
+                                      ordered_range_list)
     return gen, file_size, content_len, ordered_range_list
 
 
@@ -344,7 +346,7 @@ def mkdir(path):
             raise NotAuthorizedException('Target creation not allowed')
         else:
             current_app.logger.error('Unknown storage exception: %s: %s'
-                             % (path, __getErrorName(err)))
+                                     % (path, __getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
     return True, ''
@@ -369,7 +371,7 @@ def rm(path):
             raise NotAuthorizedException('Target creation not allowed')
         else:
             current_app.logger.error('Unknown storage exception: %s: %s'
-                             % (path, __getErrorName(err)))
+                                     % (path, __getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
     return True, ''
