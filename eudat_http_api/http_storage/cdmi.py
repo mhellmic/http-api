@@ -311,6 +311,8 @@ def put_cdmi_file_obj(path):
         return e.msg, 404
     except storage.NotAuthorizedException as e:
         return e.msg, 401
+    except storage.ConflictException as e:
+        return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500
 
@@ -322,6 +324,9 @@ def del_cdmi_file_obj(path):
 
     try:
         storage.rm(path)
+    except storage.IsDirException as e:
+        params = urlparse(request.url).query
+        return redirect('%s/?%s' % (path, params))
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
@@ -552,7 +557,14 @@ def del_cdmi_dir_obj(path):
     except storage.StorageException as e:
         return e.msg, 500
 
-    return flask_jsonify(delete='Deleted: %s' % (path))
+    if request_wants_cdmi_object():
+        empty_response = Response(status=204)
+        del empty_response.headers['content-type']
+        return empty_response
+    elif request_wants_json():
+        return flask_jsonify(delete='Deleted: %s' % (path)), 204
+    else:
+        return 'Deleted: %s' % (path), 204
 
 
 def teardown(exception=None):
