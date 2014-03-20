@@ -103,24 +103,88 @@ class TestHttpStorageApi:
             '<ul>\s*<li>.*\..*</li>\s*<li>.*\.\..*</li>.*</ul>',
             rv.data, re.DOTALL) is not None
 
-    def test_html_folder_put(self):
-        rv = self.open_with_auth('/newfolder', 'PUT',
+        rv = self.open_with_auth('/testfolder', 'GET',
                                  'testname', 'testpass')
 
-        assert rv.status_code == 201
+        assert rv.status_code == 302
+        assert rv.headers.get('Location') == 'http://localhost/testfolder/'
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+        rv = self.open_with_auth('/testfolder/', 'GET',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 200
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+        # check that there is a list with only list items
+        assert re.search('<ul>\s*(<li>.*</li>\s*)*</ul>',
+                         rv.data, re.DOTALL) is not None
+        # check that there are at least two items ('.' and '..')
+        assert re.search(
+            '<ul>\s*<li>.*\..*</li>\s*<li>.*\.\..*</li>.*</ul>',
+            rv.data, re.DOTALL) is not None
+
+    def test_html_folder_get_404(self):
+        rv = self.open_with_auth('/nonfolder', 'GET',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 404
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
 
     def test_html_folder_delete(self):
-        rv = self.open_with_auth('/oldfolder', 'DELETE',
+        rv = self.open_with_auth('/emptyfolder', 'DELETE',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 302
+        assert rv.headers.get('Location') == 'http://localhost/emptyfolder/'
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+        rv = self.open_with_auth('/emptyfolder/', 'DELETE',
                                  'testname', 'testpass')
 
         assert rv.status_code == 204
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+    def test_html_folder_delete_404(self):
+        rv = self.open_with_auth('/nonfolder', 'DELETE',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 404
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
 
     def test_html_file_get(self):
         rv = self.open_with_auth('/testfile', 'GET',
                                  'testname', 'testpass')
 
         assert rv.status_code == 200
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+        assert rv.content_length == 3
         assert rv.data == 'abc'
+
+        rv = self.open_with_auth('/testfolder/testfile', 'GET',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 200
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+        assert rv.content_length == 26
+        assert rv.data == 'abcdefghijklmnopqrstuvwxyz'
+
+    def test_html_file_get_404(self):
+        rv = self.open_with_auth('/testfolder/nonfile', 'GET',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 404
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
 
     def test_html_file_put(self):
         rv = self.open_with_auth('/newfile', 'PUT',
@@ -128,9 +192,39 @@ class TestHttpStorageApi:
                                  data='abcdefg')
 
         assert rv.status_code == 201
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+    def test_html_file_put_404(self):
+        rv = self.open_with_auth('/newfolder/newfile', 'PUT',
+                                 'testname', 'testpass',
+                                 data='abcdefg')
+
+        assert rv.status_code == 404
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+    def test_html_file_put_409(self):
+        rv = self.open_with_auth('/testfile', 'PUT',
+                                 'testname', 'testpass',
+                                 data='abcdefg')
+
+        assert rv.status_code == 409
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
 
     def test_html_file_delete(self):
-        rv = self.open_with_auth('/oldfile', 'DELETE',
+        rv = self.open_with_auth('/testfile', 'DELETE',
                                  'testname', 'testpass')
 
         assert rv.status_code == 204
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
+
+    def test_html_file_delete_404(self):
+        rv = self.open_with_auth('/nonfile', 'DELETE',
+                                 'testname', 'testpass')
+
+        assert rv.status_code == 404
+        assert rv.content_type.startswith('text/html')
+        assert rv.mimetype == 'text/html'
