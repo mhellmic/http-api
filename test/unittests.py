@@ -1,6 +1,7 @@
 from __future__ import with_statement
 
 import base64
+from itertools import product
 import os
 import re
 import tempfile
@@ -82,7 +83,7 @@ class TestHttpStorageApi:
         assert rv.content_type.startswith('text/html')
         assert rv.mimetype == 'text/html'
 
-    def url_list(self):
+    def get_url_list(self):
         l = [
             ('/', self.ContainerType, {
                 'children': 3,
@@ -117,6 +118,13 @@ class TestHttpStorageApi:
         print 'Testing %d different URLs' % len(l)
         return l
 
+    def get_user_list(self):
+        l = [
+            ('testname', 'testpass'),
+        ]
+        print 'Testing %d different users' % len(l)
+        return l
+
     # from https://gist.github.com/jarus/1160696
     def open_with_auth(self, url, method, username, password, data=None):
         headers = {
@@ -132,9 +140,19 @@ class TestHttpStorageApi:
                                     headers=headers)
 
     def check_html(self, check_func):
-        for url, objtype, objinfo, exists, parent_exists in self.url_list():
-            yield (check_func, url, objtype,
-                   objinfo, exists, parent_exists)
+        for ((url, objtype, objinfo,
+             exists, parent_exists),
+             userinfo) in product(self.get_url_list(),
+                                  self.get_user_list()):
+            yield (check_func,
+                   {
+                       'url': url,
+                       'objtype': objtype,
+                       'objinfo': objinfo,
+                       'exists': exists,
+                       'parent_exists': parent_exists,
+                       'userinfo': userinfo
+                   })
 
     def test_html_get(self):
         for t in self.check_html(self.check_html_get):
@@ -148,31 +166,31 @@ class TestHttpStorageApi:
         for t in self.check_html(self.check_html_del):
             yield t
 
-    def check_html_get(self, url, objtype, objinfo, exists, *args):
-        if objtype == self.ContainerType and exists:
-            self.check_html_folder_get(url, objinfo)
-        elif objtype == self.ContainerType and not exists:
-            self.check_html_folder_get_404(url, objinfo)
-        elif objtype == self.FileType and exists:
-            self.check_html_file_get(url, objinfo)
-        elif objtype == self.FileType and not exists:
-            self.check_html_file_get_404(url, objinfo)
+    def check_html_get(self, params):
+        if params['objtype'] == self.ContainerType and params['exists']:
+            self.check_html_folder_get(**params)
+        elif params['objtype'] == self.ContainerType and not params['exists']:
+            self.check_html_folder_get_404(**params)
+        elif params['objtype'] == self.FileType and params['exists']:
+            self.check_html_file_get(**params)
+        elif params['objtype'] == self.FileType and not params['exists']:
+            self.check_html_file_get_404(**params)
 
-    def check_html_put(self, url, objtype, *args):
-        if objtype == self.ContainerType:
-            self.check_html_folder_put(url, *args)
-        elif objtype == self.FileType:
-            self.check_html_file_put(url, *args)
+    def check_html_put(self, params):
+        if params['objtype'] == self.ContainerType:
+            self.check_html_folder_put(**params)
+        elif params['objtype'] == self.FileType:
+            self.check_html_file_put(**params)
 
-    def check_html_del(self, url, objtype, objinfo, exists, *args):
-        if objtype == self.FileType:
-            self.check_html_file_del(url, objinfo, exists, *args)
-        elif objtype == self.ContainerType and exists:
-            self.check_html_folder_del(url, objinfo, exists, *args)
-        elif objtype == self.ContainerType and not exists:
-            self.check_html_folder_del_404(url, objinfo, exists, *args)
+    def check_html_del(self, params):
+        if params['objtype'] == self.FileType:
+            self.check_html_file_del(**params)
+        elif params['objtype'] == self.ContainerType and params['exists']:
+            self.check_html_folder_del(**params)
+        elif params['objtype'] == self.ContainerType and not params['exists']:
+            self.check_html_folder_del_404(**params)
 
-    def check_html_folder_get(self, url, objinfo):
+    def check_html_folder_get(self, url, objinfo, userinfo, **kwargs):
         if url[-1] != '/':
             rv = self.open_with_auth(url, 'GET',
                                      'testname', 'testpass')
@@ -194,31 +212,31 @@ class TestHttpStorageApi:
                 '<ul>\s*<li>.*\..*</li>\s*<li>.*\.\..*</li>.*</ul>',
                 rv.data, re.DOTALL) is not None
 
-    def check_html_folder_get_404(self, url, objinfo):
+    def check_html_folder_get_404(self, url, objinfo, userinfo, **kwargs):
         rv = self.open_with_auth(url, 'GET',
                                  'testname', 'testpass')
 
         assert rv.status_code == 404
         self.assert_html_response(rv)
 
-    def check_html_file_get(self, url, fileinfo):
+    def check_html_file_get(self, url, objinfo, userinfo, **kwargs):
         rv = self.open_with_auth(url, 'GET',
                                  'testname', 'testpass')
 
         assert rv.status_code == 200
         self.assert_html_response(rv)
 
-        assert rv.content_length == fileinfo['size']
-        assert rv.data == fileinfo['content']
+        assert rv.content_length == objinfo['size']
+        assert rv.data == objinfo['content']
 
-    def check_html_file_get_404(self, url, fileinfo):
+    def check_html_file_get_404(self, url, objinfo, userinfo, **kwargs):
         rv = self.open_with_auth(url, 'GET',
                                  'testname', 'testpass')
 
         assert rv.status_code == 404
         self.assert_html_response(rv)
 
-    def check_html_file_del(self, url, fileinfo, exists, parent_exists):
+    def check_html_file_del(self, url, objinfo, userinfo, exists, **kwargs):
         rv = self.open_with_auth(url, 'DELETE',
                                  'testname', 'testpass')
 
@@ -228,7 +246,7 @@ class TestHttpStorageApi:
             assert rv.status_code == 404
         self.assert_html_response(rv)
 
-    def check_html_folder_del(self, url, dirinfo, exists, parent_exists):
+    def check_html_folder_del(self, url, objinfo, userinfo, **kwargs):
         if url[-1] != '/':
             rv = self.open_with_auth(url, 'DELETE',
                                      'testname', 'testpass')
@@ -242,17 +260,19 @@ class TestHttpStorageApi:
             assert rv.status_code == 204
             self.assert_html_response(rv)
 
-    def check_html_folder_del_404(self, url, dirinfo, exists, parent_exists):
+    def check_html_folder_del_404(self, url, objinfo, userinfo,
+                                  exists, parent_exists, **kwargs):
         rv = self.open_with_auth(url, 'DELETE',
                                  'testname', 'testpass')
 
         assert rv.status_code == 404
         self.assert_html_response(rv)
 
-    def check_html_file_put(self, url, fileinfo, exists, parent_exists):
+    def check_html_file_put(self, url, objinfo, userinfo,
+                            exists, parent_exists, **kwargs):
         rv = self.open_with_auth(url, 'PUT',
                                  'testname', 'testpass',
-                                 data=fileinfo['content'])
+                                 data=objinfo['content'])
 
         if exists:
             assert rv.status_code == 409
@@ -262,7 +282,8 @@ class TestHttpStorageApi:
             assert rv.status_code == 201
         self.assert_html_response(rv)
 
-    def check_html_folder_put(self, url, dirinfo, exists, parent_exists):
+    def check_html_folder_put(self, url, objinfo, userinfo,
+                              exists, parent_exists, **kwargs):
         rv = self.open_with_auth(url, 'PUT',
                                  'testname', 'testpass')
 
