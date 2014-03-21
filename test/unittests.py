@@ -1,6 +1,7 @@
 from __future__ import with_statement
 
 import base64
+from collections import namedtuple
 from itertools import product
 import os
 import re
@@ -119,8 +120,11 @@ class TestHttpStorageApi:
         return l
 
     def get_user_list(self):
+        User = namedtuple('User', 'name password valid')
         l = [
-            ('testname', 'testpass'),
+            User('testname', 'testpass', True),
+            User('testname', 'notvalid', False),
+            User('notvalidname', 'notvalid', False),
         ]
         print 'Testing %d different users' % len(l)
         return l
@@ -191,17 +195,18 @@ class TestHttpStorageApi:
             self.check_html_folder_del_404(**params)
 
     def check_html_folder_get(self, url, objinfo, userinfo, **kwargs):
-        if url[-1] != '/':
-            rv = self.open_with_auth(url, 'GET',
-                                     'testname', 'testpass')
+        rv = self.open_with_auth(url, 'GET',
+                                 userinfo.name, userinfo.password)
 
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
+
+        if url[-1] != '/':
             assert rv.status_code == 302
             assert rv.headers.get('Location') == 'http://localhost%s/' % url
             self.assert_html_response(rv)
         else:
-            rv = self.open_with_auth(url, 'GET',
-                                     'testname', 'testpass')
-
             assert rv.status_code == 200
             self.assert_html_response(rv)
             # check that there is a list with only list items
@@ -214,14 +219,22 @@ class TestHttpStorageApi:
 
     def check_html_folder_get_404(self, url, objinfo, userinfo, **kwargs):
         rv = self.open_with_auth(url, 'GET',
-                                 'testname', 'testpass')
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         assert rv.status_code == 404
         self.assert_html_response(rv)
 
     def check_html_file_get(self, url, objinfo, userinfo, **kwargs):
         rv = self.open_with_auth(url, 'GET',
-                                 'testname', 'testpass')
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         assert rv.status_code == 200
         self.assert_html_response(rv)
@@ -231,14 +244,22 @@ class TestHttpStorageApi:
 
     def check_html_file_get_404(self, url, objinfo, userinfo, **kwargs):
         rv = self.open_with_auth(url, 'GET',
-                                 'testname', 'testpass')
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         assert rv.status_code == 404
         self.assert_html_response(rv)
 
     def check_html_file_del(self, url, objinfo, userinfo, exists, **kwargs):
         rv = self.open_with_auth(url, 'DELETE',
-                                 'testname', 'testpass')
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         if exists:
             assert rv.status_code == 204
@@ -247,23 +268,29 @@ class TestHttpStorageApi:
         self.assert_html_response(rv)
 
     def check_html_folder_del(self, url, objinfo, userinfo, **kwargs):
+        rv = self.open_with_auth(url, 'DELETE',
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
+
         if url[-1] != '/':
-            rv = self.open_with_auth(url, 'DELETE',
-                                     'testname', 'testpass')
             assert (rv.headers.get('Location') ==
                     'http://localhost%s/' % url)
             self.assert_html_response(rv)
         else:
-            rv = self.open_with_auth(url, 'DELETE',
-                                     'testname', 'testpass')
-
             assert rv.status_code == 204
             self.assert_html_response(rv)
 
     def check_html_folder_del_404(self, url, objinfo, userinfo,
                                   exists, parent_exists, **kwargs):
         rv = self.open_with_auth(url, 'DELETE',
-                                 'testname', 'testpass')
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         assert rv.status_code == 404
         self.assert_html_response(rv)
@@ -271,8 +298,12 @@ class TestHttpStorageApi:
     def check_html_file_put(self, url, objinfo, userinfo,
                             exists, parent_exists, **kwargs):
         rv = self.open_with_auth(url, 'PUT',
-                                 'testname', 'testpass',
+                                 userinfo.name, userinfo.password,
                                  data=objinfo['content'])
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         if exists:
             assert rv.status_code == 409
@@ -285,7 +316,11 @@ class TestHttpStorageApi:
     def check_html_folder_put(self, url, objinfo, userinfo,
                               exists, parent_exists, **kwargs):
         rv = self.open_with_auth(url, 'PUT',
-                                 'testname', 'testpass')
+                                 userinfo.name, userinfo.password)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
 
         if exists:
             assert rv.status_code == 409
