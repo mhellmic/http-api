@@ -9,7 +9,7 @@ http_storage = Blueprint('http_storage', __name__,
                          template_folder='templates')
 
 
-@http_storage.route('/', methods=['GET'])
+@http_storage.route('/', methods=['GET'], defaults={'objpath': '/'})
 @http_storage.route('/<path:objpath>', methods=['GET'])
 @auth.requires_auth
 def get_cdmi_obj(objpath='/'):
@@ -20,7 +20,7 @@ def get_cdmi_obj(objpath='/'):
         return cdmi.get_cdmi_file_obj(absolute_objpath)
 
 
-@http_storage.route('/', methods=['PUT'])
+@http_storage.route('/', methods=['PUT'], defaults={'objpath': '/'})
 @http_storage.route('/<path:objpath>', methods=['PUT'])
 @auth.requires_auth
 def put_cdmi_obj(objpath):
@@ -31,7 +31,7 @@ def put_cdmi_obj(objpath):
         return cdmi.put_cdmi_file_obj(absolute_objpath)
 
 
-@http_storage.route('/', methods=['DELETE'])
+@http_storage.route('/', methods=['DELETE'], defaults={'objpath': '/'})
 @http_storage.route('/<path:objpath>', methods=['DELETE'])
 @auth.requires_auth
 def del_cdmi_obj(objpath):
