@@ -3,9 +3,12 @@ from __future__ import with_statement
 import base64
 from collections import namedtuple
 from itertools import product
+from operator import add
 import os
 import re
 import tempfile
+
+from nose.tools import assert_raises
 
 #from mock import patch
 from eudat_http_api import create_app
@@ -81,6 +84,7 @@ class RestResource:
     FileType = 'file'
 
     url = None
+    path = None  # for now path and url are the same
     objtype = None
     objinfo = {}
     exists = None
@@ -97,6 +101,24 @@ class RestResource:
         self.objinfo = objinfo
         self.exists = exists
         self.parent_exists = parent_exists
+        self.path = self.url
+
+    def is_dir(self):
+        return self.objtype == self.ContainerType
+
+    def is_file(self):
+        return self.objtype == self.FileType
+
+    def __str__(self):
+        return ('url: %s; type: %s; exists: %s; parent_exists: %s'
+                % (self.url,
+                   self.objtype,
+                   self.exists,
+                   self.parent_exists)
+                )
+
+    def __repr__(self):
+        return self.__str__()
 
 
 def get_url_list():
@@ -111,8 +133,9 @@ def get_url_list():
         RestResource('/tmp/testfolder', ContainerType, {
             'children': 1,
         }, True, True),
-        RestResource('/tmp/testfolder/', ContainerType, {},
-                     True, True),
+        RestResource('/tmp/testfolder/', ContainerType, {
+            'children': 1,
+        }, True, True),
         RestResource('/tmp/testfolder/testfile', FileType, {
             'size': 26,
             'content': 'abcdefghijklmnopqrstuvwxyz',
@@ -120,12 +143,17 @@ def get_url_list():
         RestResource('/tmp/emptyfolder', ContainerType, {
             'children': 0,
         }, True, True),
+        RestResource('/tmp/emptyfolder/', ContainerType, {
+            'children': 0,
+        }, True, True),
         RestResource('/tmp/nonfolder', ContainerType, {},
                      False, True),
         RestResource('/tmp/testfolder/nonfolder', ContainerType, {},
                      False, True),
-        RestResource('/tmp/newfolder/newfile', ContainerType, {},
-                     False, False),
+        RestResource('/tmp/newfolder/newfile', FileType, {
+            'size': 10,
+            'content': '1234567890',
+        }, False, False),
         RestResource('/nonofile', FileType, {
             'size': 10,
             'content': '1234567890',
@@ -133,6 +161,10 @@ def get_url_list():
         RestResource('/wrongfilesizefile', FileType, {
             'size': 4444,
             'content': '1234567890',
+        }, False, True),
+        RestResource('/emptyfile', FileType, {
+            'size': 0,
+            'content': '',
         }, False, True),
     ]
     print 'Testing %d different URLs' % len(l)
@@ -359,3 +391,121 @@ class TestHttpApi:
         else:
             assert rv.status_code == 201
         self.assert_html_response(rv)
+
+
+class TestStorageApi:
+    ContainerType = 'dir'
+    FileType = 'file'
+
+    def setup(self):
+        app = create_app(__name__)
+        app.config['STORAGE'] = 'local'
+        self.client = app.test_client()
+
+    def check_storage(self, check_func):
+        for (resource,
+             userinfo) in product(get_url_list(),
+                                  get_user_list()):
+            yield (check_func,
+                   {
+                       'resource': resource,
+                       'userinfo': userinfo
+                   })
+
+    def test_auth(self):
+        for t in self.check_storage(self.check_auth):
+            yield t
+
+    def test_stat(self):
+        for t in self.check_storage(self.check_stat):
+            yield t
+
+    def test_read(self):
+        for t in self.check_storage(self.check_read):
+            yield t
+
+    def check_auth(self, params):
+        from eudat_http_api.http_storage import storage
+        userinfo = params['userinfo']
+
+        rv = storage.authenticate(userinfo.name,
+                                  userinfo.password)
+
+        if userinfo.valid:
+            assert rv is True
+        else:
+            assert rv is False
+
+    def check_stat(self, params):
+        if params['resource'].exists:
+            self.check_stat_good(**params)
+        else:
+            self.check_stat_except(**params)
+
+    def check_stat_good(self, resource, userinfo):
+        from eudat_http_api.http_storage import storage
+
+        rv = storage.stat(resource.path)
+
+        if resource.is_dir():
+            assert 'children' in rv
+            if 'children' in rv:
+                assert rv['children'] == resource.objinfo['children']
+        elif resource.is_file():
+            assert 'size' in rv
+            if 'size' in rv:
+                assert rv['size'] == resource.objinfo['size']
+
+        assert 'user_metadata' in rv
+        if 'user_metadata' in rv:
+            assert len(rv['user_metadata']) == 0
+
+    def check_stat_except(self, resource, userinfo):
+        from eudat_http_api.http_storage import storage
+
+        assert_raises(storage.NotFoundException,
+                      storage.stat,
+                      resource.path)
+
+    def check_read(self, params):
+        if params['resource'].exists and params['resource'].is_file():
+            self.check_read_good(**params)
+        else:
+            self.check_read_except(**params)
+
+    def check_read_good(self, resource, userinfo):
+        from eudat_http_api.http_storage import storage
+
+        gen, fsize, contentlen, rangelist = storage.read(resource.path)
+
+        data = reduce(add, map(lambda (a, b, c, d): d, gen))
+        assert data == resource.objinfo['content']
+        assert fsize == contentlen
+        assert fsize == resource.objinfo['size']
+        assert rangelist == []
+
+        #single_range = [[1, 4]]
+        #gen, fsize, contentlen, rangelist = storage.read(resource.path,
+        #                                                 single_range)
+
+        #data = reduce(add, map(lambda (a, b, c, d): d, gen))
+        #assert data == resource.objinfo['content'][1:4+1]
+        #assert fsize == resource.objinfo['size']
+        #if resource.objinfo['size'] >= 4:
+        #    assert contentlen == 4
+        #else:
+        #    assert contentlen == resource.objinfo['size']
+
+        #assert rangelist == [[1, 4]]
+
+    def check_read_except(self, resource, userinfo):
+        from eudat_http_api.http_storage import storage
+
+        if resource.is_dir() and resource.exists:
+            assert_raises(storage.IsDirException,
+                          storage.read,
+                          resource.path)
+        elif resource.is_file() and not resource.exists:
+            assert_raises(storage.NotFoundException,
+                          storage.read,
+                          resource.path)
