@@ -12,7 +12,7 @@ from eudat_http_api.http_storage.storage_common import *
 
     testname, testpass
 
-    /                       children: 1
+    /                       children: 3
     /tmp/testfile               data: abc, size: 3
     /tmp/testfolder             children: 1
     /tmp/testfolder/testfile    data: abcdefghijklmnopqrstuvwxyz, size: 26
@@ -26,15 +26,15 @@ def authenticate(username, password):
 
 def stat(path, metadata=None):
     if path == '/tmp/testfile':
-        return {'size': 3, }
+        return {'size': 3, 'user_metadata': {}, }
     elif path == '/tmp/testfolder/testfile':
-        return {'size': 26, }
+        return {'size': 26, 'user_metadata': {}, }
     elif path == '/':
-        return {'children': 1, }
+        return {'children': 3, 'user_metadata': {}, }
     elif path == '/tmp/testfolder' or path == '/tmp/testfolder/':
-        return {'children': 1, }
+        return {'children': 1, 'user_metadata': {}, }
     elif path == '/tmp/emptyfolder' or path == '/tmp/emptyfolder/':
-        return {'children': 0, }
+        return {'children': 0, 'user_metadata': {}, }
     else:
         raise NotFoundException('Path does not exist or is not a file')
 
