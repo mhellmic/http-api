@@ -64,11 +64,11 @@ def authenticate(username, password):
                           rodsEnv.rodsPort,
                           rodsEnv.rodsUserName,
                           rodsEnv.rodsZone
-    )
+                          )
 
     if err.status != 0:
         current_app.logger.error('Connecting to iRODS failed %s'
-                         % __getErrorName(err.status))
+                                 % __getErrorName(err.status))
         raise InternalException('Connecting to iRODS failed')
 
     err = clientLoginWithPassword(conn, password)
