@@ -72,9 +72,85 @@ class TestHttpRegisterApi:
     #                         rv.data) is not None
 
 
-class TestHttpStorageApi:
+ContainerType = 'dir'
+FileType = 'file'
+
+
+class RestResource:
     ContainerType = 'dir'
     FileType = 'file'
+
+    url = None
+    objtype = None
+    objinfo = {}
+    exists = None
+    parent_exists = None
+
+    def __init__(self, url,
+                 objtype,
+                 objinfo,
+                 exists=True,
+                 parent_exists=True):
+
+        self.url = url
+        self.objtype = objtype
+        self.objinfo = objinfo
+        self.exists = exists
+        self.parent_exists = parent_exists
+
+
+def get_url_list():
+    l = [
+        RestResource('/', ContainerType, {
+            'children': 3,
+        }, True, True),
+        RestResource('/tmp/testfile', FileType, {
+            'size': 3,
+            'content': 'abc',
+        }, True, True),
+        RestResource('/tmp/testfolder', ContainerType, {
+            'children': 1,
+        }, True, True),
+        RestResource('/tmp/testfolder/', ContainerType, {},
+                     True, True),
+        RestResource('/tmp/testfolder/testfile', FileType, {
+            'size': 26,
+            'content': 'abcdefghijklmnopqrstuvwxyz',
+        }, True, True),
+        RestResource('/tmp/emptyfolder', ContainerType, {
+            'children': 0,
+        }, True, True),
+        RestResource('/tmp/nonfolder', ContainerType, {},
+                     False, True),
+        RestResource('/tmp/testfolder/nonfolder', ContainerType, {},
+                     False, True),
+        RestResource('/tmp/newfolder/newfile', ContainerType, {},
+                     False, False),
+        RestResource('/nonofile', FileType, {
+            'size': 10,
+            'content': '1234567890',
+        }, False, True),
+        RestResource('/wrongfilesizefile', FileType, {
+            'size': 4444,
+            'content': '1234567890',
+        }, False, True),
+    ]
+    print 'Testing %d different URLs' % len(l)
+    return l
+
+
+def get_user_list():
+    User = namedtuple('User', 'name password valid')
+    l = [
+        User('testname', 'testpass', True),
+        User('testname', 'notvalid', False),
+        User('notvalidname', 'notvalid', False),
+    ]
+    print 'Testing %d different users' % len(l)
+    return l
+
+
+class TestHttpApi:
 
     def setup(self):
         app = create_app(__name__)
@@ -83,51 +159,6 @@ class TestHttpStorageApi:
     def assert_html_response(self, rv):
         assert rv.content_type.startswith('text/html')
         assert rv.mimetype == 'text/html'
-
-    def get_url_list(self):
-        l = [
-            ('/', self.ContainerType, {
-                'children': 3,
-            }, True, True),
-            ('/tmp/testfile', self.FileType, {
-                'size': 3,
-                'content': 'abc',
-            }, True, True),
-            ('/tmp/testfolder', self.ContainerType, {
-                'children': 1,
-            }, True, True),
-            ('/tmp/testfolder/', self.ContainerType, {}, True, True),
-            ('/tmp/testfolder/testfile', self.FileType, {
-                'size': 26,
-                'content': 'abcdefghijklmnopqrstuvwxyz',
-            }, True, True),
-            ('/tmp/emptyfolder', self.ContainerType, {
-                'children': 0,
-            }, True, True),
-            ('/tmp/nonfolder', self.ContainerType, {}, False, True),
-            ('/tmp/testfolder/nonfolder', self.ContainerType, {}, False, True),
-            ('/tmp/newfolder/newfile', self.ContainerType, {}, False, False),
-            ('/nonofile', self.FileType, {
-                'size': 10,
-                'content': '1234567890',
-            }, False, True),
-            ('/wrongfilesizefile', self.FileType, {
-                'size': 4444,
-                'content': '1234567890',
-            }, False, True),
-        ]
-        print 'Testing %d different URLs' % len(l)
-        return l
-
-    def get_user_list(self):
-        User = namedtuple('User', 'name password valid')
-        l = [
-            User('testname', 'testpass', True),
-            User('testname', 'notvalid', False),
-            User('notvalidname', 'notvalid', False),
-        ]
-        print 'Testing %d different users' % len(l)
-        return l
 
     # from https://gist.github.com/jarus/1160696
     def open_with_auth(self, url, method, username, password, data=None):
@@ -144,17 +175,16 @@ class TestHttpStorageApi:
                                     headers=headers)
 
     def check_html(self, check_func):
-        for ((url, objtype, objinfo,
-             exists, parent_exists),
-             userinfo) in product(self.get_url_list(),
-                                  self.get_user_list()):
+        for (resource,
+             userinfo) in product(get_url_list(),
+                                  get_user_list()):
             yield (check_func,
                    {
-                       'url': url,
-                       'objtype': objtype,
-                       'objinfo': objinfo,
-                       'exists': exists,
-                       'parent_exists': parent_exists,
+                       'url': resource.url,
+                       'objtype': resource.objtype,
+                       'objinfo': resource.objinfo,
+                       'exists': resource.exists,
+                       'parent_exists': resource.parent_exists,
                        'userinfo': userinfo
                    })
 
@@ -171,27 +201,27 @@ class TestHttpStorageApi:
             yield t
 
     def check_html_get(self, params):
-        if params['objtype'] == self.ContainerType and params['exists']:
+        if params['objtype'] == ContainerType and params['exists']:
             self.check_html_folder_get(**params)
-        elif params['objtype'] == self.ContainerType and not params['exists']:
+        elif params['objtype'] == ContainerType and not params['exists']:
             self.check_html_folder_get_404(**params)
-        elif params['objtype'] == self.FileType and params['exists']:
+        elif params['objtype'] == FileType and params['exists']:
             self.check_html_file_get(**params)
-        elif params['objtype'] == self.FileType and not params['exists']:
+        elif params['objtype'] == FileType and not params['exists']:
             self.check_html_file_get_404(**params)
 
     def check_html_put(self, params):
-        if params['objtype'] == self.ContainerType:
+        if params['objtype'] == ContainerType:
             self.check_html_folder_put(**params)
-        elif params['objtype'] == self.FileType:
+        elif params['objtype'] == FileType:
             self.check_html_file_put(**params)
 
     def check_html_del(self, params):
-        if params['objtype'] == self.FileType:
+        if params['objtype'] == FileType:
             self.check_html_file_del(**params)
-        elif params['objtype'] == self.ContainerType and params['exists']:
+        elif params['objtype'] == ContainerType and params['exists']:
             self.check_html_folder_del(**params)
-        elif params['objtype'] == self.ContainerType and not params['exists']:
+        elif params['objtype'] == ContainerType and not params['exists']:
             self.check_html_folder_del_404(**params)
 
     def check_html_folder_get(self, url, objinfo, userinfo, **kwargs):
