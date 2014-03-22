@@ -68,7 +68,7 @@ def authenticate(username, password):
 
     if err.status != 0:
         current_app.logger.error('Connecting to iRODS failed %s'
-                                 % __getErrorName(err.status))
+                                 % _getErrorName(err.status))
         raise InternalException('Connecting to iRODS failed')
 
     err = clientLoginWithPassword(conn, password)
@@ -80,7 +80,7 @@ def authenticate(username, password):
         return False
 
 
-def __get_irods_obj_handle(conn, path):
+def _get_irods_obj_handle(conn, path):
     path_is_dir = False
     obj_handle = _open(conn, path, 'r')
     if not obj_handle:
@@ -112,7 +112,7 @@ def stat(path, metadata=None):
 
     obj_info = dict()
 
-    obj_handle, path_is_dir = __get_irods_obj_handle(conn, path)
+    obj_handle, path_is_dir = _get_irods_obj_handle(conn, path)
 
     base, name = common.split_path(path)
     obj_info['base'] = base
@@ -128,7 +128,7 @@ def stat(path, metadata=None):
         obj_info['repl_num'] = obj_handle.getReplNumber()
 
     if metadata is not None:
-        user_metadata = __get_user_metadata(conn, obj_handle, path, metadata)
+        user_metadata = _get_user_metadata(conn, obj_handle, path, metadata)
         obj_info['user_metadata'] = user_metadata
 
     try:
@@ -142,16 +142,16 @@ def stat(path, metadata=None):
 def get_user_metadata(path, user_metadata=None):
     """Gets user_metadata from irods and filters them by the user_metadata arg.
 
-    see __get_user_metadata
+    see _get_user_metadata
     """
     conn = get_storage()
 
     if conn is None:
         return None
 
-    obj_handle, _ = __get_irods_obj_handle(conn, path)
+    obj_handle, _ = _get_irods_obj_handle(conn, path)
 
-    user_meta = __get_user_metadata(conn, obj_handle, path, user_metadata)
+    user_meta = _get_user_metadata(conn, obj_handle, path, user_metadata)
 
     try:
         _close(obj_handle)
@@ -161,7 +161,7 @@ def get_user_metadata(path, user_metadata=None):
     return user_meta
 
 
-def __get_user_metadata(conn, obj_handle, path, user_metadata):
+def _get_user_metadata(conn, obj_handle, path, user_metadata):
     """ get user metadata from irods and filter by the user_metadata argument.
 
     The user_metadata argument should be an iterable holding the metadata
@@ -201,9 +201,9 @@ def set_user_metadata(path, user_metadata):
     if conn is None:
         return None
 
-    obj_handle, _ = __get_irods_obj_handle(conn, path)
+    obj_handle, _ = _get_irods_obj_handle(conn, path)
 
-    __set_user_metadata(conn, path, user_metadata)
+    _set_user_metadata(conn, path, user_metadata)
 
     try:
         _close(obj_handle)
@@ -211,7 +211,7 @@ def set_user_metadata(path, user_metadata):
         pass  # obj is a collection, which cannot be closed
 
 
-def __set_user_metadata(conn, path, user_metadata):
+def _set_user_metadata(conn, path, user_metadata):
     """Performs the work for set_user_metadata."""
     for key, val in user_metadata:
         obj_handle.addUserMetadata(key, val)
@@ -347,7 +347,7 @@ def mkdir(path):
             raise NotAuthorizedException('Target creation not allowed')
         else:
             current_app.logger.error('Unknown storage exception: %s: %s'
-                                     % (path, __getErrorName(err)))
+                                     % (path, _getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
     return True, ''
@@ -372,7 +372,7 @@ def rm(path):
             raise NotAuthorizedException('Target creation not allowed')
         else:
             current_app.logger.error('Unknown storage exception: %s: %s'
-                                     % (path, __getErrorName(err)))
+                                     % (path, _getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
     return True, ''
@@ -406,7 +406,7 @@ def rmdir(path):
             raise NotAuthorizedException('Target creation not allowed')
         else:
             current_app.logger.error('Unknown storage exception: %s: %s'
-                                     % (path, __getErrorName(err)))
+                                     % (path, _getErrorName(err)))
             raise StorageException('Unknown storage exception')
 
     return True, ''
@@ -415,7 +415,7 @@ def rmdir(path):
 #### Not part of the interface anymore
 
 
-def __getErrorName(code):
+def _getErrorName(code):
     return rodsErrorName(code)[0]
 
 
