@@ -130,6 +130,14 @@ def read_stream_generator(file_handle, file_size,
     In case of a multirange request, the delimiter shows when a new
     segment begins (by evaluating to True). It carries also
     information about the segment size.
+
+    The output it yields are tuples of:
+    (
+     delimiter,       True if a segment starts with this chunk
+     segment_start,   absolute position of the segment in the file
+     segment_end,     absolute position of the end in the file
+     segment_data     data in this chunk
+    )
     """
     multipart = False
     delimiter = False
