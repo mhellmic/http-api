@@ -116,7 +116,7 @@ def read(path, range_list=[]):
     file_size = os.path.getsize(path)
 
     def adjust_range_size(x, y, file_size):
-        if y > file_size:
+        if y >= file_size:
             y = END
         return (x, y)
 
