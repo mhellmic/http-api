@@ -82,7 +82,7 @@ def authenticate(username, password):
 
 def __get_irods_obj_handle(conn, path):
     path_is_dir = False
-    obj_handle = irodsOpen(conn, path, 'r')
+    obj_handle = _open(conn, path, 'r')
     if not obj_handle:
         obj_handle = irodsCollection(conn, path)
         if int(obj_handle.getId()) >= 0:
@@ -132,7 +132,7 @@ def stat(path, metadata=None):
         obj_info['user_metadata'] = user_metadata
 
     try:
-        obj_handle.close()
+        _close(obj_handle)
     except AttributeError:
         pass  # obj is a collection, which cannot be closed
 
@@ -154,7 +154,7 @@ def get_user_metadata(path, user_metadata=None):
     user_meta = __get_user_metadata(conn, obj_handle, path, user_metadata)
 
     try:
-        obj_handle.close()
+        _close(obj_handle)
     except AttributeError:
         pass  # obj is a collection, which cannot be closed
 
@@ -206,7 +206,7 @@ def set_user_metadata(path, user_metadata):
     __set_user_metadata(conn, path, user_metadata)
 
     try:
-        obj_handle.close()
+        _close(obj_handle)
     except AttributeError:
         pass  # obj is a collection, which cannot be closed
 
@@ -233,7 +233,7 @@ def read(path, range_list=[]):
     if conn is None:
         return None
 
-    file_handle = irodsOpen(conn, path, 'r')
+    file_handle = _open(conn, path, 'r')
     if not file_handle:
         if int(irodsCollection(conn, path).getId()) >= 0:
             raise IsDirException('Path is a directory')
@@ -264,9 +264,10 @@ def read(path, range_list=[]):
     else:
         content_len = file_size
 
-    gen = irods_read_stream_generator(file_handle,
-                                      file_size,
-                                      ordered_range_list)
+    gen = read_stream_generator(file_handle, file_size,
+                                ordered_range_list,
+                                _read, _seek, _close)
+
     return gen, file_size, content_len, ordered_range_list
 
 
@@ -277,7 +278,7 @@ def write(path, stream_gen):
     if conn is None:
         return None
 
-    file_handle = irodsOpen(conn, path, 'w')
+    file_handle = _open(conn, path, 'w')
     if not file_handle:
         raise NotFoundException('Path does not exist or is not a file')
 
@@ -285,7 +286,7 @@ def write(path, stream_gen):
     for chunk in stream_gen:
         bytes_written += file_handle.write(chunk)
 
-    file_handle.close()
+    _close(file_handle)
 
     return bytes_written
 
@@ -308,9 +309,9 @@ def ls(path):
     # test if the path actually points to a dir by trying
     # to open it as file. The funtion only returns a file handle
     # if it's a file, None otherwise.
-    f = irodsOpen(conn, path, 'r')
+    f = _open(conn, path, 'r')
     if f:
-        f.close()
+        _close(f)
         raise NotFoundException('Target is not a directory')
 
     def list_generator(collection):
@@ -359,11 +360,11 @@ def rm(path):
     if conn is None:
         return None
 
-    file_handle = irodsOpen(conn, path, 'r')
+    file_handle = _open(conn, path, 'r')
     if not file_handle:
         raise NotFoundException('Path does not exist or is not a file')
 
-    file_handle.close()
+    _close(file_handle)
 
     err = file_handle.delete(force=True)
     if err != 0:
@@ -414,93 +415,25 @@ def rmdir(path):
 #### Not part of the interface anymore
 
 
-def irods_read_stream_generator(file_handle, file_size,
-                                ordered_range_list, buffer_size=4194304):
-    """Generate the bytestream.
-
-    Default chunking is 4 MByte.
-
-    Supports multirange request.
-    (even unordened and if the ranges overlap)
-
-    In case of no range requests, the whole file is read.
-
-    With range requests, we seek the range, and then deliver
-    the bytestream in buffer_size chunks. To stop at the end
-    of the range, the make the last buffer smaller.
-    This might become a performance issue, as we can have very
-    small chunks. Also we deliver differently sized chunks to
-    the frontend, and I'm not sure how they take it.
-
-    The special values START and END represent the start and end
-    of the file to allow for range requests that only specify
-    one the two.
-
-    In case of a multirange request, the delimiter shows when a new
-    segment begins (by evaluating to True). It carries also
-    information about the segment size.
-
-    The output it yields are tuples of:
-    (
-     delimiter,       True if a segment starts with this chunk
-     segment_start,   absolute position of the segment in the file
-     segment_end,     absolute position of the end in the file
-     segment_data     data in this chunk
-    )
-    """
-    multipart = False
-    delimiter = False
-    if len(ordered_range_list) > 1:
-        multipart = True
-
-    if not ordered_range_list:
-        while True:
-            data = file_handle.read(buffSize=buffer_size)
-            if data == '':
-                break
-            yield delimiter, 0, file_size, data
-    else:
-        for start, end in ordered_range_list:
-            if start == START:
-                start = 0
-
-            segment_start = start
-            segment_end = end
-
-            if end == END:
-                segment_end = file_size
-                file_handle.seek(start)
-                if multipart:
-                    delimiter = file_size - start + 1
-
-                while True:
-                    data = file_handle.read(buffSize=buffer_size)
-                    if data == '':
-                        break
-                    yield delimiter, segment_start, segment_end, data
-                    delimiter = False
-            else:
-                # http expects the last byte included
-                range_size = end - start + 1
-                range_size_acc = 0
-                range_buffer_size = buffer_size
-                file_handle.seek(start)
-
-                if multipart:
-                    delimiter = range_size
-
-                while range_size_acc < range_size:
-                    if (range_size - range_size_acc) < range_buffer_size:
-                        range_buffer_size = (range_size - range_size_acc)
-                    data = file_handle.read(buffSize=range_buffer_size)
-                    if data == '':
-                        break
-                    yield delimiter, segment_start, segment_end, data
-                    delimiter = False
-                    range_size_acc += range_buffer_size
-
-    file_handle.close()
-
-
 def __getErrorName(code):
     return rodsErrorName(code)[0]
+
+
+def _open(conn, path, mode):
+    return irodsOpen(conn, path, mode)
+
+
+def _read(file_handle, buffer_size):
+    return file_handle.read(buffSize=buffer_size)
+
+
+def _seek(file_handle, position):
+    return file_handle.seek(position)
+
+
+def _close(file_handle):
+    return file_handle.close()
+
+
+def _write(file_handle, data):
+    return file_handle.write(data)

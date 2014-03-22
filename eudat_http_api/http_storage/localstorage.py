@@ -106,7 +106,7 @@ def read(path, range_list=[]):
     """
 
     try:
-        file_handle = open(path, 'rb')
+        file_handle = _open(path, 'rb')
     except IOError as e:
         if e.errno == errno.EISDIR:
             raise IsDirException('Path is a directory')
@@ -137,7 +137,9 @@ def read(path, range_list=[]):
     else:
         content_len = file_size
 
-    gen = read_stream_generator(file_handle, file_size, ordered_range_list)
+    gen = read_stream_generator(file_handle, file_size,
+                                ordered_range_list,
+                                _read, _seek, _close)
 
     return gen, file_size, content_len, ordered_range_list
 
@@ -190,3 +192,23 @@ def rmdir(path):
 
 def teardown(exception=None):
     pass
+
+
+def _open(path, mode):
+    return open(path, mode)
+
+
+def _read(file_handle, buffer_size):
+    return file_handle.read(buffer_size)
+
+
+def _seek(file_handle, position):
+    return file_handle.seek(position)
+
+
+def _close(file_handle):
+    return file_handle.close()
+
+
+def _write(file_handle, data):
+    return file_handle.write(data)

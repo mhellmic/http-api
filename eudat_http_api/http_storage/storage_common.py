@@ -106,7 +106,9 @@ class MalformedPathException(StorageException):
 
 
 def read_stream_generator(file_handle, file_size,
-                          ordered_range_list, buffer_size=4194304):
+                          ordered_range_list, read_func,
+                          seek_func, close_func,
+                          buffer_size=4194304):
     """Generate the bytestream.
 
     Default chunking is 4 MByte.
@@ -146,7 +148,7 @@ def read_stream_generator(file_handle, file_size,
 
     if not ordered_range_list:
         while True:
-            data = file_handle.read(buffer_size)
+            data = read_func(file_handle, buffer_size)
             if data == '':
                 break
             yield delimiter, 0, file_size, data
@@ -158,36 +160,28 @@ def read_stream_generator(file_handle, file_size,
             segment_start = start
             segment_end = end
 
+            seek_func(file_handle, segment_start)
+
             if end == END:
-                segment_end = file_size
-                file_handle.seek(start)
-                if multipart:
-                    delimiter = file_size - start + 1
+                segment_end = file_size - 1
 
-                while True:
-                    data = file_handle.read(buffer_size)
-                    if data == '':
-                        break
-                    yield delimiter, segment_start, segment_end, data
-                    delimiter = False
-            else:
-                # http expects the last byte included
-                range_size = end - start + 1
-                range_size_acc = 0
-                range_buffer_size = buffer_size
-                file_handle.seek(start)
+            # http expects the last byte included
+            range_size = segment_end - segment_start + 1
+            range_size_acc = 0
+            range_buffer_size = buffer_size
 
-                if multipart:
-                    delimiter = range_size
+            if multipart:
+                delimiter = range_size
 
-                while range_size_acc < range_size:
-                    if (range_size - range_size_acc) < range_buffer_size:
-                        range_buffer_size = (range_size - range_size_acc)
-                    data = file_handle.read(range_buffer_size)
-                    if data == '':
-                        break
-                    yield delimiter, segment_start, segment_end, data
-                    delimiter = False
-                    range_size_acc += range_buffer_size
+            while range_size_acc < range_size:
+                if (range_size - range_size_acc) < range_buffer_size:
+                    range_buffer_size = (range_size - range_size_acc)
 
-    file_handle.close()
+                data = read_func(file_handle, range_buffer_size)
+                if data == '':
+                    break
+                yield delimiter, segment_start, segment_end, data
+                delimiter = False
+                range_size_acc += range_buffer_size
+
+    close_func(file_handle)
