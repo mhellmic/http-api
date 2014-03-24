@@ -132,31 +132,31 @@ def get_url_list():
         RestResource('/', ContainerType, {
             'children': 3,
         }, True, True),
-        RestResource('/tmp/testfile', FileType, {
+        RestResource('/testfile', FileType, {
             'size': 3,
             'content': 'abc',
         }, True, True),
-        RestResource('/tmp/testfolder', ContainerType, {
+        RestResource('/testfolder', ContainerType, {
             'children': 1,
         }, True, True),
-        RestResource('/tmp/testfolder/', ContainerType, {
+        RestResource('/testfolder/', ContainerType, {
             'children': 1,
         }, True, True),
-        RestResource('/tmp/testfolder/testfile', FileType, {
+        RestResource('/testfolder/testfile', FileType, {
             'size': 26,
             'content': 'abcdefghijklmnopqrstuvwxyz',
         }, True, True),
-        RestResource('/tmp/emptyfolder', ContainerType, {
+        RestResource('/emptyfolder', ContainerType, {
             'children': 0,
         }, True, True),
-        RestResource('/tmp/emptyfolder/', ContainerType, {
+        RestResource('/emptyfolder/', ContainerType, {
             'children': 0,
         }, True, True),
-        RestResource('/tmp/nonfolder', ContainerType, {},
+        RestResource('/nonfolder', ContainerType, {},
                      False, True),
-        RestResource('/tmp/testfolder/nonfolder', ContainerType, {},
+        RestResource('/testfolder/nonfolder', ContainerType, {},
                      False, True),
-        RestResource('/tmp/newfolder/newfile', FileType, {
+        RestResource('/newfolder/newfile', FileType, {
             'size': 10,
             'content': '1234567890',
         }, False, False),
@@ -177,6 +177,24 @@ def get_url_list():
     return l
 
 
+def get_local_url_list():
+    l = []
+    for o in get_url_list():
+        o.path = '/tmp/new%s' % o.path
+        l.append(o)
+
+    return l
+
+
+def get_irods_url_list():
+    l = []
+    for o in get_url_list():
+        o.objpath = '/tempZone/home/eirods%s' % o.objpath
+        l.append(o)
+
+    return l
+
+
 def get_user_list():
     User = namedtuple('User', 'name password valid')
     l = [
@@ -188,15 +206,88 @@ def get_user_list():
     return l
 
 
+def create_local_urls(url_list):
+    for obj in [o for o in url_list if o.exists]:
+        if obj.objtype == obj.ContainerType:
+            try:
+                os.makedirs(obj.path)
+            except OSError:
+                pass
+        elif obj.objtype == obj.FileType:
+            try:
+                os.makedirs(os.path.split(obj.path)[0])
+            except OSError:
+                pass
+            with open(obj.path, 'wb') as f:
+                f.write(obj.objinfo['content'])
+
+
+def create_irods_urls(url_list):
+    pass
+
+
+def erase_local_urls(url_list):
+    for obj in [o for o in url_list if o.exists]:
+        if obj.objtype == obj.ContainerType:
+            try:
+                os.removedirs(obj.path)
+            except OSError:
+                pass
+        elif obj.objtype == obj.FileType:
+            try:
+                os.remove(obj.path)
+            except OSError:
+                pass
+
+
+def erase_irods_urls(url_list):
+    pass
+
+
 class TestHttpApi:
+    url_list = None
+    client = None
+    app = None
+
+    @classmethod
+    def setup_class(cls):
+        config = os.getenv('TEST_CONFIG')
+        if config is not None:
+            app = create_app(config)
+        else:
+            app = create_app(__name__)
+
+        cls.app = app
+        cls.test_client = app.test_client()
+
+        cls.url_list = get_url_list()
+        if app.config['STORAGE'] == 'local':
+            cls.url_list = get_local_url_list()
+        elif app.config['STORAGE'] == 'irods':
+            cls.url_list = get_irods_url_list()
 
     def setup(self):
+        # this is needed to give each test
+        # its own app
         config = os.getenv('TEST_CONFIG')
         if config is not None:
             app = create_app(config)
         else:
             app = create_app(__name__)
         self.client = app.test_client()
+
+        self.app = app
+
+        if self.app.config['STORAGE'] == 'local':
+            create_local_urls(self.url_list)
+        elif self.app.config['STORAGE'] == 'irods':
+            create_irods_urls(self.url_list)
+
+    def teardown(self):
+        if self.app.config['STORAGE'] == 'local':
+            erase_local_urls(self.url_list)
+        elif self.app.config['STORAGE'] == 'irods':
+            erase_irods_urls(self.url_list)
 
     def assert_html_response(self, rv):
         assert rv.content_type.startswith('text/html')
@@ -218,11 +309,11 @@ class TestHttpApi:
 
     def check_html(self, check_func):
         for (resource,
-             userinfo) in product(get_url_list(),
+             userinfo) in product(self.url_list,
                                   get_user_list()):
             yield (check_func,
                    {
-                       'url': resource.url,
+                       'url': resource.path,
                        'objtype': resource.objtype,
                        'objinfo': resource.objinfo,
                        'exists': resource.exists,
@@ -404,20 +495,41 @@ class TestHttpApi:
 
 
 class TestStorageApi:
-    ContainerType = 'dir'
-    FileType = 'file'
+    url_list = None
+    client = None
+    app = None
 
-    def setup(self):
+    @classmethod
+    def setup_class(cls):
         config = os.getenv('TEST_CONFIG')
         if config is not None:
             app = create_app(config)
         else:
             app = create_app(__name__)
-        self.client = app.test_client()
+
+        cls.app = app
+
+        cls.url_list = get_url_list()
+        if app.config['STORAGE'] == 'local':
+            cls.url_list = get_local_url_list()
+        elif app.config['STORAGE'] == 'irods':
+            cls.url_list = get_irods_url_list()
+
+    def setup(self):
+        if self.app.config['STORAGE'] == 'local':
+            create_local_urls(self.url_list)
+        elif self.app.config['STORAGE'] == 'irods':
+            create_irods_urls(self.url_list)
+
+    def teardown(self):
+        if self.app.config['STORAGE'] == 'local':
+            erase_local_urls(self.url_list)
+        elif self.app.config['STORAGE'] == 'irods':
+            erase_irods_urls(self.url_list)
 
     def check_storage(self, check_func):
         for (resource,
-             userinfo) in product(get_url_list(),
+             userinfo) in product(self.url_list,
                                   get_user_list()):
             yield (check_func,
                    {
@@ -438,16 +550,17 @@ class TestStorageApi:
             yield t
 
     def check_auth(self, params):
-        from eudat_http_api.http_storage import storage
-        userinfo = params['userinfo']
+        with self.app.app_context():
+            from eudat_http_api.http_storage import storage
+            userinfo = params['userinfo']
 
-        rv = storage.authenticate(userinfo.name,
-                                  userinfo.password)
+            rv = storage.authenticate(userinfo.name,
+                                      userinfo.password)
 
-        if userinfo.valid:
-            assert rv is True
-        else:
-            assert rv is False
+            if userinfo.valid:
+                assert rv is True
+            else:
+                assert rv is False
 
     def check_stat(self, params):
         if params['resource'].exists:
@@ -456,29 +569,59 @@ class TestStorageApi:
             self.check_stat_except(**params)
 
     def check_stat_good(self, resource, userinfo):
-        from eudat_http_api.http_storage import storage
+        with self.app.app_context():
+            from eudat_http_api.http_storage import storage
 
-        rv = storage.stat(resource.path)
+            rv = storage.stat(resource.path)
 
-        if resource.is_dir():
-            assert 'children' in rv
-            if 'children' in rv:
-                assert rv['children'] == resource.objinfo['children']
-        elif resource.is_file():
-            assert 'size' in rv
-            if 'size' in rv:
-                assert rv['size'] == resource.objinfo['size']
+            if resource.is_dir():
+                assert 'children' in rv
+                if 'children' in rv:
+                    assert rv['children'] == resource.objinfo['children']
+            elif resource.is_file():
+                assert 'size' in rv
+                if 'size' in rv:
+                    assert rv['size'] == resource.objinfo['size']
 
-        assert 'user_metadata' in rv
-        if 'user_metadata' in rv:
-            assert len(rv['user_metadata']) == 0
+            assert 'user_metadata' not in rv
+
+            # check for a request with metadata disabled
+            rv = storage.stat(resource.path, None)
+
+            if resource.is_dir():
+                assert 'children' in rv
+                if 'children' in rv:
+                    assert rv['children'] == resource.objinfo['children']
+            elif resource.is_file():
+                assert 'size' in rv
+                if 'size' in rv:
+                    assert rv['size'] == resource.objinfo['size']
+
+            assert 'user_metadata' not in rv
+
+            # check for a request with metadata
+            rv = storage.stat(resource.path, True)
+
+            if resource.is_dir():
+                assert 'children' in rv
+                if 'children' in rv:
+                    assert rv['children'] == resource.objinfo['children']
+            elif resource.is_file():
+                assert 'size' in rv
+                if 'size' in rv:
+                    assert rv['size'] == resource.objinfo['size']
+
+            assert 'user_metadata' in rv
+            if 'user_metadata' in rv:
+                assert len(rv['user_metadata']) == 0
 
     def check_stat_except(self, resource, userinfo):
-        from eudat_http_api.http_storage import storage
+        with self.app.app_context():
+            from eudat_http_api.http_storage import storage
 
-        assert_raises(storage.NotFoundException,
-                      storage.stat,
-                      resource.path)
+            assert_raises(storage.NotFoundException,
+                          storage.stat,
+                          resource.path)
 
     def check_read(self, params):
         if params['resource'].exists and params['resource'].is_file():
@@ -487,38 +630,40 @@ class TestStorageApi:
             self.check_read_except(**params)
 
     def check_read_good(self, resource, userinfo):
-        from eudat_http_api.http_storage import storage
+        with self.app.app_context():
+            from eudat_http_api.http_storage import storage
 
-        gen, fsize, contentlen, rangelist = storage.read(resource.path)
+            gen, fsize, contentlen, rangelist = storage.read(resource.path)
 
-        data = reduce(add, map(lambda (a, b, c, d): d, gen))
-        assert data == resource.objinfo['content']
-        assert fsize == contentlen
-        assert fsize == resource.objinfo['size']
-        assert rangelist == []
+            data = reduce(add, map(lambda (a, b, c, d): d, gen))
+            assert data == resource.objinfo['content']
+            assert fsize == contentlen
+            assert fsize == resource.objinfo['size']
+            assert rangelist == []
 
-        #single_range = [[1, 4]]
-        #gen, fsize, contentlen, rangelist = storage.read(resource.path,
-        #                                                 single_range)
+            #single_range = [[1, 4]]
+            #gen, fsize, contentlen, rangelist = storage.read(resource.path,
+            #                                                 single_range)
 
-        #data = reduce(add, map(lambda (a, b, c, d): d, gen))
-        #assert data == resource.objinfo['content'][1:4+1]
-        #assert fsize == resource.objinfo['size']
-        #if resource.objinfo['size'] >= 4:
-        #    assert contentlen == 4
-        #else:
-        #    assert contentlen == resource.objinfo['size']
+            #data = reduce(add, map(lambda (a, b, c, d): d, gen))
+            #assert data == resource.objinfo['content'][1:4+1]
+            #assert fsize == resource.objinfo['size']
+            #if resource.objinfo['size'] >= 4:
+            #    assert contentlen == 4
+            #else:
+            #    assert contentlen == resource.objinfo['size']
 
-        #assert rangelist == [[1, 4]]
+            #assert rangelist == [[1, 4]]
 
     def check_read_except(self, resource, userinfo):
-        from eudat_http_api.http_storage import storage
+        with self.app.app_context():
+            from eudat_http_api.http_storage import storage
 
-        if resource.is_dir() and resource.exists:
-            assert_raises(storage.IsDirException,
-                          storage.read,
-                          resource.path)
-        elif resource.is_file() and not resource.exists:
-            assert_raises(storage.NotFoundException,
-                          storage.read,
-                          resource.path)
+            if resource.is_dir() and resource.exists:
+                assert_raises(storage.IsDirException,
+                              storage.read,
+                              resource.path)
+            elif resource.is_file() and not resource.exists:
+                assert_raises(storage.NotFoundException,
+                              storage.read,
+                              resource.path)
