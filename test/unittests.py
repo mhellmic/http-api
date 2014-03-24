@@ -246,6 +246,9 @@ def erase_irods_urls(url_list):
 
 
 class TestHttpApi:
+    ContainerType = 'dir'
+    FileType = 'file'
+
     url_list = None
     client = None
     app = None
@@ -439,13 +442,20 @@ class TestHttpApi:
             assert rv.status_code == 401
             return
 
-        if url[-1] != '/':
+        if (kwargs['objtype'] == self.ContainerType and
+                url[-1] != '/'):
             assert (rv.headers.get('Location') ==
                     'http://localhost%s/' % url)
-            self.assert_html_response(rv)
-        else:
+        elif (kwargs['objtype'] == self.ContainerType and
+                objinfo['children'] == 0):
             assert rv.status_code == 204
-            self.assert_html_response(rv)
+        elif (kwargs['objtype'] == self.ContainerType and
+                objinfo['children'] > 0):
+            assert rv.status_code == 409
+        elif kwargs['objtype'] == self.FileType:
+            assert rv.status_code == 204
+
+        self.assert_html_response(rv)
 
     def check_html_folder_del_404(self, url, objinfo, userinfo,
                                   exists, parent_exists, **kwargs):
