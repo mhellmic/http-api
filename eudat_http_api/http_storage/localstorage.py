@@ -72,7 +72,8 @@ def stat(path, metadata=None):
 
     try:
         stat_result = os.stat(path)
-    except IOError:
+    except (IOError, OSError) as e:
+        current_app.logger.debug(e)
         raise NotFoundException('Path does not exist or is not a file')
 
     if sys_stat.S_ISDIR(stat_result.st_mode):
