@@ -247,7 +247,7 @@ irodsZone {zone}
     if not os.path.exists(irods_env_dir):
         os.mkdir(irods_env_dir)
 
-    with open(irods_env_file) as fd:
+    with open(irods_env_file, 'w') as fd:
         fd.write(irods_env_template.format(**variables))
 
     p = Popen(['iinit'], stdin=PIPE)
