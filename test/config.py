@@ -19,7 +19,10 @@ class MockConfig(Config):
 
 class LocalConfig(Config):
     STORAGE = 'local'
-    BASE_PATH = '/'
+    BASE_PATH = ''
+    USERS = {
+        'testname': 'testpass'
+    }
 
 
 class IrodsConfig(Config):

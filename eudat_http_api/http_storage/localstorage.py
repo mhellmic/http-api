@@ -41,9 +41,18 @@ def authenticate(username, password):
     """Authenticate with username, password.
 
     Returns True or False.
-    Validates an existing connection.
+
+    Don't mistake this for real authentication, please.
+    It just help tests passing.
+    If users are defined in the config, it checks for
+    valid accounts and passwords.
+    Otherwise it allows everyone.
     """
-    return True
+    if 'USERS' in current_app.config:
+        return (username in current_app.config['USERS'] and
+                current_app.config['USERS'][username] == password)
+    else:
+        return True
 
 
 @check_path
