@@ -292,7 +292,10 @@ def erase_irods_urls(url_list):
     for user in [u for u in get_user_list() if u.valid]:
         create_irods_env(user.name, user.password)
         for obj in url_list:
-            call(['irm -rf', obj.objtype], shell=True)
+            try:
+                call(['irm -rf', obj.objtype], shell=True)
+            except OSError:
+                pass
 
 
 class TestHttpApi:
