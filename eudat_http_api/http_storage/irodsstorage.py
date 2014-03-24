@@ -237,7 +237,11 @@ def read(path, range_list=[]):
     if not file_handle:
         if int(irodsCollection(conn, path).getId()) >= 0:
             raise IsDirException('Path is a directory')
+            current_app.logger.error('Path is a directory: %s'
+                                     % path)
         else:
+            current_app.logger.error('Path does not exist or is not a file: %s'
+                                     % path)
             raise NotFoundException('Path does not exist or is not a file')
 
     file_size = file_handle.getSize()
