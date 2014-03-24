@@ -8,7 +8,7 @@ before_install:
  - ./install_irods.sh
  - "chmod +x ./install_pyrods.sh"
  - ./install_pyrods.sh
-install: "pip install -r requirements.txt --use-mirrors"
+install: "pip install -r requirements.txt"
 script:
  - "TEST_CONFIG=test.config.LocalConfig nosetests test.unittests"
  - "TEST_CONFIG=test.config.IrodsConfig nosetests test.unittests"
