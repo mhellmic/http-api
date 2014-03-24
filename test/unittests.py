@@ -264,10 +264,13 @@ def create_irods_urls(url_list):
                 call(['imkdir', obj.objtype])
             elif obj.objtype == obj.FileType:
                 fd, filename = tempfile.mkstemp()
-                with fd:
+                try:
                     fd.write(obj.objinfo['content'])
+                finally:
+                    fd.close()
 
                 call(['iput', filename, obj.objtype])
+                os.remove(filename)
 
 
 def erase_local_urls(url_list):
