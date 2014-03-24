@@ -6,6 +6,7 @@ from itertools import product
 from operator import add
 import os
 import re
+import shutil
 import tempfile
 
 from nose.tools import assert_raises
@@ -227,12 +228,12 @@ def create_irods_urls(url_list):
 
 
 def erase_local_urls(url_list):
-    for obj in [o for o in url_list if o.exists]:
+    for obj in url_list:
         if obj.objtype == obj.ContainerType:
             try:
-                os.removedirs(obj.path)
+                shutil.rmtree(obj.path, ignore_errors=True)
             except OSError:
-                pass
+                raise
         elif obj.objtype == obj.FileType:
             try:
                 os.remove(obj.path)
