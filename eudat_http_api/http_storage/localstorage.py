@@ -157,7 +157,19 @@ def read(path, range_list=[]):
 @check_path
 def write(path, stream_gen):
     """Write a file from an input stream."""
-    return 0
+    if os.path.exists(path):
+        raise ConflictException('Path already exists')
+
+    try:
+        write_counter = 0
+        with open(path, 'wb') as f:
+            for chunk in stream_gen:
+                f.write(chunk)
+                write_counter += len(chunk)
+
+        return write_counter
+    except IOError as e:
+        _handle_oserror(e)
 
 
 @check_path
@@ -181,23 +193,31 @@ def ls(path):
 @check_path
 def mkdir(path):
     """Create a directory."""
-    os.makedirs(path)
+    try:
+        os.mkdir(path)
+    except OSError as e:
+        _handle_oserror(e)
 
 
 @check_path
 def rm(path):
     """Delete a file."""
-    os.remove(path)
+    if os.path.isdir(path):
+        raise IsDirException('Path is a directory')
+
+    try:
+        os.remove(path)
+    except OSError as e:
+        _handle_oserror(e)
 
 
 @check_path
 def rmdir(path):
-    """Delete a directory.
-
-    Be careful: it also deletes subdirectories
-    without asking.
-    """
-    os.removedirs(path)
+    """Delete a directory."""
+    try:
+        os.rmdir(path)
+    except OSError as e:
+        _handle_oserror(e)
 
 
 def teardown(exception=None):
@@ -222,3 +242,24 @@ def _close(file_handle):
 
 def _write(file_handle, data):
     return file_handle.write(data)
+
+
+def _handle_oserror(e):
+        if e.errno == errno.ENOENT:
+            raise NotFoundException('Path does not exist')
+        elif e.errno == errno.EPERM:
+            raise NotAuthorizedException('Not authorized')
+        elif e.errno == errno.EEXIST:
+            raise ConflictException('Path already exists')
+        elif e.errno == errno.EACCES:
+            raise NotAuthorizedException('Permission denied')
+        elif e.errno == errno.ENOTDIR:
+            raise ConflictException('Path is not a directory')
+        elif e.errno == errno.EISDIR:
+            raise ConflictException('Path is a directory')
+        elif e.errno == errno.ENOTEMPTY:
+            raise ConflictException('Path is a directory and not empty')
+
+        current_app.logger.error('Unknown storage exception: %s: %s'
+                                 % (path, e))
+        raise StorageException('Unknown storage exception')
