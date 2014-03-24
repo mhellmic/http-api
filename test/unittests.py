@@ -189,9 +189,10 @@ def get_local_url_list():
 
 def get_irods_url_list():
     l = []
-    for o in get_url_list():
-        o.objpath = '/tempZone/home/eirods%s' % o.objpath
-        l.append(o)
+    for user in [u for u in get_user_list() if u.valid]:
+        for o in get_url_list():
+            o.objpath = '/tempZone/home/%s%s' % (user.name, o.objpath)
+            l.append(o)
 
     return l
 
@@ -219,12 +220,54 @@ def create_local_urls(url_list):
                 os.makedirs(os.path.split(obj.path)[0])
             except OSError:
                 pass
-            with open(obj.path, 'wb') as f:
-                f.write(obj.objinfo['content'])
+            with open(obj.path, 'wb') as fd:
+                fd.write(obj.objinfo['content'])
+
+
+def create_irods_env(username, password):
+    from os.path import expanduser
+    from subprocess import Popen, PIPE
+
+    irods_env_template = """irodsUserName {user}
+irodsHost {host}
+irodsPort {port}
+irodsZone {zone}
+"""
+
+    variables = {
+        'user': username,
+        'host': 'localhost',
+        'port': '1247',
+        'zone': 'tempZone'
+    }
+
+    home_dir = expanduser('~')
+    irods_env_dir = '%s/.irodsEnv' % home_dir
+    irods_env_file = '%s/.irodsEnv' % irods_env_dir
+    if not os.path.exists(irods_env_dir):
+        os.mkdir(irods_env_dir)
+
+    with open(irods_env_file) as fd:
+        fd.write(irods_env_template.format(**variables))
+
+    p = Popen(['iinit'], stdin=PIPE)
+    p.communicate(input='%s\n' % password)
 
 
 def create_irods_urls(url_list):
-    pass
+    from subprocess import call
+
+    for user in [u for u in get_user_list() if u.valid]:
+        create_irods_env(user.name, user.password)
+        for obj in [o for o in url_list if o.exists]:
+            if obj.objtype == obj.ContainerType:
+                call(['imkdir', obj.objtype])
+            elif obj.objtype == obj.FileType:
+                fd, filename = tempfile.mkstemp()
+                with fd:
+                    fd.write(obj.objinfo['content'])
+
+                call(['iput', filename, obj.objtype])
 
 
 def erase_local_urls(url_list):
@@ -242,7 +285,12 @@ def erase_local_urls(url_list):
 
 
 def erase_irods_urls(url_list):
-    pass
+    from subprocess import call
+
+    for user in [u for u in get_user_list() if u.valid]:
+        create_irods_env(user.name, user.password)
+        for obj in url_list:
+            call(['irm -rf', obj.objtype])
 
 
 class TestHttpApi:
