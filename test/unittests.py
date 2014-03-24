@@ -220,8 +220,8 @@ def create_local_urls(url_list):
                 os.makedirs(os.path.split(obj.path)[0])
             except OSError:
                 pass
-            with open(obj.path, 'wb') as fd:
-                fd.write(obj.objinfo['content'])
+            with open(obj.path, 'wb') as f:
+                f.write(obj.objinfo['content'])
 
 
 def create_irods_env(username, password):
@@ -263,11 +263,10 @@ def create_irods_urls(url_list):
             if obj.objtype == obj.ContainerType:
                 call(['imkdir', obj.objtype])
             elif obj.objtype == obj.FileType:
+                call(['imkdir', os.path.split(obj.objtype)[0]])
                 fd, filename = tempfile.mkstemp()
-                try:
-                    fd.write(obj.objinfo['content'])
-                finally:
-                    fd.close()
+                with open(filename, 'wb') as f:
+                    f.write(obj.objinfo['content'])
 
                 call(['iput', filename, obj.objtype])
                 os.remove(filename)
