@@ -13,17 +13,23 @@ from nose.tools import assert_raises
 #from mock import patch
 from eudat_http_api import create_app
 
-db_fd, db_filename = tempfile.mkstemp()
-SQLALCHEMY_DATABASE_URI = '%s%s' % ('sqlite:///', db_filename)
-STORAGE = 'mock'
+
+DB_FD, DB_FILENAME = tempfile.mkstemp()
+SQLALCHEMY_DATABASE_URI = '%s%s' % ('sqlite:///', DB_FILENAME)
 DEBUG = True
 TESTING = True
+STORAGE = 'mock'
 
 
 class TestHttpRegisterApi:
 
     def setup(self):
-        app = create_app(__name__)
+        config = os.getenv('TEST_CONFIG')
+        if config is not None:
+            app = create_app(config)
+        else:
+            app = create_app(__name__)
+        self.app = app
         with app.app_context():
             from eudat_http_api.registration.models import db
             db.create_all()
@@ -31,8 +37,8 @@ class TestHttpRegisterApi:
         self.client = app.test_client()
 
     def teardown(self):
-        os.close(db_fd)
-        os.unlink(db_filename)
+        os.close(self.app.config['DB_FD'])
+        os.unlink(self.app.config['DB_FILENAME'])
 
     # from https://gist.github.com/jarus/1160696
     def open_with_auth(self, url, method, username, password, data=None):
@@ -185,7 +191,11 @@ def get_user_list():
 class TestHttpApi:
 
     def setup(self):
-        app = create_app(__name__)
+        config = os.getenv('TEST_CONFIG')
+        if config is not None:
+            app = create_app(config)
+        else:
+            app = create_app(__name__)
         self.client = app.test_client()
 
     def assert_html_response(self, rv):
@@ -398,8 +408,11 @@ class TestStorageApi:
     FileType = 'file'
 
     def setup(self):
-        app = create_app(__name__)
-        app.config['STORAGE'] = 'local'
+        config = os.getenv('TEST_CONFIG')
+        if config is not None:
+            app = create_app(config)
+        else:
+            app = create_app(__name__)
         self.client = app.test_client()
 
     def check_storage(self, check_func):
