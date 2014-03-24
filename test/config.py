@@ -19,7 +19,7 @@ class MockConfig(Config):
 
 class LocalConfig(Config):
     STORAGE = 'local'
-    BASE_PATH = ''
+    EXPORTEDPATHS = ['/tmp/']
     USERS = {
         'testname': 'testpass'
     }
