@@ -242,7 +242,7 @@ irodsZone {zone}
     }
 
     home_dir = expanduser('~')
-    irods_env_dir = '%s/.irodsEnv' % home_dir
+    irods_env_dir = '%s/.irods' % home_dir
     irods_env_file = '%s/.irodsEnv' % irods_env_dir
     if not os.path.exists(irods_env_dir):
         os.mkdir(irods_env_dir)
