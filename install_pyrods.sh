@@ -8,4 +8,4 @@ export CFLAGS=-fPIC
 ./scripts/configure
 make clients
 python setup.py build
-sudo python setup.py install
+python setup.py install
