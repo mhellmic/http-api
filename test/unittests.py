@@ -261,14 +261,14 @@ def create_irods_urls(url_list):
         create_irods_env(user.name, user.password)
         for obj in [o for o in url_list if o.exists]:
             if obj.objtype == obj.ContainerType:
-                call(['imkdir', obj.objtype])
+                call(['imkdir', obj.objtype], shell=True)
             elif obj.objtype == obj.FileType:
-                call(['imkdir', os.path.split(obj.objtype)[0]])
+                call(['imkdir', os.path.split(obj.objtype)[0]], shell=True)
                 fd, filename = tempfile.mkstemp()
                 with open(filename, 'wb') as f:
                     f.write(obj.objinfo['content'])
 
-                call(['iput', filename, obj.objtype])
+                call(['iput', filename, obj.objtype], shell=True)
                 os.remove(filename)
 
 
@@ -292,7 +292,7 @@ def erase_irods_urls(url_list):
     for user in [u for u in get_user_list() if u.valid]:
         create_irods_env(user.name, user.password)
         for obj in url_list:
-            call(['irm -rf', obj.objtype])
+            call(['irm -rf', obj.objtype], shell=True)
 
 
 class TestHttpApi:
