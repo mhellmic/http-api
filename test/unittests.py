@@ -191,7 +191,7 @@ def get_irods_url_list():
     l = []
     for user in [u for u in get_user_list() if u.valid]:
         for o in get_url_list():
-            o.objpath = '/tempZone/home/%s%s' % (user.name, o.objpath)
+            o.path = '/tempZone/home/%s%s' % (user.name, o.path)
             l.append(o)
 
     return l
