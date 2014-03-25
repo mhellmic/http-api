@@ -10,7 +10,7 @@ sudo apt-get -y remove postgresql*
 sudo gdebi -n /tmp/eirods.deb
 
 #start irods explicitly
-service eirods start
+sudo service eirods start
 
 sudo su eirods -c "iadmin mkuser testname rodsuser"
 sudo su eirods -c "iadmin moduser testname password testpass"
