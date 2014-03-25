@@ -77,6 +77,7 @@ def authenticate(username, password):
         current_app.logger.debug('Created a storage connection')
         return True
     else:
+        conn.disconnect()
         return False
 
 
