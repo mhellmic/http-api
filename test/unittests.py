@@ -303,6 +303,7 @@ def erase_irods_urls(url_list):
 
             coll = irodsCollection(conn)
             coll.deleteCollection(obj.path)
+        conn.disconnect()
 
 
 class TestHttpApi:
