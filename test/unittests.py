@@ -665,7 +665,7 @@ class TestStorageApi:
                 assert rv is False
 
     def check_stat(self, params):
-        if params['resource'].exists:
+        if params['resource'].exists and params['userinfo'].valid:
             self.check_stat_good(**params)
         else:
             self.check_stat_except(**params)
@@ -731,12 +731,18 @@ class TestStorageApi:
                 return_value=self.Auth(userinfo.name, userinfo.password)):
             from eudat_http_api.http_storage import storage
 
-            assert_raises(storage.NotFoundException,
-                          storage.stat,
-                          resource.path)
+            if userinfo.valid:
+                assert_raises(storage.NotFoundException,
+                              storage.stat,
+                              resource.path)
+            else:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.stat,
+                              resource.path)
 
     def check_read(self, params):
-        if params['resource'].exists and params['resource'].is_file():
+        if (params['resource'].exists and params['resource'].is_file() and
+                params['userinfo'].valid):
             self.check_read_good(**params)
         else:
             self.check_read_except(**params)
@@ -779,11 +785,15 @@ class TestStorageApi:
 
             from eudat_http_api.http_storage import storage
 
-            if resource.is_dir() and resource.exists:
+            if resource.is_dir() and resource.exists and userinfo.valid:
                 assert_raises(storage.IsDirException,
                               storage.read,
                               resource.path)
-            elif resource.is_file() and not resource.exists:
+            elif resource.is_file() and not resource.exists and userinfo.valid:
                 assert_raises(storage.NotFoundException,
+                              storage.read,
+                              resource.path)
+            elif not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
                               storage.read,
                               resource.path)
