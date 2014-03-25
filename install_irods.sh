@@ -10,7 +10,7 @@ sudo apt-get -y remove postgresql*
 sudo gdebi -n /tmp/eirods.deb
 
 # check if eirods is up
-echo "eirods PID = `pgrep eirods`"
+echo "eirods PID = `pgrep irods`"
 
 sudo su eirods -c "iadmin mkuser testname rodsuser"
 sudo su eirods -c "iadmin moduser testname password testpass"
