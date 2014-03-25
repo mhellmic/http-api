@@ -228,7 +228,8 @@ def create_local_urls(url_list):
 
 
 def create_irods_connection(username, password):
-    from irods import *
+    from irods import (getRodsEnv, rcConnect, clientLoginWithPassword,
+                       rodsErrorName)
 
     err, rodsEnv = getRodsEnv()  # Override all values later
     rodsEnv.rodsUserName = username
@@ -257,7 +258,7 @@ def create_irods_connection(username, password):
 
 
 def create_irods_urls(url_list):
-    from irods import *
+    from irods import irodsCollection, irodsOpen
 
     for user in [u for u in get_user_list() if u.valid]:
         conn = create_irods_connection(user.name, user.password)
@@ -268,7 +269,7 @@ def create_irods_urls(url_list):
             elif obj.objtype == obj.FileType:
                 coll = irodsCollection(conn)
                 coll.createCollection(os.path.split(obj.path)[0])
-                file_handle = irodsOpen(conn, path, 'w')
+                file_handle = irodsOpen(conn, obj.path, 'w')
                 file_handle.write(obj.objinfo['content'])
                 file_handle.close()
         conn.disconnect()
@@ -289,18 +290,18 @@ def erase_local_urls(url_list):
 
 
 def erase_irods_urls(url_list):
-    from irods import *
+    from irods import irodsOpen, irodsCollection
 
     for user in [u for u in get_user_list() if u.valid]:
         conn = create_irods_connection(user.name, user.password)
         for obj in url_list:
-            file_handle = irodsOpen(conn, path, 'r')
-            if file_handle:
+            file_handle = irodsOpen(conn, obj.path, 'r')
+            if file_handle is not None:
                 file_handle.close()
                 file_handle.delete(force=True)
 
             coll = irodsCollection(conn)
-            coll.deleteCollection(path)
+            coll.deleteCollection(obj.path)
 
 
 class TestHttpApi:
