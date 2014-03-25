@@ -249,7 +249,7 @@ def create_irods_connection(username, password):
 
     err = clientLoginWithPassword(conn, password)
 
-    if err.status != 0:
+    if err != 0:
         raise Exception('Authenticating to iRODS failed %s'
                         % rodsErrorName(err.status)[0])
 
