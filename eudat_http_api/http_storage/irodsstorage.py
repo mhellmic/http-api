@@ -28,6 +28,8 @@ def get_storage():
         try:
             if authenticate(auth.username, auth.password):
                 conn = getattr(g, 'storageconn', None)
+            else:
+                raise NotAuthorizedException('Invalid credentials')
         except InternalException:
             g.storageconn = None
 
