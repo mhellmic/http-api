@@ -24,7 +24,7 @@ def get_storage():
     """
     conn = getattr(g, 'storageconn', None)
     if conn is None:
-        auth = request.authorization
+        auth = _get_authentication()
         try:
             if authenticate(auth.username, auth.password):
                 conn = getattr(g, 'storageconn', None)
@@ -441,3 +441,7 @@ def _close(file_handle):
 
 def _write(file_handle, data):
     return file_handle.write(data)
+
+
+def _get_authentication():
+    return request.authorization

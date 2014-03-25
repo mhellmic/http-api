@@ -9,6 +9,7 @@ import re
 import shutil
 import tempfile
 
+from mock import patch
 from nose.tools import assert_raises
 
 #from mock import patch
@@ -190,11 +191,11 @@ def get_local_url_list():
     return l
 
 
-def get_irods_url_list():
+def get_irods_url_list(rodszone):
     l = []
     for user in [u for u in get_user_list() if u.valid]:
         for o in get_url_list():
-            o.path = '/tempZone/home/%s%s' % (user.name, o.path)
+            o.path = '/%s/home/%s%s' % (rodszone, user.name, o.path)
             l.append(o)
 
     return l
@@ -227,16 +228,16 @@ def create_local_urls(url_list):
                 f.write(obj.objinfo['content'])
 
 
-def create_irods_connection(username, password):
+def create_irods_connection(username, password, rodsconfig):
     from irods import (getRodsEnv, rcConnect, clientLoginWithPassword,
                        rodsErrorName)
 
     err, rodsEnv = getRodsEnv()  # Override all values later
     rodsEnv.rodsUserName = username
 
-    rodsEnv.rodsHost = 'localhost'
-    rodsEnv.rodsPort = 1247
-    rodsEnv.rodsZone = 'tempZone'
+    rodsEnv.rodsHost = rodsconfig[0]
+    rodsEnv.rodsPort = rodsconfig[1]
+    rodsEnv.rodsZone = rodsconfig[2]
 
     conn, err = rcConnect(rodsEnv.rodsHost,
                           rodsEnv.rodsPort,
@@ -251,17 +252,17 @@ def create_irods_connection(username, password):
     err = clientLoginWithPassword(conn, password)
 
     if err != 0:
-        raise Exception('Authenticating to iRODS failed %s'
-                        % rodsErrorName(err.status)[0])
+        raise Exception('Authenticating to iRODS failed %s, user: %, pw: %s'
+                        % rodsErrorName(err.status)[0], username, password)
 
     return conn
 
 
-def create_irods_urls(url_list):
+def create_irods_urls(url_list, rodsconfig):
     from irods import irodsCollection, irodsOpen
 
     for user in [u for u in get_user_list() if u.valid]:
-        conn = create_irods_connection(user.name, user.password)
+        conn = create_irods_connection(user.name, user.password, rodsconfig)
         for obj in [o for o in url_list if o.exists]:
             if obj.objtype == obj.ContainerType:
                 coll = irodsCollection(conn)
@@ -290,11 +291,11 @@ def erase_local_urls(url_list):
                 pass
 
 
-def erase_irods_urls(url_list):
+def erase_irods_urls(url_list, rodsconfig):
     from irods import irodsOpen, irodsCollection
 
     for user in [u for u in get_user_list() if u.valid]:
-        conn = create_irods_connection(user.name, user.password)
+        conn = create_irods_connection(user.name, user.password, rodsconfig)
         for obj in url_list:
             file_handle = irodsOpen(conn, obj.path, 'r')
             if file_handle is not None:
@@ -329,7 +330,8 @@ class TestHttpApi:
         if app.config['STORAGE'] == 'local':
             cls.url_list = get_local_url_list()
         elif app.config['STORAGE'] == 'irods':
-            cls.url_list = get_irods_url_list()
+            with cls.app.app_context():
+                cls.url_list = get_irods_url_list(cls.app.config['RODSZONE'])
 
     def setup(self):
         # this is needed to give each test
@@ -346,13 +348,25 @@ class TestHttpApi:
         if self.app.config['STORAGE'] == 'local':
             create_local_urls(self.url_list)
         elif self.app.config['STORAGE'] == 'irods':
-            create_irods_urls(self.url_list)
+            with self.app.app_context():
+                create_irods_urls(self.url_list,
+                                  (self.app.config['RODSHOST'],
+                                   self.app.config['RODSPORT'],
+                                   self.app.config['RODSZONE']
+                                   )
+                                  )
 
     def teardown(self):
         if self.app.config['STORAGE'] == 'local':
             erase_local_urls(self.url_list)
         elif self.app.config['STORAGE'] == 'irods':
-            erase_irods_urls(self.url_list)
+            with self.app.app_context():
+                erase_irods_urls(self.url_list,
+                                 (self.app.config['RODSHOST'],
+                                  self.app.config['RODSPORT'],
+                                  self.app.config['RODSZONE']
+                                  )
+                                 )
 
     def assert_html_response(self, rv):
         assert rv.content_type.startswith('text/html')
@@ -571,6 +585,9 @@ class TestStorageApi:
     client = None
     app = None
 
+    from collections import namedtuple
+    Auth = namedtuple('Auth', 'username password')
+
     @classmethod
     def setup_class(cls):
         config = os.getenv('TEST_CONFIG')
@@ -585,19 +602,32 @@ class TestStorageApi:
         if app.config['STORAGE'] == 'local':
             cls.url_list = get_local_url_list()
         elif app.config['STORAGE'] == 'irods':
-            cls.url_list = get_irods_url_list()
+            with cls.app.app_context():
+                cls.url_list = get_irods_url_list(cls.app.config['RODSZONE'])
 
     def setup(self):
         if self.app.config['STORAGE'] == 'local':
             create_local_urls(self.url_list)
         elif self.app.config['STORAGE'] == 'irods':
-            create_irods_urls(self.url_list)
+            with self.app.app_context():
+                create_irods_urls(self.url_list,
+                                  (self.app.config['RODSHOST'],
+                                   self.app.config['RODSPORT'],
+                                   self.app.config['RODSZONE']
+                                   )
+                                  )
 
     def teardown(self):
         if self.app.config['STORAGE'] == 'local':
             erase_local_urls(self.url_list)
         elif self.app.config['STORAGE'] == 'irods':
-            erase_irods_urls(self.url_list)
+            with self.app.app_context():
+                erase_irods_urls(self.url_list,
+                                 (self.app.config['RODSHOST'],
+                                  self.app.config['RODSPORT'],
+                                  self.app.config['RODSZONE']
+                                  )
+                                 )
 
     def check_storage(self, check_func):
         for (resource,
@@ -606,7 +636,7 @@ class TestStorageApi:
             yield (check_func,
                    {
                        'resource': resource,
-                       'userinfo': userinfo
+                       'userinfo': userinfo,
                    })
 
     def test_auth(self):
@@ -641,11 +671,16 @@ class TestStorageApi:
             self.check_stat_except(**params)
 
     def check_stat_good(self, resource, userinfo):
-        with self.app.app_context():
+        with self.app.app_context(), self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.irodsstorage._get_authentication',
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
             from eudat_http_api.http_storage import storage
 
             rv = storage.stat(resource.path)
 
+            assert hasattr(rv, '__iter__')
             if resource.is_dir():
                 assert 'children' in rv
                 if 'children' in rv:
@@ -660,6 +695,7 @@ class TestStorageApi:
             # check for a request with metadata disabled
             rv = storage.stat(resource.path, None)
 
+            assert hasattr(rv, '__iter__')
             if resource.is_dir():
                 assert 'children' in rv
                 if 'children' in rv:
@@ -674,6 +710,7 @@ class TestStorageApi:
             # check for a request with metadata
             rv = storage.stat(resource.path, True)
 
+            assert hasattr(rv, '__iter__')
             if resource.is_dir():
                 assert 'children' in rv
                 if 'children' in rv:
@@ -688,7 +725,10 @@ class TestStorageApi:
                 assert len(rv['user_metadata']) == 0
 
     def check_stat_except(self, resource, userinfo):
-        with self.app.app_context():
+        with self.app.app_context(), self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.irodsstorage._get_authentication',
+                return_value=self.Auth(userinfo.name, userinfo.password)):
             from eudat_http_api.http_storage import storage
 
             assert_raises(storage.NotFoundException,
@@ -702,7 +742,11 @@ class TestStorageApi:
             self.check_read_except(**params)
 
     def check_read_good(self, resource, userinfo):
-        with self.app.app_context():
+        with self.app.app_context(), self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.irodsstorage._get_authentication',
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
             from eudat_http_api.http_storage import storage
 
             gen, fsize, contentlen, rangelist = storage.read(resource.path)
@@ -728,7 +772,11 @@ class TestStorageApi:
             #assert rangelist == [[1, 4]]
 
     def check_read_except(self, resource, userinfo):
-        with self.app.app_context():
+        with self.app.app_context(), self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.irodsstorage._get_authentication',
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
             from eudat_http_api.http_storage import storage
 
             if resource.is_dir() and resource.exists:
