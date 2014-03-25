@@ -279,12 +279,18 @@ def read(path, range_list=[]):
     return gen, file_size, content_len, ordered_range_list
 
 
-def write(path, stream_gen):
+def write(path, stream_gen, force=False):
     """Write a file from an input stream."""
     conn = get_storage()
 
     if conn is None:
         return None
+
+    if not force:
+        f = _open(conn, path, 'r')
+        if f is not None:
+            f.close()
+            raise ConflictException('Target already exists')
 
     file_handle = _open(conn, path, 'w')
     if not file_handle:
@@ -333,12 +339,18 @@ def ls(path):
     return gen
 
 
-def mkdir(path):
+def mkdir(path, force=False):
     """Create a directory."""
     conn = get_storage()
 
     if conn is None:
         return None
+
+    try:
+        stat(path)
+        raise ConflictException('Target already exists')
+    except NotFoundException:
+        pass
 
     dirname, basename = common.split_path(path)
     coll = irodsCollection(conn)
@@ -370,7 +382,10 @@ def rm(path):
 
     file_handle = _open(conn, path, 'r')
     if not file_handle:
-        raise NotFoundException('Path does not exist or is not a file')
+        if int(irodsCollection(conn, path).getId()) >= 0:
+            raise IsDirException('Path is a directory')
+        else:
+            raise NotFoundException('Path does not exist')
 
     _close(file_handle)
 
@@ -386,7 +401,7 @@ def rm(path):
     return True, ''
 
 
-def rmdir(path):
+def rmdir(path, force=False):
     """Delete a directory.
 
     Be careful: it also deletes subdirectories
@@ -397,6 +412,9 @@ def rmdir(path):
 
     if conn is None:
         return None
+
+    if not force and stat(path)['children'] > 0:
+        raise ConflictException('Directory is not empty')
 
     dirname, basename = common.split_path(path)
     coll = irodsCollection(conn)
