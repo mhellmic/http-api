@@ -130,6 +130,7 @@ class RestResource:
 
 def get_url_list():
     l = [
+        # existing objects first
         RestResource('/', ContainerType, {
             'children': 3,
         }, True, True),
@@ -153,14 +154,11 @@ def get_url_list():
         RestResource('/emptyfolder/', ContainerType, {
             'children': 0,
         }, True, True),
+        # not existing objects here
         RestResource('/nonfolder', ContainerType, {},
                      False, True),
         RestResource('/testfolder/nonfolder', ContainerType, {},
                      False, True),
-        RestResource('/newfolder/newfile', FileType, {
-            'size': 10,
-            'content': '1234567890',
-        }, False, False),
         RestResource('/nonofile', FileType, {
             'size': 10,
             'content': '1234567890',
@@ -173,6 +171,11 @@ def get_url_list():
             'size': 0,
             'content': '',
         }, False, True),
+        # non-existing with non-existing parent here
+        RestResource('/newfolder/newfile', FileType, {
+            'size': 10,
+            'content': '1234567890',
+        }, False, False),
     ]
     print 'Testing %d different URLs' % len(l)
     return l
@@ -224,52 +227,51 @@ def create_local_urls(url_list):
                 f.write(obj.objinfo['content'])
 
 
-def create_irods_env(username, password):
-    from os.path import expanduser
-    from subprocess import Popen, PIPE
+def create_irods_connection(username, password):
+    from irods import *
 
-    irods_env_template = """irodsUserName {user}
-irodsHost {host}
-irodsPort {port}
-irodsZone {zone}
-"""
+    err, rodsEnv = getRodsEnv()  # Override all values later
+    rodsEnv.rodsUserName = username
 
-    variables = {
-        'user': username,
-        'host': 'localhost',
-        'port': '1247',
-        'zone': 'tempZone'
-    }
+    rodsEnv.rodsHost = 'localhost'
+    rodsEnv.rodsPort = 1247
+    rodsEnv.rodsZone = 'tempZone'
 
-    home_dir = expanduser('~')
-    irods_env_dir = '%s/.irods' % home_dir
-    irods_env_file = '%s/.irodsEnv' % irods_env_dir
-    if not os.path.exists(irods_env_dir):
-        os.mkdir(irods_env_dir)
+    conn, err = rcConnect(rodsEnv.rodsHost,
+                          rodsEnv.rodsPort,
+                          rodsEnv.rodsUserName,
+                          rodsEnv.rodsZone
+                          )
 
-    with open(irods_env_file, 'w') as fd:
-        fd.write(irods_env_template.format(**variables))
+    if err.status != 0:
+        raise Exception('Connecting to iRODS failed %s'
+                        % rodsErrorName(err.status)[0])
 
-    p = Popen(['iinit'], stdin=PIPE)
-    p.communicate(input='%s\n' % password)
+    err = clientLoginWithPassword(conn, password)
+
+    if err.status != 0:
+        raise Exception('Authenticating to iRODS failed %s'
+                        % rodsErrorName(err.status)[0])
+
+    return conn
 
 
 def create_irods_urls(url_list):
-    from subprocess import call
+    from irods import *
 
     for user in [u for u in get_user_list() if u.valid]:
-        create_irods_env(user.name, user.password)
+        conn = create_irods_connection(user.name, user.password)
         for obj in [o for o in url_list if o.exists]:
             if obj.objtype == obj.ContainerType:
-                call(['imkdir', obj.objtype], shell=True)
+                coll = irodsCollection(conn)
+                coll.createCollection(obj.path)
             elif obj.objtype == obj.FileType:
-                call(['imkdir', os.path.split(obj.objtype)[0]], shell=True)
-                fd, filename = tempfile.mkstemp()
-                with open(filename, 'wb') as f:
-                    f.write(obj.objinfo['content'])
-
-                call(['iput', filename, obj.objtype], shell=True)
-                os.remove(filename)
+                coll = irodsCollection(conn)
+                coll.createCollection(os.path.split(obj.path)[0])
+                file_handle = irodsOpen(conn, path, 'w')
+                file_handle.write(obj.objinfo['content'])
+                file_handle.close()
+        conn.disconnect()
 
 
 def erase_local_urls(url_list):
@@ -287,15 +289,18 @@ def erase_local_urls(url_list):
 
 
 def erase_irods_urls(url_list):
-    from subprocess import call
+    from irods import *
 
     for user in [u for u in get_user_list() if u.valid]:
-        create_irods_env(user.name, user.password)
+        conn = create_irods_connection(user.name, user.password)
         for obj in url_list:
-            try:
-                call(['irm -rf', obj.objtype], shell=True)
-            except OSError:
-                pass
+            file_handle = irodsOpen(conn, path, 'r')
+            if file_handle:
+                file_handle.close()
+                file_handle.delete(force=True)
+
+            coll = irodsCollection(conn)
+            coll.deleteCollection(path)
 
 
 class TestHttpApi:
