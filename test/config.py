@@ -2,7 +2,7 @@ import tempfile
 
 
 class Config(object):
-    DEBUG = True
+    DEBUG = False
     TESTING = True
 
     HOST = '127.0.0.1'
