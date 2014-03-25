@@ -7,6 +7,7 @@ from functools import wraps
 import os
 import stat as sys_stat
 from flask import current_app
+from flask import request
 
 from eudat_http_api.http_storage.storage_common import *
 
@@ -33,7 +34,20 @@ def check_path(f):
     def decorated(path, *args, **kwargs):
         check_path_with_exported(path)
         return f(path, *args, **kwargs)
+    return decorated
 
+
+def check_auth():
+    auth = _get_authentication()
+    if not authenticate(auth.username, auth.password):
+        raise NotAuthorizedException('Invalid credentials')
+
+
+def with_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        check_auth()
+        return f(*args, **kwargs)
     return decorated
 
 
@@ -55,6 +69,7 @@ def authenticate(username, password):
         return True
 
 
+@with_auth
 @check_path
 def stat(path, metadata=None):
     """Return detailed information about the object.
@@ -92,16 +107,19 @@ def stat(path, metadata=None):
     return obj_info
 
 
+@with_auth
 @check_path
 def get_user_metadata(path, user_metadata=None):
     return dict()
 
 
+@with_auth
 @check_path
 def set_user_metadata(path, user_metadata):
     pass
 
 
+@with_auth
 @check_path
 def read(path, range_list=[]):
     """Read a file from the backend storage.
@@ -154,6 +172,7 @@ def read(path, range_list=[]):
     return gen, file_size, content_len, ordered_range_list
 
 
+@with_auth
 @check_path
 def write(path, stream_gen):
     """Write a file from an input stream."""
@@ -172,6 +191,7 @@ def write(path, stream_gen):
         _handle_oserror(e)
 
 
+@with_auth
 @check_path
 def ls(path):
     """Return a generator of a directory listing."""
@@ -190,6 +210,7 @@ def ls(path):
         raise NotFoundException('Path does not exist or is not a file')
 
 
+@with_auth
 @check_path
 def mkdir(path):
     """Create a directory."""
@@ -199,6 +220,7 @@ def mkdir(path):
         _handle_oserror(e)
 
 
+@with_auth
 @check_path
 def rm(path):
     """Delete a file."""
@@ -211,6 +233,7 @@ def rm(path):
         _handle_oserror(e)
 
 
+@with_auth
 @check_path
 def rmdir(path):
     """Delete a directory."""
@@ -242,6 +265,10 @@ def _close(file_handle):
 
 def _write(file_handle, data):
     return file_handle.write(data)
+
+
+def _get_authentication():
+    return request.authorization
 
 
 def _handle_oserror(e):
