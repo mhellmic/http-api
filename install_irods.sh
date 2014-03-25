@@ -9,11 +9,11 @@ sudo apt-get -y install gdebi
 sudo apt-get -y remove postgresql*
 sudo gdebi -n /tmp/eirods.deb
 
-#start irods explicitly
-sudo service eirods start
+# check if eirods is up
+echo "eirods PID = `pgrep eirods`"
 
 sudo su eirods -c "iadmin mkuser testname rodsuser"
 sudo su eirods -c "iadmin moduser testname password testpass"
 
-sudo su eirods -c "lu"
-udo su eirods -c "ils /tempZone/home/testname"
+sudo su eirods -c "iadmin lu"
+sudo su eirods -c "ils /tempZone/home/testname"
