@@ -341,15 +341,15 @@ class TestHttpApi:
         self.app = app
         self.client = app.test_client()
 
-        self.irods_config = (self.app.config['RODSHOST'],
-                             self.app.config['RODSPORT'],
-                             self.app.config['RODSZONE']
-                             )
         self.storage_config = app.config['STORAGE']
 
         if app.config['STORAGE'] == 'local':
             create_local_urls(self.url_list)
         elif app.config['STORAGE'] == 'irods':
+            self.irods_config = (self.app.config['RODSHOST'],
+                                 self.app.config['RODSPORT'],
+                                 self.app.config['RODSZONE']
+                                 )
             with self.app.app_context():
                 create_irods_urls(self.url_list,
                                   self.irods_config)
@@ -607,15 +607,15 @@ class TestStorageApi:
         self.app = app
         self.client = app.test_client()
 
-        self.irods_config = (self.app.config['RODSHOST'],
-                             self.app.config['RODSPORT'],
-                             self.app.config['RODSZONE']
-                             )
         self.storage_config = app.config['STORAGE']
 
         if self.app.config['STORAGE'] == 'local':
             create_local_urls(self.url_list)
         elif self.app.config['STORAGE'] == 'irods':
+            self.irods_config = (self.app.config['RODSHOST'],
+                                 self.app.config['RODSPORT'],
+                                 self.app.config['RODSZONE']
+                                 )
             with self.app.app_context():
                 create_irods_urls(self.url_list,
                                   self.irods_config)
