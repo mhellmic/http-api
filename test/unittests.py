@@ -270,8 +270,9 @@ def create_irods_urls(url_list):
                 coll = irodsCollection(conn)
                 coll.createCollection(os.path.split(obj.path)[0])
                 file_handle = irodsOpen(conn, obj.path, 'w')
-                file_handle.write(obj.objinfo['content'])
-                file_handle.close()
+                if file_handle is not None:
+                    file_handle.write(obj.objinfo['content'])
+                    file_handle.close()
         conn.disconnect()
 
 
