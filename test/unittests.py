@@ -265,8 +265,9 @@ def create_irods_urls(url_list, rodsconfig):
         conn = create_irods_connection(user.name, user.password, rodsconfig)
         for obj in [o for o in url_list if o.exists]:
             if obj.objtype == obj.ContainerType:
-                coll = irodsCollection(conn)
-                coll.createCollection(obj.path)
+                base, name = os.path.split(obj.path)
+                coll = irodsCollection(conn, base)
+                coll.createCollection(name)
             elif obj.objtype == obj.FileType:
                 coll = irodsCollection(conn)
                 coll.createCollection(os.path.split(obj.path)[0])
