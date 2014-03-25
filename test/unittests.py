@@ -178,7 +178,7 @@ def get_url_list():
             'content': '1234567890',
         }, False, False),
     ]
-    print 'Testing %d different URLs' % len(l)
+    #print 'Testing %d different URLs' % len(l)
     return l
 
 
@@ -208,7 +208,7 @@ def get_user_list():
         User('testname', 'notvalid', False),
         User('notvalidname', 'notvalid', False),
     ]
-    print 'Testing %d different users' % len(l)
+    #print 'Testing %d different users' % len(l)
     return l
 
 
