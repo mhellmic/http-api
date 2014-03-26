@@ -18,12 +18,12 @@ from eudat_http_api.http_storage.storage_common import *
 
 
 class Connection(object):
-    authhash = None
+    auth_hash = None
     connection = None
 
-    def __init__(self, connection, authhash):
+    def __init__(self, connection, auth_hash):
         self.connection = connection
-        self.authhash = authhash
+        self.auth_hash = auth_hash
 
 
 class ConnectionPool(object):
@@ -52,7 +52,7 @@ class ConnectionPool(object):
             return self.__create_connection(username, password)
 
     def release_connection(self, conn):
-        user_pool = self.__get_user_pool(conn.authhash)
+        user_pool = self.__get_user_pool(conn.auth_hash)
 
         try:
             current_app.logger.debug('putting back a storage connection')
@@ -61,19 +61,19 @@ class ConnectionPool(object):
             current_app.logger.debug('pool was full')
             self.__destroy_connection(conn)
 
-    def __get_user_pool(self, authhash):
+    def __get_user_pool(self, auth_hash):
         user_pool = None
         try:
-            user_pool = self.pool[authhash]
+            user_pool = self.pool[auth_hash]
         except KeyError:
-            self.pool[authhash] = Queue(self.max_pool_size)
-            user_pool = self.pool[authhash]
+            self.pool[auth_hash] = Queue(self.max_pool_size)
+            user_pool = self.pool[auth_hash]
 
         return user_pool
 
     def __get_auth_hash(self, username, password):
-        authhash = hashlib.sha1(username+password)
-        return authhash
+        auth_hash = hashlib.sha1(username+password)
+        return auth_hash
 
     def __create_connection(self, username, password):
         err, rodsEnv = getRodsEnv()  # Override all values later
