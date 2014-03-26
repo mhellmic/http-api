@@ -83,17 +83,28 @@ def authenticate(username, password):
         return False
 
 
-def _get_irods_obj_handle(conn, path):
+def _get_irods_obj_handle(conn, path, mode='r'):
     path_is_dir = False
-    obj_handle = _open(conn, path, 'r')
+    obj_handle = _open(conn, path, mode)
     if not obj_handle:
         obj_handle = irodsCollection(conn, path)
         if int(obj_handle.getId()) >= 0:
             path_is_dir = True
         else:
-            raise NotFoundException('Path does not exist or is not a file')
+            raise NotFoundException('Path does not exist')
 
     return obj_handle, path_is_dir
+
+
+def _check_conflict(conn, path):
+    try:
+        f, is_dir = _get_irods_obj_handle(conn, path, 'r')
+    except NotFoundException:
+        return
+    if f is not None:
+        if not is_dir:
+            _close(f)
+        raise ConflictException('Target already exists')
 
 
 def stat(path, metadata=None):
@@ -287,10 +298,7 @@ def write(path, stream_gen, force=False):
         return None
 
     if not force:
-        f = _open(conn, path, 'r')
-        if f is not None:
-            f.close()
-            raise ConflictException('Target already exists')
+        _check_conflict(conn, path)
 
     file_handle = _open(conn, path, 'w')
     if not file_handle:
@@ -339,18 +347,12 @@ def ls(path):
     return gen
 
 
-def mkdir(path, force=False):
+def mkdir(path):
     """Create a directory."""
     conn = get_storage()
 
     if conn is None:
         return None
-
-    try:
-        stat(path)
-        raise ConflictException('Target already exists')
-    except NotFoundException:
-        pass
 
     dirname, basename = common.split_path(path)
     coll = irodsCollection(conn)
