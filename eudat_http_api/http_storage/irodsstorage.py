@@ -322,10 +322,6 @@ def ls(path):
 
     coll = irodsCollection(conn)
     coll.openCollection(path)
-    # .getId return -1 if the target does not exist or is not
-    # a proper collection (e.g. a file)
-    if int(coll.getId()) < 0:
-        raise NotFoundException('Path does not exist or is not a directory')
 
     # TODO: remove this if it turns out that we don't need it!
     # test if the path actually points to a dir by trying
@@ -334,7 +330,7 @@ def ls(path):
     f = _open(conn, path, 'r')
     if f:
         _close(f)
-        raise NotFoundException('Target is not a directory')
+        raise IsFileException('Path is not a directory')
 
     def list_generator(collection):
         for sub in collection.getSubCollections():
@@ -357,22 +353,38 @@ def mkdir(path):
     dirname, basename = common.split_path(path)
     coll = irodsCollection(conn)
     coll.openCollection(dirname)
-    # see ls()
-    if coll.getId() < 0:
-        raise NotFoundException('Path does not exist or is not a directory')
 
     err = coll.createCollection(basename)
     if err != 0:
-        if err == CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
-            raise ConflictException('Target already exists')
-        elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
-            raise NotAuthorizedException('Target creation not allowed')
-        else:
-            current_app.logger.error('Unknown storage exception: %s: %s'
-                                     % (path, _getErrorName(err)))
-            raise StorageException('Unknown storage exception')
+        _handle_irodserror(path, err)
 
     return True, ''
+
+
+def _handle_irodserror(path, err):
+    current_app.logger.error('Irods storage exception: %s: %s'
+                             % (path, _getErrorName(err)))
+
+    if err == CAT_UNKNOWN_COLLECTION:
+        raise NotFoundException('Path does not exist')
+    elif err == CAT_UNKNOWN_FILE:
+        raise NotFoundException('Path does not exist')
+    elif err == USER_FILE_DOES_NOT_EXIST:
+        raise NotFoundException('Path does not exist')
+    elif err == CAT_INVALID_AUTHENTICATION:
+        raise NotAuthorizedException('Not authorized')
+    elif err == CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
+        raise ConflictException('Path already exists')
+    elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
+        raise NotAuthorizedException('Permission denied')
+    elif err == CAT_NAME_EXISTS_AS_DATAOBJ:
+        raise ConflictException('Path is not a directory')
+    elif err == CAT_NAME_EXISTS_AS_COLLECTION:
+        raise ConflictException('Path is a directory')
+    elif err == CAT_COLLECTION_NOT_EMPTY:
+        raise ConflictException('Path is a directory and not empty')
+
+    raise StorageException('Unknown storage exception')
 
 
 def rm(path):
@@ -421,21 +433,10 @@ def rmdir(path, force=False):
     dirname, basename = common.split_path(path)
     coll = irodsCollection(conn)
     coll.openCollection(dirname)
-    # see ls()
-    if coll.getId() < 0:
-        raise NotFoundException('Path does not exist or is not a directory')
 
     err = coll.deleteCollection(basename)
     if err != 0:
-        if err == USER_FILE_DOES_NOT_EXIST:
-            raise NotFoundException(
-                'Path does not exist or is not a directory')
-        elif err == CAT_INSUFFICIENT_PRIVILEGE_LEVEL:
-            raise NotAuthorizedException('Target creation not allowed')
-        else:
-            current_app.logger.error('Unknown storage exception: %s: %s'
-                                     % (path, _getErrorName(err)))
-            raise StorageException('Unknown storage exception')
+        _handle_irodserror(path, err)
 
     return True, ''
 
