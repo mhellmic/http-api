@@ -3,6 +3,7 @@
 from __future__ import with_statement
 
 import os
+from Queue import Queue, Empty, Full
 
 from flask import current_app
 from flask import g
@@ -13,6 +14,99 @@ from irods import *
 from eudat_http_api import common
 
 from eudat_http_api.http_storage.storage_common import *
+
+
+class Connection(object):
+    authhash = None
+    connection = None
+
+    def __init__(self, connection, authhash):
+        self.connection = connection
+        self.authhash = authhash
+
+
+class ConnectionPool(object):
+    pool = {}
+    max_pool_size = 10
+
+    def __init__(self, max_pool_size=10):
+        #self.pool = Queue(maxsize=max_pool_size)
+        self.max_pool_size = max_pool_size
+
+    def __del__(self):
+        # Connections are destroyed automatically on
+        # program exit
+        pass
+
+    def get_connection(self, username, password):
+        user_pool = self.__get_user_pool(self.__get_auth_hash(username,
+                                                              password))
+
+        try:
+            current_app.logger.debug(
+                'getting a storage connection from the pool')
+            return user_pool.get(block=False)
+        except Empty:
+            current_app.logger.debug('pool was empty')
+            return self.__create_connection(username, password)
+
+    def release_connection(self, conn):
+        user_pool = self.__get_user_pool(conn.authhash)
+
+        try:
+            current_app.logger.debug('putting back a storage connection')
+            user_pool.put(conn, block=False)
+        except Full:
+            current_app.logger.debug('pool was full')
+            self.__destroy_connection(conn)
+
+    def __get_user_pool(self, authhash):
+        user_pool = None
+        try:
+            user_pool = self.pool[authhash]
+        except KeyError:
+            self.pool[authhash] = Queue(self.max_pool_size)
+            user_pool = self.pool[authhash]
+
+        return user_pool
+
+    def __get_auth_hash(self, username, password):
+        return username+password
+
+    def __create_connection(self, username, password):
+        err, rodsEnv = getRodsEnv()  # Override all values later
+        rodsEnv.rodsUserName = username
+
+        rodsEnv.rodsHost = current_app.config['RODSHOST']
+        rodsEnv.rodsPort = current_app.config['RODSPORT']
+        rodsEnv.rodsZone = current_app.config['RODSZONE']
+
+        conn, err = rcConnect(rodsEnv.rodsHost,
+                              rodsEnv.rodsPort,
+                              rodsEnv.rodsUserName,
+                              rodsEnv.rodsZone
+                              )
+
+        if err.status != 0:
+            current_app.logger.error('Connecting to iRODS failed %s'
+                                     % _getErrorName(err.status))
+            raise InternalException('Connecting to iRODS failed')
+
+        err = clientLoginWithPassword(conn, password)
+        if err == 0:
+            current_app.logger.debug('Created a storage connection')
+            return Connection(conn, self.__get_auth_hash(username,
+                                                         password))
+        else:
+            conn.disconnect()
+            return None
+
+    def __destroy_connection(self, conn):
+        current_app.logger.debug('Disconnected a storage connection')
+        conn.disconnect()
+
+
+connection_pool = ConnectionPool()
 
 
 def get_storage():
@@ -33,7 +127,7 @@ def get_storage():
         except InternalException:
             g.storageconn = None
 
-    return conn
+    return conn.connection
 
 
 def teardown(exception=None):
@@ -44,8 +138,7 @@ def teardown(exception=None):
     """
     conn = getattr(g, 'storageconn', None)
     if conn is not None:
-        conn.disconnect()
-        current_app.logger.debug('Disconnected a storage connection')
+        connection_pool.release_connection(conn)
         g.storageconn = None
 
 
@@ -55,31 +148,12 @@ def authenticate(username, password):
     Returns True or False.
     Validates an existing connection.
     """
-    err, rodsEnv = getRodsEnv()  # Override all values later
-    rodsEnv.rodsUserName = username
+    conn = connection_pool.get_connection(username, password)
 
-    rodsEnv.rodsHost = current_app.config['RODSHOST']
-    rodsEnv.rodsPort = current_app.config['RODSPORT']
-    rodsEnv.rodsZone = current_app.config['RODSZONE']
-
-    conn, err = rcConnect(rodsEnv.rodsHost,
-                          rodsEnv.rodsPort,
-                          rodsEnv.rodsUserName,
-                          rodsEnv.rodsZone
-                          )
-
-    if err.status != 0:
-        current_app.logger.error('Connecting to iRODS failed %s'
-                                 % _getErrorName(err.status))
-        raise InternalException('Connecting to iRODS failed')
-
-    err = clientLoginWithPassword(conn, password)
-    if err == 0:
+    if conn is not None:
         g.storageconn = conn
-        current_app.logger.debug('Created a storage connection')
         return True
     else:
-        conn.disconnect()
         return False
 
 
