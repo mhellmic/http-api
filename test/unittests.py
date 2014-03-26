@@ -323,7 +323,6 @@ class TestHttpApi:
         else:
             app = create_app(__name__)
 
-        cls.url_list = get_url_list()
         if app.config['STORAGE'] == 'local':
             cls.url_list = get_local_url_list()
         elif app.config['STORAGE'] == 'irods':
@@ -589,7 +588,6 @@ class TestStorageApi:
         else:
             app = create_app(__name__)
 
-        cls.url_list = get_url_list()
         if app.config['STORAGE'] == 'local':
             cls.url_list = get_local_url_list()
         elif app.config['STORAGE'] == 'irods':
