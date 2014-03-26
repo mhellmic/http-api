@@ -118,8 +118,8 @@ class RestResource:
         return self.objtype == self.FileType
 
     def __str__(self):
-        return ('url: %s; type: %s; exists: %s; parent_exists: %s'
-                % (self.url,
+        return ('path: %s; type: %s; exists: %s; parent_exists: %s'
+                % (self.path,
                    self.objtype,
                    self.exists,
                    self.parent_exists)
