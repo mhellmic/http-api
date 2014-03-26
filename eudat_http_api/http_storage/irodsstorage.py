@@ -465,6 +465,8 @@ def _handle_irodserror(path, err):
         raise ConflictException('Path is a directory')
     elif err == CAT_COLLECTION_NOT_EMPTY:
         raise ConflictException('Path is a directory and not empty')
+    elif err == CANT_RM_NON_EMPTY_HOME_COLL:
+        raise ConflictException('Path is a directory and not empty')
 
     raise StorageException('Unknown storage exception')
 
