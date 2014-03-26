@@ -111,7 +111,7 @@ class ConnectionPool(object):
 
     def __destroy_connection(self, conn):
         current_app.logger.debug('Disconnected a storage connection')
-        conn.disconnect()
+        conn.connection.disconnect()
 
 
 connection_pool = ConnectionPool()
