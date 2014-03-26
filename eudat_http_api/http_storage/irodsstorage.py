@@ -78,7 +78,7 @@ class ConnectionPool(object):
         return user_pool
 
     def __get_auth_hash(self, username, password):
-        auth_hash = hashlib.sha1(username+password)
+        auth_hash = hashlib.sha1(username+password).hexdigest()
         return auth_hash
 
     def __create_connection(self, username, password):
