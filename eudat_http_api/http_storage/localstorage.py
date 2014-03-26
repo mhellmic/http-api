@@ -188,7 +188,7 @@ def write(path, stream_gen):
 
         return write_counter
     except IOError as e:
-        _handle_oserror(e)
+        _handle_oserror(path, e)
 
 
 @with_auth
@@ -217,7 +217,7 @@ def mkdir(path):
     try:
         os.mkdir(path)
     except OSError as e:
-        _handle_oserror(e)
+        _handle_oserror(path, e)
 
 
 @with_auth
@@ -230,7 +230,7 @@ def rm(path):
     try:
         os.remove(path)
     except OSError as e:
-        _handle_oserror(e)
+        _handle_oserror(path, e)
 
 
 @with_auth
@@ -240,7 +240,7 @@ def rmdir(path):
     try:
         os.rmdir(path)
     except OSError as e:
-        _handle_oserror(e)
+        _handle_oserror(path, e)
 
 
 def teardown(exception=None):
@@ -271,22 +271,23 @@ def _get_authentication():
     return request.authorization
 
 
-def _handle_oserror(e):
-        if e.errno == errno.ENOENT:
-            raise NotFoundException('Path does not exist')
-        elif e.errno == errno.EPERM:
-            raise NotAuthorizedException('Not authorized')
-        elif e.errno == errno.EEXIST:
-            raise ConflictException('Path already exists')
-        elif e.errno == errno.EACCES:
-            raise NotAuthorizedException('Permission denied')
-        elif e.errno == errno.ENOTDIR:
-            raise ConflictException('Path is not a directory')
-        elif e.errno == errno.EISDIR:
-            raise ConflictException('Path is a directory')
-        elif e.errno == errno.ENOTEMPTY:
-            raise ConflictException('Path is a directory and not empty')
+def _handle_oserror(path, e):
+    current_app.logger.error('Local storage exception: %s: %s'
+                             % (path, e))
 
-        current_app.logger.error('Unknown storage exception: %s: %s'
-                                 % (path, e))
-        raise StorageException('Unknown storage exception')
+    if e.errno == errno.ENOENT:
+        raise NotFoundException('Path does not exist')
+    elif e.errno == errno.EPERM:
+        raise NotAuthorizedException('Not authorized')
+    elif e.errno == errno.EEXIST:
+        raise ConflictException('Path already exists')
+    elif e.errno == errno.EACCES:
+        raise NotAuthorizedException('Permission denied')
+    elif e.errno == errno.ENOTDIR:
+        raise ConflictException('Path is not a directory')
+    elif e.errno == errno.EISDIR:
+        raise ConflictException('Path is a directory')
+    elif e.errno == errno.ENOTEMPTY:
+        raise ConflictException('Path is a directory and not empty')
+
+    raise StorageException('Unknown storage exception')
