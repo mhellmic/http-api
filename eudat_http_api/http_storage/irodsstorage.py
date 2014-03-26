@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 
+import hashlib
 import os
 from Queue import Queue, Empty, Full
 
@@ -71,7 +72,8 @@ class ConnectionPool(object):
         return user_pool
 
     def __get_auth_hash(self, username, password):
-        return username+password
+        authhash = hashlib.sha1(username+password)
+        return authhash
 
     def __create_connection(self, username, password):
         err, rodsEnv = getRodsEnv()  # Override all values later
