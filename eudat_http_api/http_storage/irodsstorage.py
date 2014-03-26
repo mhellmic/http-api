@@ -82,17 +82,16 @@ class ConnectionPool(object):
         return auth_hash
 
     def __create_connection(self, username, password):
-        err, rodsEnv = getRodsEnv()  # Override all values later
-        rodsEnv.rodsUserName = username
+        rodsUserName = username
 
-        rodsEnv.rodsHost = current_app.config['RODSHOST']
-        rodsEnv.rodsPort = current_app.config['RODSPORT']
-        rodsEnv.rodsZone = current_app.config['RODSZONE']
+        rodsHost = current_app.config['RODSHOST']
+        rodsPort = current_app.config['RODSPORT']
+        rodsZone = current_app.config['RODSZONE']
 
-        conn, err = rcConnect(rodsEnv.rodsHost,
-                              rodsEnv.rodsPort,
-                              rodsEnv.rodsUserName,
-                              rodsEnv.rodsZone
+        conn, err = rcConnect(rodsHost,
+                              rodsPort,
+                              rodsUserName,
+                              rodsZone
                               )
 
         if err.status != 0:
