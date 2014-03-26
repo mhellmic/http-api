@@ -5,6 +5,7 @@ from __future__ import with_statement
 import hashlib
 import os
 from Queue import Queue, Empty, Full
+from threading import Lock
 
 from flask import current_app
 from flask import g
@@ -29,10 +30,12 @@ class Connection(object):
 class ConnectionPool(object):
     pool = {}
     max_pool_size = 10
+    mutex = None
 
     def __init__(self, max_pool_size=10):
         #self.pool = Queue(maxsize=max_pool_size)
         self.max_pool_size = max_pool_size
+        self.mutex = Lock()
 
     def __del__(self):
         # Connections are destroyed automatically on
@@ -63,11 +66,14 @@ class ConnectionPool(object):
 
     def __get_user_pool(self, auth_hash):
         user_pool = None
+        self.mutex.acquire()
         try:
             user_pool = self.pool[auth_hash]
         except KeyError:
             self.pool[auth_hash] = Queue(self.max_pool_size)
             user_pool = self.pool[auth_hash]
+        finally:
+            self.mutex.release()
 
         return user_pool
 
