@@ -77,6 +77,7 @@ class ConnectionPool(object):
         self.mutex.acquire()
         try:
             user_pool = self.pool[auth_hash]
+            current_app.logger.debug('got an existing userpool')
         except KeyError:
             self.pool[auth_hash] = Queue(self.max_pool_size)
             user_pool = self.pool[auth_hash]
