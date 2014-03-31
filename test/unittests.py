@@ -134,6 +134,7 @@ def get_url_list():
         # existing objects first
         RestResource('/', ContainerType, {
             'children': 3,
+            'children_names': ['testfile', 'testfolder', 'emptyfolder']
         }, True, True),
         RestResource('/testfile', FileType, {
             'size': 3,
@@ -141,9 +142,11 @@ def get_url_list():
         }, True, True),
         RestResource('/testfolder', ContainerType, {
             'children': 1,
+            'children_names': ['testfile']
         }, True, True),
         RestResource('/testfolder/', ContainerType, {
             'children': 1,
+            'children_names': ['testfile']
         }, True, True),
         RestResource('/testfolder/testfile', FileType, {
             'size': 26,
@@ -151,9 +154,11 @@ def get_url_list():
         }, True, True),
         RestResource('/emptyfolder', ContainerType, {
             'children': 0,
+            'children_names': []
         }, True, True),
         RestResource('/emptyfolder/', ContainerType, {
             'children': 0,
+            'children_names': []
         }, True, True),
         # not existing objects here
         RestResource('/nonfolder', ContainerType, {},
@@ -649,6 +654,18 @@ class TestStorageApi:
         for t in self.check_storage(self.check_read):
             yield t
 
+    def test_ls(self):
+        for t in self.check_storage(self.check_ls):
+            yield t
+
+    def test_mkdir(self):
+        for t in self.check_storage(self.check_mkdir):
+            yield t
+
+    def test_rmdir(self):
+        for t in self.check_storage(self.check_rmdir):
+            yield t
+
     def check_auth(self, params):
         with self.app.test_request_context():
             from eudat_http_api.http_storage import storage
@@ -764,19 +781,19 @@ class TestStorageApi:
             assert fsize == resource.objinfo['size']
             assert rangelist == []
 
-            #single_range = [[1, 4]]
-            #gen, fsize, contentlen, rangelist = storage.read(resource.path,
-            #                                                 single_range)
+            single_range = [[1, 4]]
+            gen, fsize, contentlen, rangelist = storage.read(resource.path,
+                                                             single_range)
 
-            #data = reduce(add, map(lambda (a, b, c, d): d, gen))
-            #assert data == resource.objinfo['content'][1:4+1]
-            #assert fsize == resource.objinfo['size']
-            #if resource.objinfo['size'] >= 4:
-            #    assert contentlen == 4
-            #else:
-            #    assert contentlen == resource.objinfo['size']
-
-            #assert rangelist == [[1, 4]]
+            data = reduce(add, map(lambda (a, b, c, d): d, gen))
+            assert data == resource.objinfo['content'][1:4+1]
+            assert fsize == resource.objinfo['size']
+            if resource.objinfo['size'] >= 4:
+                assert contentlen == 4
+                assert rangelist == [(1, 4)]
+            else:
+                assert contentlen == resource.objinfo['size'] - 1  # no char 0
+                assert rangelist == [(1, resource.objinfo['size'])]
 
     def check_read_except(self, resource, userinfo):
         with self.app.test_request_context(), \
@@ -799,3 +816,126 @@ class TestStorageApi:
                 assert_raises(storage.NotAuthorizedException,
                               storage.read,
                               resource.path)
+
+    def check_ls(self, params):
+        if (params['resource'].exists and params['userinfo'].valid and
+                params['resource'].is_dir()):
+            self.check_ls_good(**params)
+        else:
+            self.check_ls_except(**params)
+
+    def check_ls_good(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            ls_gen = storage.ls(resource.path)
+
+            ls_res = list(ls_gen)
+            assert len(ls_res) == resource.objinfo['children']
+            ls_names = map(lambda x: x.name, ls_res)
+            assert set(ls_names) == set(resource.objinfo['children_names'])
+
+    def check_ls_except(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            if not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.ls, resource.path)
+            elif not resource.exists:
+                assert_raises(storage.NotFoundException,
+                              storage.ls, resource.path)
+            elif not resource.is_dir():
+                assert_raises(storage.IsFileException,
+                              storage.ls, resource.path)
+
+    def check_mkdir(self, params):
+        # there is no distinction between files and dirs.
+        # filenames are also used to create directories.
+        if (not params['resource'].exists and params['resource'].parent_exists
+                and params['userinfo'].valid):
+            self.check_mkdir_good(**params)
+        else:
+            self.check_mkdir_except(**params)
+
+    def check_mkdir_good(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            storage.mkdir(resource.path)
+
+    def check_mkdir_except(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            if not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.mkdir, resource.path)
+            elif resource.exists:
+                assert_raises(storage.ConflictException,
+                              storage.mkdir, resource.path)
+            elif not resource.parent_exists:
+                assert_raises(storage.NotFoundException,
+                              storage.mkdir, resource.path)
+
+    def check_rmdir(self, params):
+        if (params['resource'].exists and params['userinfo'].valid and
+                params['resource'].is_dir() and
+                params['resource'].objinfo['children'] == 0):
+            self.check_rmdir_good(**params)
+        else:
+            self.check_rmdir_except(**params)
+
+    def check_rmdir_good(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            storage.rmdir(resource.path)
+
+    def check_rmdir_except(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            if not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.rmdir, resource.path)
+            elif (resource.exists and resource.is_dir() and
+                    resource.objinfo['children'] > 0):
+                assert_raises(storage.ConflictException,
+                              storage.rmdir, resource.path)
+            elif not resource.exists:
+                assert_raises(storage.NotFoundException,
+                              storage.rmdir, resource.path)
+            elif resource.is_file():
+                assert_raises(storage.IsFileException,
+                              storage.rmdir, resource.path)
