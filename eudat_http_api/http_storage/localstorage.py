@@ -12,6 +12,15 @@ from eudat_http_api.http_storage.storage_common import *
 
 
 def check_path_with_exported(path):
+    # normpath also removes the trailing slash.
+    # since we hand it through for directories, we have
+    # to make an exception for that.
+    path_end = None
+    if path[-1] == '/':
+        path_end = -1
+    if os.path.normpath(path) != path[:path_end]:
+        raise MalformedPathException('Malformed path')
+
     if any(map(lambda p: path.startswith(p),
                current_app.config['EXPORTEDPATHS'])):
         return
