@@ -698,10 +698,12 @@ class TestStorageApi:
 
             assert hasattr(rv, '__iter__')
             if resource.is_dir():
+                assert rv['type'] == storage.DIR
                 assert 'children' in rv
                 if 'children' in rv:
                     assert rv['children'] == resource.objinfo['children']
             elif resource.is_file():
+                assert rv['type'] == storage.FILE
                 assert 'size' in rv
                 if 'size' in rv:
                     assert rv['size'] == resource.objinfo['size']
