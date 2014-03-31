@@ -197,7 +197,7 @@ def write(path, stream_gen):
         write_counter = 0
         with open(path, 'wb') as f:
             for chunk in stream_gen:
-                f.write(chunk)
+                _write(f, chunk)
                 write_counter += len(chunk)
 
         return write_counter
