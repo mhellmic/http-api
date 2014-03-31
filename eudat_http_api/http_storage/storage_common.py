@@ -3,6 +3,9 @@
 START = 'file-start'
 END = 'file-end'
 
+DIR = 'dir'
+FILE = 'file'
+
 MULTI_DELIM = '@DELMI@'
 
 

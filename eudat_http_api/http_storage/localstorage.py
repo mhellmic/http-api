@@ -92,12 +92,14 @@ def stat(path, metadata=None):
         raise NotFoundException('Path does not exist or is not a file')
 
     if sys_stat.S_ISDIR(stat_result.st_mode):
+        obj_info['type'] = DIR
         try:
             obj_info['children'] = len(os.listdir(path))
         except OSError:
             obj_info['children'] = None
 
     else:
+        obj_info['type'] = FILE
         obj_info['size'] = stat_result.st_size
 
     if metadata is not None:
@@ -169,7 +171,19 @@ def read(path, range_list=[]):
                                 ordered_range_list,
                                 _read, _seek, _close)
 
-    return gen, file_size, content_len, ordered_range_list
+    # return the range list without START and END constants
+    def replace_length_constants(x, y, file_size):
+        if x == START:
+            x = 0
+        if y == END:
+            y = file_size
+        return (x, y)
+
+    num_ordered_range_list = map(
+        lambda (x, y): replace_length_constants(x, y, file_size),
+        ordered_range_list)
+
+    return gen, file_size, content_len, num_ordered_range_list
 
 
 @with_auth
@@ -207,6 +221,8 @@ def ls(path):
         return (map(lambda x: get_obj_type(os.path.join(path, x)),
                     os.listdir(path)))
     except IOError:
+        raise NotFoundException('Path does not exist or is not a file')
+    except OSError:
         raise NotFoundException('Path does not exist or is not a file')
 
 
@@ -284,7 +300,7 @@ def _handle_oserror(path, e):
     elif e.errno == errno.EACCES:
         raise NotAuthorizedException('Permission denied')
     elif e.errno == errno.ENOTDIR:
-        raise ConflictException('Path is not a directory')
+        raise IsFileException('Path is not a directory')
     elif e.errno == errno.EISDIR:
         raise ConflictException('Path is a directory')
     elif e.errno == errno.ENOTEMPTY:

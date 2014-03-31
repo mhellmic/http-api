@@ -222,12 +222,14 @@ def stat(path, metadata=None):
     obj_info['base'] = base
     obj_info['name'] = name
     if path_is_dir:
+        obj_info['type'] = DIR
         # -1 because irods counts the current dir
         obj_info['children'] = (obj_handle.getLenSubCollections() - 1 +
                                 obj_handle.getLenObjects())
         obj_info['ID'] = obj_handle.getId()
 
     else:
+        obj_info['type'] = FILE
         obj_info['size'] = obj_handle.getSize()
         obj_info['resc'] = obj_handle.getResourceName()
         obj_info['repl_num'] = obj_handle.getReplNumber()
@@ -377,7 +379,19 @@ def read(path, range_list=[]):
                                 ordered_range_list,
                                 _read, _seek, _close)
 
-    return gen, file_size, content_len, ordered_range_list
+    # return the range list without START and END constants
+    def replace_length_constants(x, y, file_size):
+        if x == START:
+            x = 0
+        if y == END:
+            y = file_size
+        return (x, y)
+
+    num_ordered_range_list = map(
+        lambda (x, y): replace_length_constants(x, y, file_size),
+        ordered_range_list)
+
+    return gen, file_size, content_len, num_ordered_range_list
 
 
 def write(path, stream_gen, force=False):
@@ -519,7 +533,11 @@ def rmdir(path, force=False):
     if conn is None:
         return None
 
-    if not force and stat(path)['children'] > 0:
+    objinfo = stat(path)
+    if not objinfo['type'] == DIR:
+        raise IsFileException('Path is a file')
+
+    if not force and objinfo['children'] > 0:
         raise ConflictException('Directory is not empty')
 
     dirname, basename = common.split_path(path)
