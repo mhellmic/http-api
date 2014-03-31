@@ -436,10 +436,12 @@ def ls(path):
         _close(f)
         raise IsFileException('Path is not a directory')
 
+    if int(coll.getId()) < 0:
+        raise NotFoundException('Path does not exist')
+
     def list_generator(collection):
         for sub in collection.getSubCollections():
-            sub_slash = '%s/' % sub  # from irods there are no slashes appended
-            yield StorageDir(sub_slash, os.path.join(path, sub_slash))
+            yield StorageDir(sub, os.path.join(path, sub))
         for name, resc in collection.getObjects():
             yield StorageFile(name, os.path.join(path, name), resc)
 
