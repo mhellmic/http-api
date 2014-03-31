@@ -53,7 +53,7 @@ class ConnectionPool(object):
             if (conn.connection.rError is not None or
                     conn.connection.loggedIn == 0):
                 current_app.logger.debug('found a bad storage connection')
-                __destroy_connection(conn)
+                self.__destroy_connection(conn)
                 return self.__create_connection(username, password)
 
             # if the connection from the pool is ok
