@@ -221,9 +221,9 @@ def ls(path):
         return (map(lambda x: get_obj_type(os.path.join(path, x)),
                     os.listdir(path)))
     except IOError:
-        raise NotFoundException('Path does not exist or is not a file')
-    except OSError:
-        raise NotFoundException('Path does not exist or is not a file')
+        _handle_oserror(path, e)
+    except OSError as e:
+        _handle_oserror(path, e)
 
 
 @with_auth
