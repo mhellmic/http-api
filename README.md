@@ -39,6 +39,7 @@ Unit Testing
 
 You can start the unit tests to confirm your changes.
 
+    cd http-api
     TEST_CONFIG=test.config.LocalConfig nosetests test.unittests
 
 This will run nosetests to do all unit tests with the local storage backend.
