@@ -666,6 +666,10 @@ class TestStorageApi:
         for t in self.check_storage(self.check_rmdir):
             yield t
 
+    def test_rm(self):
+        for t in self.check_storage(self.check_rm):
+            yield t
+
     def check_auth(self, params):
         with self.app.test_request_context():
             from eudat_http_api.http_storage import storage
@@ -941,3 +945,40 @@ class TestStorageApi:
             elif resource.is_file():
                 assert_raises(storage.IsFileException,
                               storage.rmdir, resource.path)
+
+    def check_rm(self, params):
+        if (params['resource'].exists and params['userinfo'].valid and
+                params['resource'].is_file()):
+            self.check_rm_good(**params)
+        else:
+            self.check_rm_except(**params)
+
+    def check_rm_good(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            storage.rm(resource.path)
+
+    def check_rm_except(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+
+            if not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.rm, resource.path)
+            elif not resource.exists:
+                assert_raises(storage.NotFoundException,
+                              storage.rm, resource.path)
+            elif resource.is_dir():
+                assert_raises(storage.IsDirException,
+                              storage.rm, resource.path)
