@@ -3,6 +3,7 @@
 from __future__ import with_statement
 
 import errno
+from functools import wraps
 import os
 import stat as sys_stat
 from flask import current_app
@@ -10,14 +11,30 @@ from flask import current_app
 from eudat_http_api.http_storage.storage_common import *
 
 
-def sanitize_path(path):
-    current_app.logger.debug('Path sanitation: %s for %s' % (current_app.config['BASE_PATH'], path))
-    normalized = os.path.normpath(current_app.config['BASE_PATH']+path)
-    prefix = os.path.commonprefix({current_app.config['BASE_PATH'], normalized})
-    if prefix != current_app.config['BASE_PATH']:
-        return current_app.config['BASE_PATH']
+def check_path_with_exported(path):
+    # normpath also removes the trailing slash.
+    # since we hand it through for directories, we have
+    # to make an exception for that.
+    path_end = None
+    if path[-1] == '/':
+        path_end = -1
+    if os.path.normpath(path) != path[:path_end]:
+        raise MalformedPathException('Malformed path')
 
-    return normalized
+    if any(map(lambda p: path.startswith(p),
+               current_app.config['EXPORTEDPATHS'])):
+        return
+    else:
+        raise NotFoundException('No such file or directory')
+
+
+def check_path(f):
+    @wraps(f)
+    def decorated(path, *args, **kwargs):
+        check_path_with_exported(path)
+        return f(path, *args, **kwargs)
+
+    return decorated
 
 
 def authenticate(username, password):
@@ -29,6 +46,7 @@ def authenticate(username, password):
     return True
 
 
+@check_path
 def stat(path, metadata=None):
     """Return detailed information about the object.
 
@@ -42,8 +60,6 @@ def stat(path, metadata=None):
     stat() returns.
     """
     obj_info = dict()
-
-    path = sanitize_path(path)
 
     try:
         stat_result = os.stat(path)
@@ -66,14 +82,17 @@ def stat(path, metadata=None):
     return obj_info
 
 
+@check_path
 def get_user_metadata(path, user_metadata=None):
     return dict()
 
 
+@check_path
 def set_user_metadata(path, user_metadata):
     pass
 
 
+@check_path
 def read(path, range_list=[]):
     """Read a file from the backend storage.
 
@@ -85,8 +104,6 @@ def read(path, range_list=[]):
     If a range exceeds the size of the object, the
     bytestream goes until the object end.
     """
-
-    path = sanitize_path(path)
 
     try:
         file_handle = open(path, 'rb')
@@ -125,15 +142,15 @@ def read(path, range_list=[]):
     return gen, file_size, content_len, ordered_range_list
 
 
+@check_path
 def write(path, stream_gen):
     """Write a file from an input stream."""
     return 0
 
 
+@check_path
 def ls(path):
     """Return a generator of a directory listing."""
-
-    path = sanitize_path(path)
 
     def get_obj_type(path):
         basedir, name = os.path.split(path)
@@ -149,25 +166,25 @@ def ls(path):
         raise NotFoundException('Path does not exist or is not a file')
 
 
+@check_path
 def mkdir(path):
     """Create a directory."""
-    path = sanitize_path(path)
     os.makedirs(path)
 
 
+@check_path
 def rm(path):
     """Delete a file."""
-    path = sanitize_path(path)
     os.remove(path)
 
 
+@check_path
 def rmdir(path):
     """Delete a directory.
 
     Be careful: it also deletes subdirectories
     without asking.
     """
-    path = sanitize_path(path)
     os.removedirs(path)
 
 

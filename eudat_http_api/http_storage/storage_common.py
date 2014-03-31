@@ -97,6 +97,14 @@ class IsFileException(StorageException):
         return repr(self.msg)
 
 
+class MalformedPathException(StorageException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
 def read_stream_generator(file_handle, file_size,
                           ordered_range_list, buffer_size=4194304):
     """Generate the bytestream.

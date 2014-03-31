@@ -187,6 +187,8 @@ def get_cdmi_file_obj(path):
         return e.msg, 404
     except storage.NotAuthorizedException as e:
         return e.msg, 401
+    except storage.MalformedPathException as e:
+        return e.msg, 400
 
     response_headers = {'Content-Length': content_len}
     # do not send the content-length to enable
@@ -315,6 +317,8 @@ def put_cdmi_file_obj(path):
         return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
 
     return 'Created: %d' % (bytes_written), 201
 
@@ -335,6 +339,8 @@ def del_cdmi_file_obj(path):
         return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
 
     if request_wants_cdmi_object():
         empty_response = Response(status=204)
@@ -368,6 +374,8 @@ def get_cdmi_dir_obj(path):
         return e.msg, 401
     except storage.StorageException as e:
         return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
 
     if request_wants_cdmi_object():
         cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_gen)
@@ -539,6 +547,8 @@ def put_cdmi_dir_obj(path):
         return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
 
     return flask_jsonify(create='Created')
 
@@ -556,6 +566,8 @@ def del_cdmi_dir_obj(path):
         return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
 
     if request_wants_cdmi_object():
         empty_response = Response(status=204)
