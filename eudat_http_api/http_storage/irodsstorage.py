@@ -18,6 +18,49 @@ from eudat_http_api import common
 from eudat_http_api.http_storage.storage_common import *
 
 
+class suppress_stdout_stderr(object):
+    '''
+    A context manager for doing a "deep suppression" of stdout and stderr in
+    Python, i.e. will suppress all print, even if the print originates in a
+    compiled C/Fortran sub-function.
+    This will not suppress raised exceptions, since exceptions are printed
+    to stderr just before a script exits, and after the context manager has
+    exited (at least, I think that is why it lets exceptions through).
+
+    I took this from
+    http://stackoverflow.com/questions/11130156/suppress-stdout-stderr- \
+            print-from-python-functions
+
+    + cleaned for PEP8
+    + close the save_fds after resetting stdout/err
+
+    Use it:
+    with suppress_stdout_stderr():
+        irods_function()
+
+    '''
+    def __init__(self):
+        # Open a pair of null files
+        self.null_fds = [open(os.devnull, 'wb') for x in range(2)]
+        # Save the actual stdout (1) and stderr (2) file descriptors.
+        self.save_fds = (os.dup(1), os.dup(2))
+
+    def __enter__(self):
+        # Assign the null pointers to stdout and stderr.
+        os.dup2(self.null_fds[0].fileno(), 1)
+        os.dup2(self.null_fds[1].fileno(), 2)
+
+    def __exit__(self, *_):
+        # Re-assign the real stdout/stderr back to (1) and (2)
+        os.dup2(self.save_fds[0], 1)
+        os.dup2(self.save_fds[1], 2)
+        os.close(self.save_fds[0])
+        os.close(self.save_fds[1])
+        # Close the null files
+        self.null_fds[0].close()
+        self.null_fds[1].close()
+
+
 class Connection(object):
     auth_hash = None
     connection = None
@@ -108,7 +151,8 @@ class ConnectionPool(object):
                                      % _getErrorName(err.status))
             raise InternalException('Connecting to iRODS failed')
 
-        err = clientLoginWithPassword(conn, password)
+        with suppress_stdout_stderr():
+            err = clientLoginWithPassword(conn, password)
         if err == 0:
             current_app.logger.debug('Created a storage connection')
             return Connection(conn, self.__get_auth_hash(username,
