@@ -670,6 +670,10 @@ class TestStorageApi:
         for t in self.check_storage(self.check_rm):
             yield t
 
+    def test_write(self):
+        for t in self.check_storage(self.check_write):
+            yield t
+
     def check_auth(self, params):
         with self.app.test_request_context():
             from eudat_http_api.http_storage import storage
@@ -982,3 +986,52 @@ class TestStorageApi:
             elif resource.is_dir():
                 assert_raises(storage.IsDirException,
                               storage.rm, resource.path)
+
+    def check_write(self, params):
+        if (not params['resource'].exists and params['resource'].parent_exists
+                and params['userinfo'].valid and params['resource'].is_file()):
+            self.check_write_good(**params)
+        elif not params['resource'].is_dir():
+            self.check_write_except(**params)
+
+    def check_write_good(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+            file_content = resource.objinfo['content']
+            chunk_size = 5
+
+            write_gen = (file_content[i:i+chunk_size]
+                         for i in xrange(0, len(file_content), chunk_size))
+
+            write_count = storage.write(resource.path, write_gen)
+
+            assert write_count == len(file_content)
+
+    def check_write_except(self, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.%sstorage._get_authentication'
+                % self.storage_config,
+                return_value=self.Auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+            file_content = resource.objinfo['content']
+            chunk_size = 5
+
+            write_gen = (file_content[i:i+chunk_size]
+                         for i in xrange(0, len(file_content), chunk_size))
+
+            if not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.write, resource.path, write_gen)
+            elif resource.exists:
+                assert_raises(storage.ConflictException,
+                              storage.write, resource.path, write_gen)
+            elif not resource.parent_exists:
+                assert_raises(storage.NotFoundException,
+                              storage.write, resource.path, write_gen)
