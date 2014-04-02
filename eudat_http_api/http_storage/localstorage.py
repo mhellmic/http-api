@@ -17,7 +17,7 @@ def check_path_with_exported(path):
     # since we hand it through for directories, we have
     # to make an exception for that.
     path_end = None
-    if path[-1] == '/':
+    if len(path) > 1 and path[-1] == '/':
         path_end = -1
     if os.path.normpath(path) != path[:path_end]:
         raise MalformedPathException('Malformed path')
