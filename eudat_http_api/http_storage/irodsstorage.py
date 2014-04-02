@@ -112,6 +112,7 @@ class ConnectionPool(object):
             current_app.logger.debug('pool was empty')
             conn = self.__create_connection(username, password)
         finally:
+            current_app.logger.debug('add a storage connection to used')
             self.used_connections.add(conn)
 
         return conn
@@ -126,6 +127,7 @@ class ConnectionPool(object):
             current_app.logger.debug('pool was full')
             self.__destroy_connection(conn)
         finally:
+            current_app.logger.debug('remove a storage connection from used')
             self.used_connections.remove(conn)
 
     def __get_user_pool(self, auth_hash):
@@ -137,6 +139,7 @@ class ConnectionPool(object):
         except KeyError:
             self.pool[auth_hash] = Queue(self.max_pool_size)
             user_pool = self.pool[auth_hash]
+            current_app.logger.debug('made a new userpool')
         finally:
             self.mutex.release()
 
@@ -209,6 +212,7 @@ def teardown(exception=None):
     Running this as teardown_request function,
     it probably requires stream_with_context
     """
+    current_app.logger.debug('running irodsstorage teardown')
     conn = getattr(g, 'storageconn', None)
     if conn is not None:
         connection_pool.release_connection(conn)
