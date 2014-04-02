@@ -92,7 +92,9 @@ class ConnectionPool(object):
 
         if len(self.used_connections) == 0:
             conn = self.__create_connection(username, password)
-            self.used_connections.add(conn)
+            if conn is not None:
+                current_app.logger.debug('add a storage connection to used')
+                self.used_connections.add(conn)
 
             return conn
 
