@@ -74,6 +74,7 @@ class ConnectionPool(object):
     pool = {}
     max_pool_size = 10
     mutex = None
+    used_connections = set()
 
     def __init__(self, max_pool_size=10):
         #self.pool = Queue(maxsize=max_pool_size)
@@ -89,21 +90,29 @@ class ConnectionPool(object):
         user_pool = self.__get_user_pool(self.__get_auth_hash(username,
                                                               password))
 
+        if len(self.used_connections) == 0:
+            conn = self.__create_connection(username, password)
+            self.used_connections.add(conn)
+
+            return conn
+
         try:
             current_app.logger.debug(
                 'getting a storage connection from the pool')
-            conn = user_pool.get(block=False)
+            conn = user_pool.get(block=True)
             if (conn.connection.rError is not None or
                     conn.connection.loggedIn == 0):
                 current_app.logger.debug('found a bad storage connection')
                 self.__destroy_connection(conn)
-                return self.__create_connection(username, password)
+                conn = self.__create_connection(username, password)
 
-            # if the connection from the pool is ok
-            return conn
         except Empty:
             current_app.logger.debug('pool was empty')
-            return self.__create_connection(username, password)
+            conn = self.__create_connection(username, password)
+        finally:
+            self.used_connections.add(conn)
+
+        return conn
 
     def release_connection(self, conn):
         user_pool = self.__get_user_pool(conn.auth_hash)
@@ -114,6 +123,8 @@ class ConnectionPool(object):
         except Full:
             current_app.logger.debug('pool was full')
             self.__destroy_connection(conn)
+        finally:
+            self.used_connections.remove(conn)
 
     def __get_user_pool(self, auth_hash):
         user_pool = None
