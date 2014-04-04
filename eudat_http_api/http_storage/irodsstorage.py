@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 
+from functools import wraps
 import hashlib
 import os
 from Queue import Queue, Empty, Full
@@ -199,50 +200,37 @@ class ConnectionPool(object):
 connection_pool = ConnectionPool()
 
 
-def get_storage():
-    """Retrieve a storage connection.
-
-    It fetches one that has been previously
-    stored during authentication, else use
-    auth info from the request to create one.
-    """
-    conn = getattr(g, 'storageconn', None)
-    if conn is None:
+def get_connection(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
         auth = _get_authentication()
-        try:
-            if authenticate(auth.username, auth.password):
-                conn = getattr(g, 'storageconn', None)
-            else:
-                raise NotAuthorizedException('Invalid credentials')
-        except InternalException:
-            g.storageconn = None
+        conn = connection_pool.get_connection(auth.username, auth.password)
+        if conn is None:
+            raise NotAuthorizedException('Invalid credentials')
 
-    return conn.connection
+        kwargs.update({'conn': conn.connection})
+        res = f(*args, **kwargs)
+        connection_pool.release_connection(conn)
+        return res
+
+    return decorated
 
 
 def teardown(exception=None):
     """Close the storage connection.
-
-    Running this as teardown_request function,
-    it probably requires stream_with_context
     """
-    current_app.logger.debug('running irodsstorage teardown')
-    conn = getattr(g, 'storageconn', None)
-    if conn is not None:
-        connection_pool.release_connection(conn)
-        g.storageconn = None
+    pass
 
 
-def authenticate(username, password):
+def authenticate(username, password, conn=None):
     """Authenticate with username, password.
 
     Returns True or False.
     Validates an existing connection.
     """
     conn = connection_pool.get_connection(username, password)
-
     if conn is not None:
-        g.storageconn = conn
+        connection_pool.release_connection(conn)
         return True
     else:
         return False
@@ -272,7 +260,8 @@ def _check_conflict(conn, path):
         raise ConflictException('Target already exists')
 
 
-def stat(path, metadata=None):
+@get_connection
+def stat(path, metadata=None, conn=None):
     """Return detailed information about the object.
 
     The metadata argument specifies if and which
@@ -284,7 +273,6 @@ def stat(path, metadata=None):
     For the future, there should be a standard what
     stat() returns.
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -321,12 +309,12 @@ def stat(path, metadata=None):
     return obj_info
 
 
-def get_user_metadata(path, user_metadata=None):
+@get_connection
+def get_user_metadata(path, user_metadata=None, conn=None):
     """Gets user_metadata from irods and filters them by the user_metadata arg.
 
     see _get_user_metadata
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -370,7 +358,8 @@ def _get_user_metadata(conn, obj_handle, path, user_metadata):
     return user_meta
 
 
-def set_user_metadata(path, user_metadata):
+@get_connection
+def set_user_metadata(path, user_metadata, conn=None):
     """ Set a number of user metadata entries.
 
     user_metadata should be a dict() holding the metadata keys to set.
@@ -378,7 +367,6 @@ def set_user_metadata(path, user_metadata):
     only sets one.
     If user_metadata is not a dict(), the function throws an exception.
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -399,7 +387,8 @@ def _set_user_metadata(conn, path, user_metadata):
         obj_handle.addUserMetadata(key, val)
 
 
-def read(path, range_list=[]):
+@get_connection
+def read(path, range_list=[], conn=None):
     """Read a file from the backend storage.
 
     Returns a bytestream.
@@ -410,7 +399,6 @@ def read(path, range_list=[]):
     If a range exceeds the size of the object, the
     bytestream goes until the object end.
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -469,9 +457,8 @@ def read(path, range_list=[]):
     return gen, file_size, content_len, num_ordered_range_list
 
 
-def write(path, stream_gen, force=False):
+def write(path, stream_gen, force=False, conn=None):
     """Write a file from an input stream."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -492,9 +479,9 @@ def write(path, stream_gen, force=False):
     return bytes_written
 
 
-def ls(path):
+@get_connection
+def ls(path, conn=None):
     """Return a generator of a directory listing."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -524,9 +511,9 @@ def ls(path):
     return gen
 
 
-def mkdir(path):
+@get_connection
+def mkdir(path, conn=None):
     """Create a directory."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -570,9 +557,9 @@ def _handle_irodserror(path, err):
     raise StorageException('Unknown storage exception')
 
 
-def rm(path):
+@get_connection
+def rm(path, conn=None):
     """Delete a file."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -598,14 +585,13 @@ def rm(path):
     return True, ''
 
 
-def rmdir(path, force=False):
+@get_connection
+def rmdir(path, force=False, conn=None):
     """Delete a directory.
 
     Be careful: it also deletes subdirectories
     without asking.
     """
-
-    conn = get_storage()
 
     if conn is None:
         return None
