@@ -77,11 +77,15 @@ class ConnectionPool(object):
     used_connections = set()
 
     def __init__(self, max_pool_size=10):
+        current_app.logger.debug(
+            'created the ConnectionPool')
         #self.pool = Queue(maxsize=max_pool_size)
         self.max_pool_size = max_pool_size
         self.mutex = Lock()
 
     def __del__(self):
+        current_app.logger.debug(
+            'deleted the ConnectionPool')
         # Connections are destroyed automatically on
         # program exit
         pass
@@ -90,18 +94,21 @@ class ConnectionPool(object):
         user_pool = self.__get_user_pool(self.__get_auth_hash(username,
                                                               password))
 
-        if len(self.used_connections) == 0:
+        if user_pool.qsize() == 0:
             conn = self.__create_connection(username, password)
             if conn is not None:
-                current_app.logger.debug('add a storage connection to used')
+                current_app.logger.debug(
+                    'add a storage connection to used. now used = %d+1'
+                    % len(self.used_connections))
                 self.used_connections.add(conn)
 
             return conn
 
         try:
+            conn = user_pool.get(block=True, timeout=5)
             current_app.logger.debug(
-                'getting a storage connection from the pool')
-            conn = user_pool.get(block=True)
+                'got a storage connection from the pool. now = %d-1'
+                % user_pool.qsize())
             if (conn.connection.rError is not None or
                     conn.connection.loggedIn == 0):
                 current_app.logger.debug('found a bad storage connection')
@@ -112,7 +119,9 @@ class ConnectionPool(object):
             current_app.logger.debug('pool was empty')
             conn = self.__create_connection(username, password)
         finally:
-            current_app.logger.debug('add a storage connection to used')
+            current_app.logger.debug(
+                'add a storage connection to used. now used = %d+1'
+                % len(self.used_connections))
             self.used_connections.add(conn)
 
         return conn
@@ -121,13 +130,17 @@ class ConnectionPool(object):
         user_pool = self.__get_user_pool(conn.auth_hash)
 
         try:
-            current_app.logger.debug('putting back a storage connection')
+            current_app.logger.debug(
+                'putting back a storage connection. now = %d+1'
+                % user_pool.qsize())
             user_pool.put(conn, block=False)
         except Full:
             current_app.logger.debug('pool was full')
             self.__destroy_connection(conn)
         finally:
-            current_app.logger.debug('remove a storage connection from used')
+            current_app.logger.debug(
+                'remove a storage connection from used. now used = %d-1'
+                % len(self.used_connections))
             self.used_connections.remove(conn)
 
     def __get_user_pool(self, auth_hash):
@@ -178,6 +191,7 @@ class ConnectionPool(object):
             return None
 
     def __destroy_connection(self, conn):
+        assert conn not in self.used_connections
         current_app.logger.debug('Disconnected a storage connection')
         conn.connection.disconnect()
 
