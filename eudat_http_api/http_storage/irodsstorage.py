@@ -455,6 +455,7 @@ def read(path, range_list=[], conn=None):
     return gen, file_size, content_len, num_ordered_range_list
 
 
+@get_connection
 def write(path, stream_gen, force=False, conn=None):
     """Write a file from an input stream."""
 
