@@ -85,8 +85,6 @@ class ConnectionPool(object):
         self.mutex = Lock()
 
     def __del__(self):
-        current_app.logger.debug(
-            'deleted the ConnectionPool')
         # Connections are destroyed automatically on
         # program exit
         pass
