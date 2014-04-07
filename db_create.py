@@ -1,5 +1,7 @@
+from eudat_http_api.registration.models import db
+from eudat_http_api import create_app
 
-from eudat_http_api import db, models
+app = create_app('config')
 
-db.create_all()
-
+with app.app_context():
+    db.create_all()
