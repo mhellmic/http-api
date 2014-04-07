@@ -140,7 +140,7 @@ class ConnectionPool(object):
             current_app.logger.debug(
                 'remove a storage connection from used. now used = %d-1'
                 % len(self.used_connections))
-            self.used_connections.remove(conn)
+            self.used_connections.discard(conn)
 
     def __get_user_pool(self, auth_hash):
         user_pool = None
