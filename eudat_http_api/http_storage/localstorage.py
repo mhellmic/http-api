@@ -17,7 +17,7 @@ def check_path_with_exported(path):
     # since we hand it through for directories, we have
     # to make an exception for that.
     path_end = None
-    if path[-1] == '/':
+    if len(path) > 1 and path[-1] == '/':
         path_end = -1
     if os.path.normpath(path) != path[:path_end]:
         raise MalformedPathException('Malformed path')
@@ -197,7 +197,7 @@ def write(path, stream_gen):
         write_counter = 0
         with open(path, 'wb') as f:
             for chunk in stream_gen:
-                f.write(chunk)
+                _write(f, chunk)
                 write_counter += len(chunk)
 
         return write_counter

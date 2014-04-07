@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 
+from functools import wraps
 import hashlib
 import os
 from Queue import Queue, Empty, Full
@@ -18,6 +19,49 @@ from eudat_http_api import common
 from eudat_http_api.http_storage.storage_common import *
 
 
+class suppress_stdout_stderr(object):
+    '''
+    A context manager for doing a "deep suppression" of stdout and stderr in
+    Python, i.e. will suppress all print, even if the print originates in a
+    compiled C/Fortran sub-function.
+    This will not suppress raised exceptions, since exceptions are printed
+    to stderr just before a script exits, and after the context manager has
+    exited (at least, I think that is why it lets exceptions through).
+
+    I took this from
+    http://stackoverflow.com/questions/11130156/suppress-stdout-stderr- \
+            print-from-python-functions
+
+    + cleaned for PEP8
+    + close the save_fds after resetting stdout/err
+
+    Use it:
+    with suppress_stdout_stderr():
+        irods_function()
+
+    '''
+    def __init__(self):
+        # Open a pair of null files
+        self.null_fds = [open(os.devnull, 'wb') for x in range(2)]
+        # Save the actual stdout (1) and stderr (2) file descriptors.
+        self.save_fds = (os.dup(1), os.dup(2))
+
+    def __enter__(self):
+        # Assign the null pointers to stdout and stderr.
+        os.dup2(self.null_fds[0].fileno(), 1)
+        os.dup2(self.null_fds[1].fileno(), 2)
+
+    def __exit__(self, *_):
+        # Re-assign the real stdout/stderr back to (1) and (2)
+        os.dup2(self.save_fds[0], 1)
+        os.dup2(self.save_fds[1], 2)
+        os.close(self.save_fds[0])
+        os.close(self.save_fds[1])
+        # Close the null files
+        self.null_fds[0].close()
+        self.null_fds[1].close()
+
+
 class Connection(object):
     auth_hash = None
     connection = None
@@ -31,8 +75,11 @@ class ConnectionPool(object):
     pool = {}
     max_pool_size = 10
     mutex = None
+    used_connections = set()
 
     def __init__(self, max_pool_size=10):
+        current_app.logger.debug(
+            'created the ConnectionPool')
         #self.pool = Queue(maxsize=max_pool_size)
         self.max_pool_size = max_pool_size
         self.mutex = Lock()
@@ -46,31 +93,54 @@ class ConnectionPool(object):
         user_pool = self.__get_user_pool(self.__get_auth_hash(username,
                                                               password))
 
+        if user_pool.qsize() == 0:
+            conn = self.__create_connection(username, password)
+            if conn is not None:
+                current_app.logger.debug(
+                    'add a storage connection to used. now used = %d+1'
+                    % len(self.used_connections))
+                self.used_connections.add(conn)
+
+            return conn
+
         try:
+            conn = user_pool.get(block=True, timeout=5)
             current_app.logger.debug(
-                'getting a storage connection from the pool')
-            conn = user_pool.get(block=False)
+                'got a storage connection from the pool. now = %d-1'
+                % user_pool.qsize())
             if (conn.connection.rError is not None or
                     conn.connection.loggedIn == 0):
                 current_app.logger.debug('found a bad storage connection')
                 self.__destroy_connection(conn)
-                return self.__create_connection(username, password)
+                conn = self.__create_connection(username, password)
 
-            # if the connection from the pool is ok
-            return conn
         except Empty:
             current_app.logger.debug('pool was empty')
-            return self.__create_connection(username, password)
+            conn = self.__create_connection(username, password)
+        finally:
+            current_app.logger.debug(
+                'add a storage connection to used. now used = %d+1'
+                % len(self.used_connections))
+            self.used_connections.add(conn)
+
+        return conn
 
     def release_connection(self, conn):
         user_pool = self.__get_user_pool(conn.auth_hash)
 
         try:
-            current_app.logger.debug('putting back a storage connection')
+            current_app.logger.debug(
+                'putting back a storage connection. now = %d+1'
+                % user_pool.qsize())
             user_pool.put(conn, block=False)
         except Full:
             current_app.logger.debug('pool was full')
             self.__destroy_connection(conn)
+        finally:
+            current_app.logger.debug(
+                'remove a storage connection from used. now used = %d-1'
+                % len(self.used_connections))
+            self.used_connections.discard(conn)
 
     def __get_user_pool(self, auth_hash):
         user_pool = None
@@ -81,6 +151,7 @@ class ConnectionPool(object):
         except KeyError:
             self.pool[auth_hash] = Queue(self.max_pool_size)
             user_pool = self.pool[auth_hash]
+            current_app.logger.debug('made a new userpool')
         finally:
             self.mutex.release()
 
@@ -108,7 +179,8 @@ class ConnectionPool(object):
                                      % _getErrorName(err.status))
             raise InternalException('Connecting to iRODS failed')
 
-        err = clientLoginWithPassword(conn, password)
+        with suppress_stdout_stderr():
+            err = clientLoginWithPassword(conn, password)
         if err == 0:
             current_app.logger.debug('Created a storage connection')
             return Connection(conn, self.__get_auth_hash(username,
@@ -118,6 +190,7 @@ class ConnectionPool(object):
             return None
 
     def __destroy_connection(self, conn):
+        assert conn not in self.used_connections
         current_app.logger.debug('Disconnected a storage connection')
         conn.connection.disconnect()
 
@@ -125,49 +198,37 @@ class ConnectionPool(object):
 connection_pool = ConnectionPool()
 
 
-def get_storage():
-    """Retrieve a storage connection.
-
-    It fetches one that has been previously
-    stored during authentication, else use
-    auth info from the request to create one.
-    """
-    conn = getattr(g, 'storageconn', None)
-    if conn is None:
+def get_connection(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
         auth = _get_authentication()
-        try:
-            if authenticate(auth.username, auth.password):
-                conn = getattr(g, 'storageconn', None)
-            else:
-                raise NotAuthorizedException('Invalid credentials')
-        except InternalException:
-            g.storageconn = None
+        conn = connection_pool.get_connection(auth.username, auth.password)
+        if conn is None:
+            raise NotAuthorizedException('Invalid credentials')
 
-    return conn.connection
+        kwargs.update({'conn': conn.connection})
+        res = f(*args, **kwargs)
+        connection_pool.release_connection(conn)
+        return res
+
+    return decorated
 
 
 def teardown(exception=None):
     """Close the storage connection.
-
-    Running this as teardown_request function,
-    it probably requires stream_with_context
     """
-    conn = getattr(g, 'storageconn', None)
-    if conn is not None:
-        connection_pool.release_connection(conn)
-        g.storageconn = None
+    pass
 
 
-def authenticate(username, password):
+def authenticate(username, password, conn=None):
     """Authenticate with username, password.
 
     Returns True or False.
     Validates an existing connection.
     """
     conn = connection_pool.get_connection(username, password)
-
     if conn is not None:
-        g.storageconn = conn
+        connection_pool.release_connection(conn)
         return True
     else:
         return False
@@ -197,7 +258,8 @@ def _check_conflict(conn, path):
         raise ConflictException('Target already exists')
 
 
-def stat(path, metadata=None):
+@get_connection
+def stat(path, metadata=None, conn=None):
     """Return detailed information about the object.
 
     The metadata argument specifies if and which
@@ -209,7 +271,6 @@ def stat(path, metadata=None):
     For the future, there should be a standard what
     stat() returns.
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -246,12 +307,12 @@ def stat(path, metadata=None):
     return obj_info
 
 
-def get_user_metadata(path, user_metadata=None):
+@get_connection
+def get_user_metadata(path, user_metadata=None, conn=None):
     """Gets user_metadata from irods and filters them by the user_metadata arg.
 
     see _get_user_metadata
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -295,7 +356,8 @@ def _get_user_metadata(conn, obj_handle, path, user_metadata):
     return user_meta
 
 
-def set_user_metadata(path, user_metadata):
+@get_connection
+def set_user_metadata(path, user_metadata, conn=None):
     """ Set a number of user metadata entries.
 
     user_metadata should be a dict() holding the metadata keys to set.
@@ -303,7 +365,6 @@ def set_user_metadata(path, user_metadata):
     only sets one.
     If user_metadata is not a dict(), the function throws an exception.
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -324,7 +385,8 @@ def _set_user_metadata(conn, path, user_metadata):
         obj_handle.addUserMetadata(key, val)
 
 
-def read(path, range_list=[]):
+@get_connection
+def read(path, range_list=[], conn=None):
     """Read a file from the backend storage.
 
     Returns a bytestream.
@@ -335,7 +397,6 @@ def read(path, range_list=[]):
     If a range exceeds the size of the object, the
     bytestream goes until the object end.
     """
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -394,9 +455,9 @@ def read(path, range_list=[]):
     return gen, file_size, content_len, num_ordered_range_list
 
 
-def write(path, stream_gen, force=False):
+@get_connection
+def write(path, stream_gen, force=False, conn=None):
     """Write a file from an input stream."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -417,9 +478,9 @@ def write(path, stream_gen, force=False):
     return bytes_written
 
 
-def ls(path):
+@get_connection
+def ls(path, conn=None):
     """Return a generator of a directory listing."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -449,9 +510,9 @@ def ls(path):
     return gen
 
 
-def mkdir(path):
+@get_connection
+def mkdir(path, conn=None):
     """Create a directory."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -495,9 +556,9 @@ def _handle_irodserror(path, err):
     raise StorageException('Unknown storage exception')
 
 
-def rm(path):
+@get_connection
+def rm(path, conn=None):
     """Delete a file."""
-    conn = get_storage()
 
     if conn is None:
         return None
@@ -523,14 +584,13 @@ def rm(path):
     return True, ''
 
 
-def rmdir(path, force=False):
+@get_connection
+def rmdir(path, force=False, conn=None):
     """Delete a directory.
 
     Be careful: it also deletes subdirectories
     without asking.
     """
-
-    conn = get_storage()
 
     if conn is None:
         return None

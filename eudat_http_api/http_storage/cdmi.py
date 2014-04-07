@@ -124,6 +124,15 @@ def make_absolute_path(path):
         return '/'
 
 
+def _safe_stat(path, user_metadata):
+    try:
+        return metadata.stat(path, user_metadata)
+    except storage.MalformedPathException:
+        return dict()
+    except storage.NotFoundException:
+        return dict()
+
+
 def _create_dirlist_gen(dir_gen, path):
     """Returns a list with the directory entries."""
     nav_links = [storage.StorageDir('.', path),
@@ -132,7 +141,8 @@ def _create_dirlist_gen(dir_gen, path):
     return imap(lambda x: (x.name, json.dumps(
                            {'name': x.name,
                             'path': x.path,
-                            'metadata': metadata.stat(x.path, True)})),
+                            'metadata': _safe_stat(x.path, True)
+                            })),
                 chain(nav_links, dir_gen))
 
 
