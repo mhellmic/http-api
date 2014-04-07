@@ -69,7 +69,6 @@ def authenticate(username, password):
         return True
 
 
-@with_auth
 @check_path
 def stat(path, metadata=None):
     """Return detailed information about the object.
@@ -109,19 +108,16 @@ def stat(path, metadata=None):
     return obj_info
 
 
-@with_auth
 @check_path
 def get_user_metadata(path, user_metadata=None):
     return dict()
 
 
-@with_auth
 @check_path
 def set_user_metadata(path, user_metadata):
     pass
 
 
-@with_auth
 @check_path
 def read(path, range_list=[]):
     """Read a file from the backend storage.
@@ -186,7 +182,6 @@ def read(path, range_list=[]):
     return gen, file_size, content_len, num_ordered_range_list
 
 
-@with_auth
 @check_path
 def write(path, stream_gen):
     """Write a file from an input stream."""
@@ -205,7 +200,6 @@ def write(path, stream_gen):
         _handle_oserror(path, e)
 
 
-@with_auth
 @check_path
 def ls(path):
     """Return a generator of a directory listing."""
@@ -226,7 +220,6 @@ def ls(path):
         _handle_oserror(path, e)
 
 
-@with_auth
 @check_path
 def mkdir(path):
     """Create a directory."""
@@ -236,7 +229,6 @@ def mkdir(path):
         _handle_oserror(path, e)
 
 
-@with_auth
 @check_path
 def rm(path):
     """Delete a file."""
@@ -249,7 +241,6 @@ def rm(path):
         _handle_oserror(path, e)
 
 
-@with_auth
 @check_path
 def rmdir(path):
     """Delete a directory."""
