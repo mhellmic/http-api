@@ -19,10 +19,7 @@ class TestLocalStorage:
         app = create_app(__name__)
         self.app = app
 
-        with self.app.test_request_context(), \
-                patch(
-                'eudat_http_api.http_storage.localstorage._get_authentication',
-                return_value=self.userinfo):
+        with self.app.test_request_context():
             from eudat_http_api.http_storage import localstorage
             try:
                 localstorage.rmdir('/tmp/foo')
@@ -32,10 +29,7 @@ class TestLocalStorage:
         self.client = app.test_client()
 
     def teardown(self):
-        with self.app.test_request_context(), \
-                patch(
-                'eudat_http_api.http_storage.localstorage._get_authentication',
-                return_value=self.userinfo):
+        with self.app.test_request_context():
             from eudat_http_api.http_storage import localstorage
             try:
                 localstorage.rmdir('/tmp/foo')
@@ -60,10 +54,7 @@ class TestLocalStorage:
     #            assert localstorage.sanitize_path(test) == result
 
     def test_mkdir(self):
-        with self.app.test_request_context(), \
-                patch(
-                'eudat_http_api.http_storage.localstorage._get_authentication',
-                return_value=self.userinfo):
+        with self.app.test_request_context():
             from eudat_http_api.http_storage import localstorage
 
             orglist = localstorage.ls('/tmp')
@@ -77,10 +68,7 @@ class TestLocalStorage:
             localstorage.rmdir('/tmp/foo')
 
     def test_stat(self):
-        with self.app.test_request_context(), \
-                patch(
-                'eudat_http_api.http_storage.localstorage._get_authentication',
-                return_value=self.userinfo):
+        with self.app.test_request_context():
             from eudat_http_api.http_storage import localstorage
 
             res = localstorage.stat('/tmp')

@@ -35,6 +35,8 @@ class TestStorageApi:
         else:
             app = create_app(__name__)
 
+        cls.storage_config = app.config['STORAGE']
+
         if app.config['STORAGE'] == 'local':
             cls.url_list = get_local_url_list()
         elif app.config['STORAGE'] == 'irods':
@@ -78,6 +80,9 @@ class TestStorageApi:
         for (resource,
              userinfo) in product(self.url_list,
                                   get_user_list()):
+
+            if self.storage_config == 'local' and not userinfo.valid:
+                continue
             yield (check_func,
                    {
                        'resource': resource,
