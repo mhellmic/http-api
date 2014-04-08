@@ -17,10 +17,10 @@ def create_app(config_name):
         # the app context is needed to switch the storage
         # backend based on the config parameter.
         # (which is bound to the app object)
-        from eudat_http_api.http_storage import http_storage
+        from eudat_http_api.http_storage.init import http_storage
         app.register_blueprint(http_storage)
 
-        from eudat_http_api.registration import registration
+        from eudat_http_api.registration.init import registration
         app.register_blueprint(registration)
 
         from eudat_http_api.registration import models
