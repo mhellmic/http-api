@@ -4,6 +4,20 @@ import os
 import shutil
 
 
+class ByteRange:
+    start = None
+    end = None
+    size = None
+
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def __len__(self):
+        # include the last byte, too
+        return self.end - self.start + 1
+
+
 class RestResource:
     ContainerType = 'dir'
     FileType = 'file'
