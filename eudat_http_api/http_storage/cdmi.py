@@ -22,8 +22,10 @@ from itertools import imap, chain, islice
 
 from eudat_http_api import common
 from eudat_http_api import metadata
+from eudat_http_api.common import ContentTypes
 from eudat_http_api.http_storage import storage
 
+from eudat_http_api.common import request_wants
 
 class CdmiException(Exception):
     def __init__(self, msg):
@@ -99,24 +101,6 @@ cdmi_data_envelope = {
     }
 
 
-def request_wants_cdmi_object():
-    """adapted from http://flask.pocoo.org/snippets/45/"""
-    best = request.accept_mimetypes \
-        .best_match(['application/cdmi-object', 'text/html'])
-    return best == 'application/cdmi-object' and \
-        request.accept_mimetypes[best] > \
-        request.accept_mimetypes['text/html']
-
-
-def request_wants_json():
-    """from http://flask.pocoo.org/snippets/45/"""
-    best = request.accept_mimetypes.best_match(['application/json',
-                                                'text/html'])
-    return best == 'application/json' and \
-        request.accept_mimetypes[best] > \
-        request.accept_mimetypes['text/html']
-
-
 def make_absolute_path(path):
     if path != '/':
         return '/%s' % path
@@ -170,7 +154,7 @@ def get_cdmi_file_obj(path):
 
     range_requests = []
     cdmi_filters = []
-    if request_wants_cdmi_object():
+    if request_wants(ContentTypes.cdmi_object):
         try:
             cdmi_filters = _get_cdmi_filters(request.args)
         except MalformedArgumentValueException as e:
@@ -249,7 +233,7 @@ def get_cdmi_file_obj(path):
                                                    multipart_frontier,
                                                    file_size)
 
-    if request_wants_cdmi_object():
+    if request_wants(ContentTypes.cdmi_object):
         if len(range_list) > 1:
             pass  # throw a terrifying exception here, cdmi must not multipart!
         cdmi_json_gen = _get_cdmi_json_file_generator(path,
@@ -352,14 +336,9 @@ def del_cdmi_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    if request_wants_cdmi_object():
-        empty_response = Response(status=204)
-        del empty_response.headers['content-type']
-        return empty_response
-    elif request_wants_json():
-        return flask_jsonify(delete='Deleted: %s' % (path)), 204
-    else:
-        return 'Deleted: %s' % (path), 204
+    empty_response = Response(status=204)
+    del empty_response.headers['content-type']
+    return empty_response
 
 
 def get_cdmi_dir_obj(path):
@@ -370,7 +349,7 @@ def get_cdmi_dir_obj(path):
     TODO: find a way to stream the listing.
     """
     cdmi_filters = []
-    if request_wants_cdmi_object():
+    if request_wants(ContentTypes.cdmi_object):
         try:
             cdmi_filters = _get_cdmi_filters(request.args)
         except MalformedArgumentValueException as e:
@@ -387,7 +366,7 @@ def get_cdmi_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    if request_wants_cdmi_object():
+    if request_wants(ContentTypes.cdmi_object):
         cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_gen)
         if cdmi_filters:
             filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
@@ -398,7 +377,7 @@ def get_cdmi_dir_obj(path):
         json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
         return Response(stream_with_context(json_stream_wrapper))
 
-    elif request_wants_json():
+    elif request_wants(ContentTypes.json):
         dir_gen_wrapper = _create_dirlist_gen(dir_gen, path)
         json_stream_wrapper = _wrap_with_json_generator(dir_gen_wrapper)
         return Response(stream_with_context(json_stream_wrapper))
@@ -438,8 +417,7 @@ def _get_cdmi_filters(args_dict):
                 cdmi_filter.update({'childrenrange': value})
             except (AttributeError, TypeError):
                 raise MalformedArgumentValueException(
-                    'Could not parse value: key: %s - value: %s' % (key,
-                                                                    value)
+                    'Could not parse value: key: %s - value: %s' % (key, value)
                     )
 
         elif key == 'value':
@@ -448,8 +426,7 @@ def _get_cdmi_filters(args_dict):
                     value = [map(int, re_range.match(value).groups())]
                 except (AttributeError, TypeError):
                     raise MalformedArgumentValueException(
-                        'Could not parse value: key: %s - value: %s' % (key,
-                                                                        value)
+                        'Could not parse value: key: %s - value: %s' % (key, value)
                         )
             else:
                 value = []
@@ -579,14 +556,11 @@ def del_cdmi_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    if request_wants_cdmi_object():
-        empty_response = Response(status=204)
-        del empty_response.headers['content-type']
-        return empty_response
-    elif request_wants_json():
-        return flask_jsonify(delete='Deleted: %s' % (path)), 204
-    else:
-        return 'Deleted: %s' % (path), 204
+
+    empty_response = Response(status=204)
+    del empty_response.headers['content-type']
+    return empty_response
+
 
 
 def teardown(exception=None):

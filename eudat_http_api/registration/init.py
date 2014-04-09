@@ -6,30 +6,25 @@ from flask import current_app
 from flask import request
 from flask import json
 from flask import abort, url_for
+from eudat_http_api.common import request_wants, ContentTypes
 
 from eudat_http_api.registration.models import db
 from eudat_http_api.registration import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
+
 from models import RegistrationRequest, RegistrationRequestSerializer
+
 from config import REQUESTS_PER_PAGE
 
 from datetime import datetime
-# it seems not to be possible to send
-# http requests from a separate Process
-#from multiprocessing import Process
 from threading import Thread
+
+
 
 registration = Blueprint('registration', __name__,
                          template_folder='templates')
 
-
-def request_wants_json():
-    """from http://flask.pocoo.org/snippets/45/"""
-    best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-    return best == 'application/json' and \
-           request.accept_mimetypes[best] > \
-           request.accept_mimetypes['text/html']
 
 
 def get_hal_links(reg_requests, page):
@@ -53,7 +48,7 @@ def get_requests():
                                                                                                      REQUESTS_PER_PAGE,
                                                                                                      False)
 
-    if request_wants_json():
+    if request_wants(ContentTypes.json):
         return flask.jsonify(
             {"requests": RegistrationRequestSerializer(reg_requests.items, many=True).data,
              "_links": get_hal_links(reg_requests, page)})
@@ -92,7 +87,7 @@ def post_request():
                args=r.id)
     p.start()
 
-    if request_wants_json():
+    if request_wants(ContentTypes.json):
         return flask.jsonify(request_id=r.id), 201
     else:
         return flask.render_template('requestcreated.html', reg=r), 201
@@ -108,7 +103,7 @@ def get_request(request_id):
     if r is None:
         return abort(404)
 
-    if request_wants_json():
+    if request_wants(ContentTypes.json):
         return flask.jsonify({'request': RegistrationRequestSerializer(r).data})
 
     return flask.render_template('singleRequest.html', r=r)
