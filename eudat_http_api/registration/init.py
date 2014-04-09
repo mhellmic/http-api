@@ -12,6 +12,7 @@ from eudat_http_api.registration.models import db
 from eudat_http_api.registration import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
+from eudat_http_api.registration.registration_worker import RegistrationWorker
 
 from models import RegistrationRequest, RegistrationRequestSerializer
 
@@ -83,8 +84,7 @@ def post_request():
     db.session.commit()
 
     # start worker
-    p = Thread(target=registration_worker.register_data_object,
-               args=r.id)
+    p = RegistrationWorker(request=r, logger=current_app.logger)
     p.start()
 
     if request_wants(ContentTypes.json):
