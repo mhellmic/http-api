@@ -4,6 +4,7 @@ from __future__ import with_statement
 
 from functools import wraps
 import hashlib
+from inspect import isgenerator
 import os
 from Queue import Queue, Empty, Full
 from threading import Lock
@@ -190,7 +191,6 @@ class ConnectionPool(object):
             return None
 
     def __destroy_connection(self, conn):
-        assert conn not in self.used_connections
         current_app.logger.debug('Disconnected a storage connection')
         conn.connection.disconnect()
 
