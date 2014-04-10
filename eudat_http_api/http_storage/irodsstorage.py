@@ -208,10 +208,26 @@ def get_connection(f):
 
         kwargs.update({'conn': conn.connection})
         res = f(*args, **kwargs)
-        connection_pool.release_connection(conn)
-        return res
+        if isgenerator(res):
+            current_app.logger.debug('typical ls() case encountered')
+            return wrap_generator(res, conn)
+        elif isinstance(res, tuple):
+            current_app.logger.debug('typical read() case encountered')
+            wrapped_res = [wrap_generator(i, conn) if isgenerator(i) else i
+                           for i in res]
+            return wrapped_res
+        else:
+            current_app.logger.debug('other case encountered')
+            connection_pool.release_connection(conn)
+            return res
 
     return decorated
+
+
+def wrap_generator(gen, conn):
+    for i in gen:
+        yield i
+    connection_pool.release_connection(conn)
 
 
 def teardown(exception=None):
