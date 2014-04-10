@@ -9,6 +9,8 @@ import time
 from eudat_http_api import cdmiclient
 
 #jj: this should be moved to model?
+
+
 request_statuses = {
     'waiting to be started': 'W',
     'started': 'S',
@@ -23,10 +25,11 @@ request_statuses = {
 
 class RegistrationWorker(threading.Thread):
 
-    def __init__(self, request, logger):
+    def __init__(self, request, epicclient, logger):
         threading.Thread.__init__(self)
         self.logger = logger
         self.request = request
+        self.epicclient = epicclient
 
     def run(self):
         self.logger.debug('starting to process request with id = %s' % self.request.id)

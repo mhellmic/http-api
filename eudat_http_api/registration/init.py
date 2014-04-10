@@ -7,6 +7,8 @@ from flask import request
 from flask import json
 from flask import abort, url_for
 from eudat_http_api.common import request_wants, ContentTypes
+from eudat_http_api.epicclient import EpicClient
+from eudat_http_api.epicclient import HttpClient
 
 from eudat_http_api.registration.models import db
 from eudat_http_api import invenioclient
@@ -14,10 +16,9 @@ from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import RegistrationWorker
 
 from models import RegistrationRequest, RegistrationRequestSerializer
-
 from config import REQUESTS_PER_PAGE
-
 from datetime import datetime
+from requests.auth import HTTPBasicAuth
 
 
 registration = Blueprint('registration', __name__,
@@ -53,6 +54,9 @@ def get_requests():
     return flask.render_template('requests.html', requests=reg_requests)
 
 
+
+
+
 @registration.route('/request/', methods=['POST'])
 @auth.requires_auth
 def post_request():
@@ -80,7 +84,10 @@ def post_request():
     db.session.commit()
 
     # start worker
-    p = RegistrationWorker(request=r, logger=current_app.logger)
+
+    httpClient = HttpClient(current_app.config['HANDLE_URI'], HTTPBasicAuth(current_app.config['HANDLE_USER'],
+                                                                            current_app.config['HANDLE_PASS']))
+    p = RegistrationWorker(request=r, epicclient=EpicClient(httpClient=httpClient), logger=current_app.logger)
     p.start()
 
     if request_wants(ContentTypes.json):

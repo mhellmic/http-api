@@ -5,12 +5,8 @@ from eudat_http_api.epicclient import EpicClient
 from eudat_http_api.epicclient import create_uri
 import json
 
-class Response():
-    pass
-
 
 class FakedHttpClient():
-
 
     def __init__(self):
         self.handles = dict()
@@ -18,6 +14,9 @@ class FakedHttpClient():
 
     def get(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(baseuri=self.baseuri, prefix=prefix, suffix=suffix)
+        class Response():
+            pass
+
         r = Response()
         r.status_code = 200
         r.content = self.handles[uri]
