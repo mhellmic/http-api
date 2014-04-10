@@ -25,7 +25,7 @@ def add_trailing_slash(path):
         return path
 
 class ContentTypes:
-    json, cdmi_object = {'application/json', 'application/cdmi-object'}
+    json, cdmi_object = ('application/json', 'application/cdmi-object')
 
 # in long term move to Flask-Negotiate?
 
