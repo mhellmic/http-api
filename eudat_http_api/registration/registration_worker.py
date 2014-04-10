@@ -41,7 +41,8 @@ class RegistrationWorker(threading.Thread):
     def check_src(self):
         time.sleep(5)
         self.continue_request(self.get_handle)
-        if 1==1: return
+        if 1==1:
+            return
 
         # check existence and correct permissions on source
         _, response = cdmiclient.head('%s' % self.request.src_url)

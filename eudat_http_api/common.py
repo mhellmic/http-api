@@ -34,5 +34,5 @@ def request_wants(content_type):
     return best == content_type and request.accept_mimetypes[best] > request.accept_mimetypes['text/html']
 
 def request_wants_json():
-    return  request_wants(ContentTypes.json)
+    return request_wants(ContentTypes.json)
 

@@ -9,7 +9,6 @@ from flask import abort, url_for
 from eudat_http_api.common import request_wants, ContentTypes
 
 from eudat_http_api.registration.models import db
-from eudat_http_api.registration import registration_worker
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import RegistrationWorker
@@ -19,13 +18,10 @@ from models import RegistrationRequest, RegistrationRequestSerializer
 from config import REQUESTS_PER_PAGE
 
 from datetime import datetime
-from threading import Thread
-
 
 
 registration = Blueprint('registration', __name__,
                          template_folder='templates')
-
 
 
 def get_hal_links(reg_requests, page):
@@ -110,6 +106,7 @@ def get_request(request_id):
 
 
 #### /registered container ####
+#jj: this is a separate component?
 
 
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
@@ -128,6 +125,7 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
     pid = pid_prefix + '/' + pid_suffix
 
+    #FIXIT: invenio should not be exposed we need an abstraction
     if 'metadata' in flask.request.args:
         invenioclient.get_metadata(pid)
 

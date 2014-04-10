@@ -417,8 +417,7 @@ def _get_cdmi_filters(args_dict):
                 cdmi_filter.update({'childrenrange': value})
             except (AttributeError, TypeError):
                 raise MalformedArgumentValueException(
-                    'Could not parse value: key: %s - value: %s' % (key, value)
-                    )
+                    'Could not parse value: key: %s - value: %s' % (key, value) )
 
         elif key == 'value':
             if value is not None:  # remember value can also come without range
