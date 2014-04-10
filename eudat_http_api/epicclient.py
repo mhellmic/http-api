@@ -80,8 +80,6 @@ class EpicClient():
         Returns the content of the handle in JSON, None on error.
 
         """
-        uri = create_uri(prefix=prefix, suffix=suffix)
-
         hdrs = None
         if self.accept_format:
             hdrs = {'Accept': self.accept_format}
