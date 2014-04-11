@@ -6,6 +6,7 @@ import tempfile
 
 from eudat_http_api import create_app
 
+from test.test_common import ByteRange
 from test.test_common import get_local_url_list, get_irods_url_list
 from test.test_common import get_user_list
 from test.test_common import create_local_urls, create_irods_urls
@@ -74,18 +75,19 @@ class TestHttpApi:
         assert rv.mimetype == 'text/html'
 
     # from https://gist.github.com/jarus/1160696
-    def open_with_auth(self, url, method, username, password, data=None):
-        headers = {
+    def open_with_auth(self, url, method, username, password, headers={}, data=None):
+        combined_headers = headers
+        combined_headers.update({
             'Authorization': 'Basic '
             + base64.b64encode(
                 username + ":" + password)
-        }
+        })
         if data:
             return self.client.open(url, method=method,
-                                    headers=headers, data=data)
+                                    headers=combined_headers, data=data)
         else:
             return self.client.open(url, method=method,
-                                    headers=headers)
+                                    headers=combined_headers)
 
     def check_html(self, check_func):
         for (resource,
@@ -116,6 +118,7 @@ class TestHttpApi:
             self.check_html_folder_get_404(**params)
         elif params['resource'].is_file() and params['resource'].exists:
             self.check_html_file_get(**params)
+            self.check_html_file_get_partial(**params)
         elif params['resource'].is_file() and not params['resource'].exists:
             self.check_html_file_get_404(**params)
 
@@ -183,6 +186,67 @@ class TestHttpApi:
 
         assert rv.content_length == resource.objinfo['size']
         assert rv.data == resource.objinfo['content']
+
+    def check_html_file_get_partial(self, resource, userinfo):
+        obj_size = len(resource.objinfo['content'])
+
+        byte_range = ByteRange(5, 10)
+        headers = {'range': 'bytes=%s-%s' % (str(byte_range.start),
+                                             str(byte_range.end)
+                                             )}
+        rv = self.open_with_auth(resource.path, 'GET',
+                                 userinfo.name, userinfo.password,
+                                 headers=headers)
+
+        if not userinfo.valid:
+            assert rv.status_code == 401
+            return
+
+        assert rv.status_code == 206
+        self.assert_html_response(rv)
+
+        if obj_size > byte_range.end:
+            assert rv.content_length == len(byte_range)
+        assert rv.data == (resource.objinfo['content']
+                           [byte_range.start:byte_range.end + 1])
+
+        # leave out first part: request from file start
+        byte_range = ByteRange(0, 6)
+        headers = {'range': 'bytes=%s-%s' % ('',
+                                             str(byte_range.end)
+                                             )}
+        rv = self.open_with_auth(resource.path, 'GET',
+                                 userinfo.name, userinfo.password,
+                                 headers=headers)
+
+        if obj_size > byte_range.end:
+            assert rv.status_code == 206
+        else:
+            # now you got served the whole file
+            assert rv.status_code == 200
+        self.assert_html_response(rv)
+
+        if obj_size > byte_range.end:
+            assert rv.content_length == len(byte_range)
+        assert rv.data == (resource.objinfo['content']
+                           [byte_range.start:byte_range.end + 1])
+
+        # leave out last part: request to file end
+        byte_range = ByteRange(2, obj_size)
+        headers = {'range': 'bytes=%s-%s' % (str(byte_range.start),
+                                             ''
+                                             )}
+        rv = self.open_with_auth(resource.path, 'GET',
+                                 userinfo.name, userinfo.password,
+                                 headers=headers)
+
+        assert rv.status_code == 206
+        self.assert_html_response(rv)
+
+        if obj_size > byte_range.end:
+            assert rv.content_length == len(byte_range) - 1
+        assert rv.data == (resource.objinfo['content']
+                           [byte_range.start:byte_range.end + 1])
 
     def check_html_file_get_404(self, resource, userinfo):
         url = resource.path
