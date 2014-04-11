@@ -108,7 +108,7 @@ class ConnectionPool(object):
             current_app.logger.debug(
                 'got a storage connection from the pool. now = %d-1'
                 % user_pool.qsize())
-            if self.__connection_is_valid:
+            if not self.__connection_is_valid:
                 current_app.logger.debug('found a bad storage connection')
                 self.__destroy_connection(conn)
                 conn = self.__create_connection(username, password)
