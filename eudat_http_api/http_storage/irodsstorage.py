@@ -253,7 +253,7 @@ def authenticate(username, password, conn=None):
 def _get_irods_obj_handle(conn, path, mode='r'):
     path_is_dir = False
     obj_handle = _open(conn, path, mode)
-    if not obj_handle:
+    if obj_handle is None:
         obj_handle = irodsCollection(conn, path)
         if int(obj_handle.getId()) >= 0:
             path_is_dir = True
