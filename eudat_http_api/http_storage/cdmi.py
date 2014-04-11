@@ -148,23 +148,24 @@ def get_cdmi_file_obj(path):
 
     def parse_range(range_str):
         start, end = range_str.split('-')
-        try:
-            start = int(start)
-        except ValueError:
-            if len(start) == 0:
-                start = storage.START
-            else:
-                raise MalformedByteRangeException(
-                    'The byte range provided could not be parsed.')
 
         try:
-            end = int(end)
-        except ValueError:
-            if len(end) == 0:
+            if start == '' and end == '':
+                start = storage.START
                 end = storage.END
-            else:
-                raise MalformedByteRangeException(
-                    'The byte range provided could not be parsed.')
+            elif start == '' and end != '':
+                start = int(end)
+                end = storage.BACKWARDS
+            elif start != '' and end == '':
+                start = int(start)
+                end = storage.END
+            else:  # start != '' and end != ''
+                start = int(start)
+                end = int(end)
+            start = int(start)
+        except ValueError:
+            raise MalformedByteRangeException(
+                'The byte range provided could not be parsed.')
 
         return start, end
 
