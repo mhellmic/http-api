@@ -142,6 +142,16 @@ class ConnectionPool(object):
     def release_connection(self, conn):
         user_pool = self.__get_user_pool(conn.auth_hash)
 
+        if not self.__connection_is_valid(conn):
+            current_app.logger.debug(
+                'found a bad storage connection in release()')
+            self.__destroy_connection(conn)
+            current_app.logger.debug(
+                'remove a storage connection from used. now used = %d-1'
+                % len(self.used_connections))
+            self.used_connections.remove(conn)
+            return
+
         try:
             current_app.logger.debug(
                 'putting back a storage connection. now = %d+1'
