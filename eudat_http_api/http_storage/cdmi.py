@@ -43,6 +43,14 @@ class MalformedArgumentValueException(CdmiException):
         return repr(self.msg)
 
 
+class MalformedByteRangeException(CdmiException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
 cdmi_body_fields = set([
     'objectType',
     'objectId',
@@ -142,13 +150,21 @@ def get_cdmi_file_obj(path):
         start, end = range_str.split('-')
         try:
             start = int(start)
-        except:
-            start = storage.START
+        except ValueError:
+            if len(start) == 0:
+                start = storage.START
+            else:
+                raise MalformedByteRangeException(
+                    'The byte range provided could not be parsed.')
 
         try:
             end = int(end)
-        except:
-            end = storage.END
+        except ValueError:
+            if len(end) == 0:
+                end = storage.END
+            else:
+                raise MalformedByteRangeException(
+                    'The byte range provided could not be parsed.')
 
         return start, end
 
@@ -165,9 +181,15 @@ def get_cdmi_file_obj(path):
             pass
     elif request.headers.get('Range'):
         ranges = request.headers.get('Range')
+        range_verify_regex = re.compile('^bytes=(\d*-\d*)(,\d*-\d*)*$')
+        if range_verify_regex.match(ranges) is None:
+            return 'The byte range provided could not be parsed.', 400
         range_regex = re.compile('(\d*-\d*)')
         matches = range_regex.findall(ranges)
-        range_requests = map(parse_range, matches)
+        try:
+            range_requests = map(parse_range, matches)
+        except MalformedByteRangeException as e:
+            return e.msg, 400
 
     try:
         (stream_gen,
