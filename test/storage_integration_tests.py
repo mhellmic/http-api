@@ -248,6 +248,18 @@ class TestHttpApi:
         assert rv.data == (resource.objinfo['content']
                            [byte_range.start:byte_range.end + 1])
 
+        # use invalid range identifiers
+        byte_range = ByteRange(2, obj_size)
+        headers = {'range': 'bytes=%s-%s' % (str(byte_range.start)+'ef',
+                                             'beefsteak'
+                                             )}
+        rv = self.open_with_auth(resource.path, 'GET',
+                                 userinfo.name, userinfo.password,
+                                 headers=headers)
+
+        assert rv.status_code == 400
+        self.assert_html_response(rv)
+
     def check_html_file_get_404(self, resource, userinfo):
         url = resource.path
         rv = self.open_with_auth(url, 'GET',
