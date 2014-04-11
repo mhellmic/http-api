@@ -10,7 +10,6 @@ from Queue import Queue, Empty, Full
 from threading import Lock
 
 from flask import current_app
-from flask import g
 from flask import request
 
 from irods import *
