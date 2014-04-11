@@ -108,8 +108,7 @@ class ConnectionPool(object):
             current_app.logger.debug(
                 'got a storage connection from the pool. now = %d-1'
                 % user_pool.qsize())
-            if (conn.connection.rError is not None or
-                    conn.connection.loggedIn == 0):
+            if self.__connection_is_valid:
                 current_app.logger.debug('found a bad storage connection')
                 self.__destroy_connection(conn)
                 conn = self.__create_connection(username, password)
@@ -124,6 +123,21 @@ class ConnectionPool(object):
             self.used_connections.add(conn)
 
         return conn
+
+    def __connection_is_valid(self, conn):
+        if conn is None:
+            return False
+
+        irods_conn = conn.connection
+        is_valid = True
+        if irods_conn.rError is not None:
+            is_valid = False
+        elif irods_conn.loggedIn != 1:  # 1 is logged in
+            is_valid = False
+        elif irods_conn.status != 0:
+            is_valid = False
+
+        return is_valid
 
     def release_connection(self, conn):
         user_pool = self.__get_user_pool(conn.auth_hash)
