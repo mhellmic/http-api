@@ -206,7 +206,12 @@ def get_connection(f):
             raise NotAuthorizedException('Invalid credentials')
 
         kwargs.update({'conn': conn.connection})
-        res = f(*args, **kwargs)
+        try:
+            res = f(*args, **kwargs)
+        except:
+            connection_pool.release_connection(conn)
+            raise
+
         if isgenerator(res):
             current_app.logger.debug('typical ls() case encountered')
             return wrap_generator(res, conn)
