@@ -2,6 +2,7 @@
 
 START = 'file-start'
 END = 'file-end'
+BACKWARDS = 'file-back'
 
 DIR = 'dir'
 FILE = 'file'
@@ -106,6 +107,52 @@ class MalformedPathException(StorageException):
 
     def __str__(self):
         return repr(self.msg)
+
+
+def adjust_range_size(x, y, file_size):
+    '''Adjust from range representation of the CDMI layer.
+
+    This adjustments translates all symbolic values into
+    offsets in the file to read. It also makes the ranges
+    sortable for optimal access.
+
+    The CDMI layer does not know about the filesize, so
+    we translate the constants START and END into
+    file_size and 0.
+    Because it doesn't know the filesize, it also cannot
+    calculate the offsets for reading the last part of a file.
+    It shows this case by providing the segment length as x
+    and y as BACKWARDS, which we convert into a segment
+    (filesize,  filesize - x) for acual access.
+
+    The behaviour is according to:
+    http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+    14.35.1 Byte Ranges
+    '''
+    # this case has to go first, as all constants eval > file_size
+    if y == BACKWARDS:  # get the last part of the file
+        y = file_size
+        x = file_size - x
+        if x < 0:
+            x = 0
+    if y > file_size or y == END:
+        y = file_size
+    if x == START:
+        x = 0
+    return (x, y)
+
+
+def get_range_size(x, y, file_size):
+    '''Get the range sizes.
+
+    The only special case handled here is the discount of
+    1 for values == file_size. This is because we have to
+    adjust all other range sizes to include the last byte,
+    which is included for y == file_size.
+    '''
+    if y == file_size:
+        y -= 1  # because we adjust all other sizes below
+    return y - x + 1  # http expects the last byte included
 
 
 def read_stream_generator(file_handle, file_size,

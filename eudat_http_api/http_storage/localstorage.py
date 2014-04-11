@@ -141,18 +141,6 @@ def read(path, range_list=[]):
 
     file_size = os.path.getsize(path)
 
-    def adjust_range_size(x, y, file_size):
-        if y >= file_size:
-            y = END
-        return (x, y)
-
-    def get_range_size(x, y, file_size):
-        if x == START:
-            x = 0
-        if y == END:
-            y = file_size - 1  # because we adjust all other sizes below
-        return y - x + 1  # http expects the last byte included
-
     range_list = map(lambda (x, y): adjust_range_size(x, y, file_size),
                      range_list)
     ordered_range_list = sorted(range_list)
