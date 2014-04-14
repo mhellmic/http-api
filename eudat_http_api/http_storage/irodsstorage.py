@@ -126,15 +126,21 @@ class ConnectionPool(object):
 
     def __connection_is_valid(self, conn):
         if conn is None:
+            current_app.logger.debug('conn is None')
             return False
 
         irods_conn = conn.connection
         is_valid = True
         if irods_conn.rError is not None:
+            current_app.logger.debug('conn error set to something')
             is_valid = False
         elif irods_conn.loggedIn != 1:  # 1 is logged in
+            current_app.logger.debug('conn not logged in: %d'
+                                     % irods_conn.loggedIn)
             is_valid = False
         elif irods_conn.status != 0:
+            current_app.logger.debug('conn status error: %d'
+                                     % irods_conn.status)
             is_valid = False
 
         return is_valid
