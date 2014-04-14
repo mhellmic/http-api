@@ -210,24 +210,22 @@ class TestHttpApi:
         assert rv.data == (resource.objinfo['content']
                            [byte_range.start:byte_range.end + 1])
 
-        # leave out first part: request from file start
-        byte_range = ByteRange(0, 6)
+        # leave out first part: expect fileend - end bytes
+        byte_range = ByteRange(obj_size - 6, obj_size)
         headers = {'range': 'bytes=%s-%s' % ('',
-                                             str(byte_range.end)
+                                             str(6)
                                              )}
         rv = self.open_with_auth(resource.path, 'GET',
                                  userinfo.name, userinfo.password,
                                  headers=headers)
 
-        if obj_size > byte_range.end:
+        if obj_size > 6:
             assert rv.status_code == 206
         else:
             # now you got served the whole file
             assert rv.status_code == 200
         self.assert_html_response(rv)
 
-        if obj_size > byte_range.end:
-            assert rv.content_length == len(byte_range)
         assert rv.data == (resource.objinfo['content']
                            [byte_range.start:byte_range.end + 1])
 
