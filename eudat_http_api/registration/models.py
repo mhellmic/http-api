@@ -8,7 +8,7 @@ db = SQLAlchemy()
 class RegistrationRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     src_url = db.Column(db.String(2000), nullable=False)
-    status_description = db.Column(db.Enum('W', 'S', 'E', 'SP', 'DP', 'C', 'P', 'FC', 'A', name='status_types'))
+    status_description = db.Column(db.String(2000))
     timestamp = db.Column(db.DateTime)
     checksum = db.Column(db.String(32))
     pid = db.Column(db.String(2000))

@@ -8,7 +8,7 @@ import threading
 import time
 from eudat_http_api import cdmiclient
 
-#jj: this should be moved to model?
+from eudat_http_api.registration.models import db, RegistrationRequest
 
 
 request_statuses = {
@@ -22,14 +22,14 @@ request_statuses = {
     'aborted': 'A'
 }
 
-
 class RegistrationWorker(threading.Thread):
 
-    def __init__(self, request, epicclient, logger):
+    def __init__(self, request_id, epicclient, logger):
         threading.Thread.__init__(self)
         self.logger = logger
-        self.request = request
+        self.request = RegistrationRequest.query.get(request_id)
         self.epicclient = epicclient
+        self.logger.debug("DB Current app in thread %s " % db.get_app())
 
     def run(self):
         self.logger.debug('starting to process request with id = %s' % self.request.id)
@@ -37,11 +37,17 @@ class RegistrationWorker(threading.Thread):
 
 
     def create_dst_url(self):
+        self.request.status_description = 'Creating destination URL'
+        db.session.add(self.request)
+        db.session.commit()
         time.sleep(5)
         self.continue_request(self.check_src)
 
 
     def check_src(self):
+        self.request.status_description = 'Checking source'
+        db.session.add(self.request)
+        db.session.commit()
         time.sleep(5)
         self.continue_request(self.get_handle)
         if 1==1:
@@ -71,11 +77,15 @@ class RegistrationWorker(threading.Thread):
 
 
     def get_handle(self):
+        self.request.status_description = 'Getting handle'
+        db.session.commit()
         time.sleep(5)
         self.continue_request(self.copy_data_object)
 
 
     def copy_data_object(self):
+        self.request.status_description = 'Registration completed'
+        db.session.commit()
         time.sleep(5)
         self.logger.debug('Request finished id = %s' % self.request.id)
 
@@ -87,4 +97,5 @@ class RegistrationWorker(threading.Thread):
     def continue_request(self, next_step):
         self.logger.debug('Request id = %s advanced to = %s' % (self.request.id, next_step.__name__))
         #jj: not sure perhaps we could be more flexible with argument passing (and require lambda or something?)
+        #jj: we could also define the workflow in a more flexible way?
         next_step()

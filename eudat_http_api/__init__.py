@@ -24,6 +24,10 @@ def create_app(config_name):
         app.register_blueprint(registration)
 
         from eudat_http_api.registration import models
+        #jj: fucked up blueprints, after blowing up tests now they blow up the ORM
+        models.db.app = app
         models.db.init_app(app)
+
+
 
     return app

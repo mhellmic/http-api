@@ -55,8 +55,6 @@ def get_requests():
 
 
 
-
-
 @registration.route('/request/', methods=['POST'])
 @auth.requires_auth
 def post_request():
@@ -84,10 +82,13 @@ def post_request():
     db.session.commit()
 
     # start worker
-
     httpClient = HttpClient(current_app.config['HANDLE_URI'], HTTPBasicAuth(current_app.config['HANDLE_USER'],
+
                                                                             current_app.config['HANDLE_PASS']))
-    p = RegistrationWorker(request=r, epicclient=EpicClient(httpClient=httpClient), logger=current_app.logger)
+    p = RegistrationWorker(request_id=r.id, epicclient=EpicClient(httpClient=httpClient),
+                           logger=current_app.logger)
+    #we have to close it explicitly already here otherwise the request object is bound to this session
+    db.session.close()
     p.start()
 
     if request_wants(ContentTypes.json):

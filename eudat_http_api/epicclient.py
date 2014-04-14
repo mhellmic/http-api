@@ -1,6 +1,5 @@
 
 from requests import get, post, put, delete
-from requests.auth import HTTPBasicAuth
 import json
 
 def create_uri(baseuri, prefix, suffix=''):
@@ -11,7 +10,6 @@ def create_uri(baseuri, prefix, suffix=''):
 
 class HttpClient():
     def __init__(self, baseuri, credentials):
-        # self.credentials = HTTPBasicAuth(username=username, password=password)
         self.credentials = credentials
         self.baseuri = baseuri
 
