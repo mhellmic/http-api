@@ -11,8 +11,9 @@ parser.add_option('-d', '--debug', dest='debug',
 (options, args) = parser.parse_args()
 
 app = create_app('config')
+#jj: it does not work?
 options.debug = True
-if options.debug  :
+if options.debug:
     print ' * Setting debug mode'
     app.config['DEBUG'] = True
     app.logger.setLevel(logging.ERROR)

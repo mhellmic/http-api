@@ -6,9 +6,11 @@ from flask import current_app
 from flask import request
 from flask import json
 from flask import abort, url_for
+import eudat_http_api
 from eudat_http_api.common import request_wants, ContentTypes
 from eudat_http_api.epicclient import EpicClient
 from eudat_http_api.epicclient import HttpClient
+from eudat_http_api.cdmiclient import CDMIClient
 
 from eudat_http_api.registration.models import db
 from eudat_http_api import invenioclient
@@ -82,8 +84,12 @@ def post_request():
     httpClient = HttpClient(current_app.config['HANDLE_URI'], HTTPBasicAuth(current_app.config['HANDLE_USER'],
                                                                             current_app.config['HANDLE_PASS']))
 
+    cdmiclient = CDMIClient(auth=HTTPBasicAuth(request.authorization.username, request.authorization.password))
+
+    # FIXME: due to the fuckedup blueprints I don't know how to define the destination url, something like:
+    # url_for('http_storage.put_cdmi_obj',objpath='/')
     p = RegistrationWorker(request_id=r.id, epicclient=EpicClient(httpClient=httpClient),
-                           logger=current_app.logger, auth=request.authorization)
+                           logger=current_app.logger, cdmiclient=cdmiclient, base_url='http://localhost:8080/tmp/')
     #we have to close it explicitly already here otherwise the request object is bound to this session
     db.session.close()
     p.start()
