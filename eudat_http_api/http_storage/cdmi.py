@@ -3,11 +3,15 @@
 from __future__ import with_statement
 
 import base64
+from collections import deque
+from functools import wraps
+from inspect import isgenerator
 import json
 import re
 
 from urlparse import urlparse
 
+from flask import abort
 from flask import current_app
 from flask import redirect
 from flask import render_template
@@ -22,10 +26,11 @@ from itertools import imap, chain, islice
 
 from eudat_http_api import common
 from eudat_http_api import metadata
-from eudat_http_api.common import ContentTypes
 from eudat_http_api.http_storage import storage
 
-from eudat_http_api.common import request_wants
+
+CDMI_VERSION = '1.0.2'
+
 
 class CdmiException(Exception):
     def __init__(self, msg):
@@ -109,6 +114,10 @@ cdmi_data_envelope = {
     }
 
 
+def get_config_parameter(param_name, default_value):
+    return current_app.config.get(param_name, default_value)
+
+
 def make_absolute_path(path):
     if path != '/':
         return '/%s' % path
@@ -136,6 +145,23 @@ def _create_dirlist_gen(dir_gen, path):
                             'metadata': _safe_stat(x.path, True)
                             })),
                 chain(nav_links, dir_gen))
+
+
+def not_authorized_handler(e):
+    return e, 403
+
+
+def check_cdmi(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if common.request_wants_cdmi():
+            version = request.headers.get('X-CDMI-Specification-Version', '')
+            if version != CDMI_VERSION:
+                abort(400)
+
+        return f(*args, **kwargs)
+
+    return decorated
 
 
 def get_cdmi_file_obj(path):
@@ -171,13 +197,18 @@ def get_cdmi_file_obj(path):
 
     range_requests = []
     cdmi_filters = []
-    if request_wants(ContentTypes.cdmi_object):
+    if common.request_wants_cdmi():
         try:
             cdmi_filters = _get_cdmi_filters(request.args)
         except MalformedArgumentValueException as e:
             return e.msg, 400
         try:
             range_requests = cdmi_filters['value']
+            if range_requests:  # if not []
+                cdmi_filters['valuerange'] = range_requests[0]
+
+                if len(range_requests) > 1:
+                    return 'no multipart range allowed', 400
         except KeyError:
             pass
     elif request.headers.get('Range'):
@@ -203,7 +234,7 @@ def get_cdmi_file_obj(path):
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
-        return e.msg, 401
+        return e.msg, 403
     except storage.MalformedPathException as e:
         return e.msg, 400
 
@@ -256,9 +287,11 @@ def get_cdmi_file_obj(path):
                                                    multipart_frontier,
                                                    file_size)
 
-    if request_wants(ContentTypes.cdmi_object):
-        if len(range_list) > 1:
-            pass  # throw a terrifying exception here, cdmi must not multipart!
+    if common.request_wants_cdmi():
+        response_headers = {
+            'Content-Type': 'application/cdmi-object',
+            'X-CDMI-Specification-Version': CDMI_VERSION,
+        }
         cdmi_json_gen = _get_cdmi_json_file_generator(path,
                                                       wrapped_stream_gen,
                                                       file_size)
@@ -269,7 +302,8 @@ def get_cdmi_file_obj(path):
             filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
         json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
-        return Response(stream_with_context(json_stream_wrapper))
+        return Response(stream_with_context(json_stream_wrapper),
+                        headers=response_headers)
 
     return Response(stream_with_context(wrapped_stream_gen),
                     headers=response_headers,
@@ -329,7 +363,7 @@ def put_cdmi_file_obj(path):
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
-        return e.msg, 401
+        return e.msg, 403
     except storage.ConflictException as e:
         return e.msg, 409
     except storage.StorageException as e:
@@ -351,7 +385,7 @@ def del_cdmi_file_obj(path):
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
-        return e.msg, 401
+        return e.msg, 403
     except storage.ConflictException as e:
         return e.msg, 409
     except storage.StorageException as e:
@@ -372,7 +406,7 @@ def get_cdmi_dir_obj(path):
     TODO: find a way to stream the listing.
     """
     cdmi_filters = []
-    if request_wants(ContentTypes.cdmi_object):
+    if common.request_wants_cdmi():
         try:
             cdmi_filters = _get_cdmi_filters(request.args)
         except MalformedArgumentValueException as e:
@@ -383,13 +417,17 @@ def get_cdmi_dir_obj(path):
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
-        return e.msg, 401
+        return e.msg, 403
     except storage.StorageException as e:
         return e.msg, 500
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    if request_wants(ContentTypes.cdmi_object):
+    if common.request_wants_cdmi():
+        response_headers = {
+            'Content-Type': 'application/cdmi-container',
+            'X-CDMI-Specification-Version': CDMI_VERSION,
+        }
         cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_gen)
         if cdmi_filters:
             filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
@@ -398,12 +436,15 @@ def get_cdmi_dir_obj(path):
             filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
         json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
-        return Response(stream_with_context(json_stream_wrapper))
+        return Response(stream_with_context(json_stream_wrapper),
+                        headers=response_headers)
 
-    elif request_wants(ContentTypes.json):
+    elif common.request_wants_json():
         dir_gen_wrapper = _create_dirlist_gen(dir_gen, path)
         json_stream_wrapper = _wrap_with_json_generator(dir_gen_wrapper)
-        return Response(stream_with_context(json_stream_wrapper))
+        buffered_stream = json_stream_wrapper
+        #buffered_stream = _wrap_with_buffer(json_stream_wrapper)
+        return Response(stream_with_context(buffered_stream))
     else:
         return render_template('dirlisting.html',
                                dirlist=dir_gen,
@@ -440,7 +481,8 @@ def _get_cdmi_filters(args_dict):
                 cdmi_filter.update({'childrenrange': value})
             except (AttributeError, TypeError):
                 raise MalformedArgumentValueException(
-                    'Could not parse value: key: %s - value: %s' % (key, value) )
+                    'Could not parse value: key: %s - value: %s' % (key, value)
+                    )
 
         elif key == 'value':
             if value is not None:  # remember value can also come without range
@@ -448,8 +490,8 @@ def _get_cdmi_filters(args_dict):
                     value = [map(int, re_range.match(value).groups())]
                 except (AttributeError, TypeError):
                     raise MalformedArgumentValueException(
-                        'Could not parse value: key: %s - value: %s' % (key, value)
-                        )
+                        'Could not parse value: key: %s - value: %s'
+                        % (key, value))
             else:
                 value = []
 
@@ -475,7 +517,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
         range_start, range_end = range_tuple
         if range_end is None or range_end > range_max:
             range_end = range_max
-        yield '"%s-%s"' % (range_start, range_end)
+        yield flask_json.dumps('%s-%s' % (range_start, range_end))
 
     def get_usermetadata(path, metadata=None):
         from eudat_http_api import metadata
@@ -497,16 +539,18 @@ def _get_cdmi_json_generator(path, obj_type, **data):
                 yield '  "%s"' % func(el)
         yield '\n  ]'
 
-    yield ('objectType', lambda x=None: '"application/cdmi-%s"' % obj_type)
-    yield ('objectID', lambda x=None: '"%s"' % meta.get('objectID', None))
-    yield ('objectName', lambda x=None: '"%s"' % meta.get('name', None))
+    yield ('objectType', lambda x=None: 'application/cdmi-%s' % obj_type)
+    yield ('objectID', lambda x=None: meta.get('objectID', None))
+    yield ('objectName', lambda x=None: meta.get('name', None))
     yield ('parentURI',
-           lambda x=None: '"%s"' % common.add_trailing_slash(
+           lambda x=None: common.add_trailing_slash(
                meta.get('base', None)))
-    yield ('parentID', lambda x=None: '"%s"' % meta.get('parentID', None))
-    #'domainURI': '%s',
-    #'capabilitiesURI': '%s',
-    #'completionStatus': '%s',
+    yield ('parentID', lambda x=None: meta.get('parentID', None))
+    yield ('domainURI', lambda x=None: '/cdmi_domains/%s/'
+           % get_config_parameter('CDMI_DOMAIN', None))
+    yield ('capabilitiesURI', lambda x=None: '/cdmi_capabilities/%s/'
+           % 'dataobject' if obj_type == 'object' else obj_type)
+    yield ('completionStatus', lambda x=None: 'Complete')
     #'percentComplete': '%s',  # optional
     yield ('metadata', partial(get_usermetadata, path))
     #'exports': {},  # optional
@@ -519,9 +563,9 @@ def _get_cdmi_json_generator(path, obj_type, **data):
             islice(data['dir_listing'], t[0], t[1]), lambda x: x.name))
 
     if obj_type == 'object':
-        yield ('mimetype', lambda x=None: '"mime"')
+        yield ('mimetype', lambda x=None: 'mime')
         yield ('valuerange', partial(get_range, data['file_size']))
-        yield ('valuetransferencoding', lambda x=None: '"base64"')
+        yield ('valuetransferencoding', lambda x=None: 'base64')
         yield ('value', lambda x=None: wrap_json_string(data['value_gen']))
 
 
@@ -530,14 +574,44 @@ def _wrap_with_json_generator(gen):
     for i, (key, value) in enumerate(gen):
         if i > 0:
             yield ',\n'
-        yield '  "%s": ' % key
-        try:
+        yield '  %s: ' % flask_json.dumps(key)
+        if isgenerator(value):
             for part_value in value:
                 yield part_value
-        except TypeError:
-            yield json.dumps(value)
+        else:
+            yield flask_json.dumps(value)
 
     yield '\n}'
+
+
+def _wrap_with_buffer(gen, buffer_size=1400):
+    print 'buffer wrapping'
+    el_size_counter = 0
+    buffer_deque = deque()
+    for el in gen:
+        el_size = len(el)
+        if (el_size_counter + el_size) < buffer_size:
+            buffer_deque.append(el)
+        else:
+            output = ''
+            try:
+                while True:
+                    print 'outputting ...'
+                    output += buffer_deque.popleft()
+            except IndexError:
+                pass
+
+            yield output
+
+    output = ''
+    try:
+        while True:
+            print 'outputting at the end...'
+            output += buffer_deque.popleft()
+    except IndexError:
+        pass
+
+    yield output
 
 
 def put_cdmi_dir_obj(path):
@@ -551,7 +625,7 @@ def put_cdmi_dir_obj(path):
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
-        return e.msg, 401
+        return e.msg, 403
     except storage.ConflictException as e:
         return e.msg, 409
     except storage.StorageException as e:
@@ -570,7 +644,7 @@ def del_cdmi_dir_obj(path):
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
-        return e.msg, 401
+        return e.msg, 403
     except storage.ConflictException as e:
         return e.msg, 409
     except storage.StorageException as e:
@@ -578,11 +652,9 @@ def del_cdmi_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-
     empty_response = Response(status=204)
     del empty_response.headers['content-type']
     return empty_response
-
 
 
 def teardown(exception=None):
