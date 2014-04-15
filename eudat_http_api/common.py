@@ -36,16 +36,15 @@ def add_trailing_slash(path):
         return path
 
 
-class ContentTypes(object):
-    json, cdmi_object = ('application/json', 'application/cdmi-object')
+class ContentTypes:
+    json = 'application/json'
+    cdmi = ('application/cdmi-object', 'application/cdmi-container')
 
-
-# in long term move to Flask-Negotiate?
 
 def request_wants(content_type):
     best = request.accept_mimetypes.best_match([content_type, 'text/html'])
-    return best == content_type and request.accept_mimetypes[best] > \
-           request.accept_mimetypes['text/html']
+    return (best == content_type and request.accept_mimetypes[best]
+            > request.accept_mimetypes['text/html'])
 
 
 def request_wants_json():
@@ -65,3 +64,7 @@ def is_local(storage_url, local_host, local_port, local_zone):
         return False
 
     return parsed.path
+
+
+def request_wants_cdmi():
+    return any(map(request_wants, ContentTypes.cdmi))
