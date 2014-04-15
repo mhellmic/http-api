@@ -12,6 +12,7 @@ from eudat_http_api.registration.models import db, RegistrationRequest
 #jj: we probably want to move back to such a way of defining workflow (is more extensible)
 workflow = ['check_source', 'upload', 'crate_handle']
 
+
 class RegistrationWorker(threading.Thread):
     def __init__(self, request_id, epicclient, logger, cdmiclient, base_url):
         threading.Thread.__init__(self)
@@ -19,7 +20,6 @@ class RegistrationWorker(threading.Thread):
         self.request = RegistrationRequest.query.get(request_id)
         self.epicclient = epicclient
         self.cdmiclient = cdmiclient
-        self.logger.debug("DB Current app in thread %s " % db.get_app())
         self.base_url = base_url
         self.destination = ''
 
@@ -51,13 +51,12 @@ class RegistrationWorker(threading.Thread):
 
         self.continue_request(self.copy_data_object)
 
-
     def copy_data_object(self):
         self.update_status('Copying data object to new location')
         time.sleep(5)
         destination = self.get_destination(self.request.src_url)
         response = self.cdmiclient.cdmi_get(self.request.src_url)
-        self.logger.debug('Moving %s to %s'%(self.request.src_url, destination))
+        self.logger.debug('Moving %s to %s' % (self.request.src_url, destination))
         upload = self.cdmiclient.cdmi_put(destination, data=response.json()['value'])
         if upload.status_code != 201:
             self.abort_request('Unable to move the data to register space')
@@ -80,7 +79,6 @@ class RegistrationWorker(threading.Thread):
 
     def abort_request(self, reason_string):
         self.logger.error('Aborting request id = %s reason= %s' % (self.request.id, reason_string))
-
 
     def continue_request(self, next_step):
         self.logger.debug('Request id = %s advanced to = %s' % (self.request.id, next_step.__name__))
