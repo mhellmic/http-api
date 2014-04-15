@@ -308,6 +308,7 @@ def put_cdmi_file_obj(path):
     except storage.NotAuthorizedException as e:
         return e.msg, 401
     except storage.ConflictException as e:
+        # this disables updates?
         return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500

@@ -4,41 +4,23 @@ from __future__ import with_statement
 
 import requests
 
+def cdmi_head(url, auth):
+    headers = {
+        'Accept': 'application/cdmi-object',
+        'X-CDMI-Specification-Version': '1.0.2',
+    }
+    r = requests.head(url, headers=headers, auth=auth)
+    return r
 
-def head(url):
-    r = requests.head(url)
-    return None, r
-
-
-def get(url):
-    r = requests.get(url)
-    return None, r
-
-
-def post(url):
-    pass
-
-
-def cdmi_head(url):
+def cdmi_get(url, auth):
     headers = {
         'Accept': 'application/cdmi-object',
         'X-CDMI-Specification-Version': '1.0.2',
     }
 
-    r = requests.head(url, headers=headers)
+    r = requests.get(url, headers=headers, auth=auth)
 
-    return None, r
-
-
-def cdmi_get(url):
-    headers = {
-        'Accept': 'application/cdmi-object',
-        'X-CDMI-Specification-Version': '1.0.2',
-    }
-
-    r = requests.get(url, headers=headers)
-
-    return None, r
+    return r
 
 
 def post(url):

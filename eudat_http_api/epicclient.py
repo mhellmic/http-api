@@ -40,6 +40,17 @@ class HttpClient():
             self._debugMsg('An Exception occurred during request DELETE %s\n %s' % (uri, e))
             return None
 
+    def post(self, prefix, suffix, *args, **kwargs):
+        uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
+        kwargs['auth'] = self.credentials
+        try:
+            return post(url=uri, *args, **kwargs)
+        except Exception as e:
+            self._debugMsg('An Exception occurred during request POST %s\n %s' % (uri, e))
+            return None
+
+
+
     def _debugMsg(self, msg):
         print '[ %s ]' % msg
 
@@ -100,7 +111,7 @@ class EpicClient():
         Returns the URI of the new handle, None if an error occurred.
 
         """
-        #fixme: check what the if-none-match is here for
+        #if-none-match is here for "conditional" PUT only if url don't exist yet
         hdrs = {'If-None-Match': '*', 'Content-Type': 'application/json'}
 
         new_handle_json = convert_dict_to_handle(keyValues)
@@ -108,6 +119,16 @@ class EpicClient():
 
         if response.status_code != 201:
             self._debugMsg('createHandleWithLocation', 'Not Created: Response status: %s' % response.status_code)
+            return None
+
+        return response['location']
+
+    def createNew(self, prefix, keyValues):
+        headers = {'Content-Type': 'application/json'}
+        new_handle_json = convert_dict_to_handle(keyValues)
+        response = self.client.post(prefx=prefix, headers=headers, data=new_handle_json)
+        if response.status_code != 201:
+            self._debugMsg('createNew', 'Not Created: Response status %s' % response.status_coce)
             return None
 
         return response['location']

@@ -6,6 +6,7 @@ import json
 import threading
 
 import time
+from requests.auth import HTTPBasicAuth
 from eudat_http_api import cdmiclient
 
 from eudat_http_api.registration.models import db, RegistrationRequest
@@ -15,12 +16,12 @@ workflow = ['check_source', 'upload', 'crate_handle']
 
 
 class RegistrationWorker(threading.Thread):
-
-    def __init__(self, request_id, epicclient, logger):
+    def __init__(self, request_id, epicclient, logger, auth):
         threading.Thread.__init__(self)
         self.logger = logger
         self.request = RegistrationRequest.query.get(request_id)
         self.epicclient = epicclient
+        self.auth = auth
         self.logger.debug("DB Current app in thread %s " % db.get_app())
 
     def update_status(self, status):
@@ -36,35 +37,27 @@ class RegistrationWorker(threading.Thread):
         self.update_status('Checking source')
         time.sleep(5)
         self.continue_request(self.copy_data_object)
-        if 1==1:
-            return
 
         # check existence and correct permissions on source
-        _, response = cdmiclient.head('%s' % self.request.src_url)
+        response = cdmiclient.head('%s' % self.request.src_url,
+                                      auth=HTTPBasicAuth(self.auth.username, self.auth.password))
         if response.status_code > 299:
-            self.abort_request('Source file is not available')
+            self.abort_request('Source is not available: %d' % response.status_code)
         else:
-            self.continue_request(self.get_handle)
+            self.logger.debug('Source exist')
 
+        #check metadat will be moved in the future to become a separate workflow step
         metadata, response = cdmiclient.cdmi_get('%s?%s' % (self.request.src_url, 'metadata'))
         metadata_json = json.loads(metadata.read())
+        self.logger.debug('metadata exist? %s' % metadata_json)
 
-        # also check the content of metadata; if it conforms to datacite3
-
-        # we could use the request object as a store going from function to function,
-        # so we can separate e.g. check_src_permissions and check_checksum,
-        # but still do only one request
-        # check existence and correct permissions on dsts
-        metadata, response = cdmiclient.get('%s?%s' % (self.request['dst_url'], 'metadata'))
-        if response.status_code > 299:
-            self.abort_request('Dst location is not available')
-        else:
-            self.continue_request(self.get_handle)
+        self.continue_request(self.get_handle)
 
 
     def copy_data_object(self):
         self.update_status('Copying data object to new location')
         time.sleep(5)
+        self.destination_directory = self.get_destination(self.request.src_url)
         self.continue_request(self.get_handle)
 
     def get_handle(self):
@@ -81,3 +74,6 @@ class RegistrationWorker(threading.Thread):
         #jj: not sure perhaps we could be more flexible with argument passing (and require lambda or something?)
         #jj: we could also define the workflow in a more flexible way?
         next_step()
+
+    def get_destination(self, source_url):
+        pass

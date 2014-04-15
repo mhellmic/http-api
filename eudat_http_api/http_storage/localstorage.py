@@ -214,7 +214,7 @@ def ls(path):
     try:
         return (map(lambda x: get_obj_type(os.path.join(path, x)),
                     os.listdir(path)))
-    except IOError:
+    except IOError as e:
         _handle_oserror(path, e)
     except OSError as e:
         _handle_oserror(path, e)

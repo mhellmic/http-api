@@ -69,24 +69,21 @@ def post_request():
   """
     current_app.logger.debug('Entering post_request()')
 
-    req_body = None
     if flask.request.headers.get('Content-Type') == 'application/json':
         req_body = json.loads(flask.request.data)
     else:
         req_body = flask.request.form
 
-    src_url = req_body['src_url']
-    #TODO: check if src is a valid URL
-    r = RegistrationRequest(src_url=src_url, status_description='W', timestamp=datetime.utcnow())
+    r = RegistrationRequest(src_url=req_body['src_url'], status_description='Registration request created',
+                            timestamp=datetime.utcnow())
     db.session.add(r)
     db.session.commit()
 
-    # start worker
     httpClient = HttpClient(current_app.config['HANDLE_URI'], HTTPBasicAuth(current_app.config['HANDLE_USER'],
-
                                                                             current_app.config['HANDLE_PASS']))
+
     p = RegistrationWorker(request_id=r.id, epicclient=EpicClient(httpClient=httpClient),
-                           logger=current_app.logger)
+                           logger=current_app.logger, auth=request.authorization)
     #we have to close it explicitly already here otherwise the request object is bound to this session
     db.session.close()
     p.start()
