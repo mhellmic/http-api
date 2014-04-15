@@ -3,7 +3,7 @@
 from __future__ import with_statement
 
 from functools import wraps
-from flask import request, Response
+from flask import abort, request, Response
 from eudat_http_api.http_storage import storage
 
 
@@ -45,8 +45,10 @@ def requires_auth(f):
     def decorated(*args, **kwargs):
         auth = request.authorization
         try:
-            if not auth or not check_auth(auth.username, auth.password):
+            if not auth:
                 return authenticate()
+            if not check_auth(auth.username, auth.password):
+                abort(403)
         except AuthException as e:
             return e.msg, 500
         return f(*args, **kwargs)
