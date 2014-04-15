@@ -11,16 +11,8 @@ from eudat_http_api import cdmiclient
 from eudat_http_api.registration.models import db, RegistrationRequest
 
 
-request_statuses = {
-    'waiting to be started': 'W',
-    'started': 'S',
-    'src checked': 'E',
-    'dst permissions checked': 'DP',
-    'checksums in request and src match': 'C',
-    'retrieved PID': 'P',
-    'file copied to dst space': 'FC',
-    'aborted': 'A'
-}
+workflow = ['check_source', 'upload', 'crate_handle']
+
 
 class RegistrationWorker(threading.Thread):
 
@@ -31,25 +23,19 @@ class RegistrationWorker(threading.Thread):
         self.epicclient = epicclient
         self.logger.debug("DB Current app in thread %s " % db.get_app())
 
+    def update_status(self, status):
+        self.request.status_description = status
+        db.session.add(self.request)
+        db.session.commit()
+
     def run(self):
         self.logger.debug('starting to process request with id = %s' % self.request.id)
-        self.continue_request(self.create_dst_url)
-
-
-    def create_dst_url(self):
-        self.request.status_description = 'Creating destination URL'
-        db.session.add(self.request)
-        db.session.commit()
-        time.sleep(5)
         self.continue_request(self.check_src)
 
-
     def check_src(self):
-        self.request.status_description = 'Checking source'
-        db.session.add(self.request)
-        db.session.commit()
+        self.update_status('Checking source')
         time.sleep(5)
-        self.continue_request(self.get_handle)
+        self.continue_request(self.copy_data_object)
         if 1==1:
             return
 
@@ -76,19 +62,15 @@ class RegistrationWorker(threading.Thread):
             self.continue_request(self.get_handle)
 
 
-    def get_handle(self):
-        self.request.status_description = 'Getting handle'
-        db.session.commit()
-        time.sleep(5)
-        self.continue_request(self.copy_data_object)
-
-
     def copy_data_object(self):
-        self.request.status_description = 'Registration completed'
-        db.session.commit()
+        self.update_status('Copying data object to new location')
         time.sleep(5)
-        self.logger.debug('Request finished id = %s' % self.request.id)
+        self.continue_request(self.get_handle)
 
+    def get_handle(self):
+        self.update_status('Creating handle')
+        time.sleep(5)
+        self.logger.debug('Request %d finished' % self.request.id)
 
     def abort_request(self, reason_string):
         self.logger.error('Aborting request id = %s reason= %s' % (self.request.id, reason_string))
