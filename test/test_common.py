@@ -1,7 +1,13 @@
 from __future__ import with_statement
+
+import base64
 from collections import namedtuple
+from itertools import product
 import os
 import shutil
+
+from eudat_http_api import create_app
+from eudat_http_api.common import split_path
 
 
 class ByteRange:
@@ -41,6 +47,7 @@ class RestResource:
         self.exists = exists
         self.parent_exists = parent_exists
         self.path = self.url
+        self.parent_url, self.name = split_path(self.url)
 
     def is_dir(self):
         return self.objtype == self.ContainerType
@@ -243,3 +250,80 @@ def erase_irods_urls(url_list, rodsconfig):
             coll = irodsCollection(conn, base)
             coll.deleteCollection(name)
         conn.disconnect()
+
+
+class TestApi:
+    url_list = None
+
+    @classmethod
+    def setup_class(cls):
+        config = os.getenv('TEST_CONFIG')
+        if config is not None:
+            app = create_app(config)
+        else:
+            app = create_app(__name__)
+
+        if app.config['STORAGE'] == 'local':
+            cls.url_list = get_local_url_list()
+        elif app.config['STORAGE'] == 'irods':
+            with app.app_context():
+                cls.url_list = get_irods_url_list(app.config['RODSZONE'])
+
+    def setup(self):
+        # this is needed to give each test
+        # its own app
+        config = os.getenv('TEST_CONFIG')
+        if config is not None:
+            app = create_app(config)
+        else:
+            app = create_app(__name__)
+
+        self.app = app
+        self.client = app.test_client()
+
+        self.storage_config = app.config['STORAGE']
+
+        if app.config['STORAGE'] == 'local':
+            create_local_urls(self.url_list)
+        elif app.config['STORAGE'] == 'irods':
+            self.irods_config = (self.app.config['RODSHOST'],
+                                 self.app.config['RODSPORT'],
+                                 self.app.config['RODSZONE']
+                                 )
+            with self.app.app_context():
+                create_irods_urls(self.url_list,
+                                  self.irods_config)
+
+    def teardown(self):
+        if self.app.config['STORAGE'] == 'local':
+            erase_local_urls(self.url_list)
+        elif self.app.config['STORAGE'] == 'irods':
+            with self.app.app_context():
+                erase_irods_urls(self.url_list,
+                                 self.irods_config)
+
+    # from https://gist.github.com/jarus/1160696
+    def open_with_auth(self, url, method, username, password,
+                       headers={}, data=None):
+        combined_headers = headers
+        combined_headers.update({
+            'Authorization': 'Basic '
+            + base64.b64encode(
+                username + ":" + password)
+        })
+        if data:
+            return self.client.open(url, method=method,
+                                    headers=combined_headers, data=data)
+        else:
+            return self.client.open(url, method=method,
+                                    headers=combined_headers)
+
+    def check_resource(self, check_func):
+        for (resource,
+             userinfo) in product(self.url_list,
+                                  get_user_list()):
+            yield (check_func,
+                   {
+                       'resource': resource,
+                       'userinfo': userinfo,
+                   })
