@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 
+from base64 import b64decode
 import threading
 import time
 import hashlib
@@ -78,8 +79,9 @@ class RegistrationWorker(threading.Thread):
         response = self.cdmiclient.cdmi_get(self.request.src_url)
         self.logger.debug('Moving %s to %s' % (self.request.src_url,
                                                destination))
+        # cdmi_put is just a normal PUT!
         upload = self.cdmiclient.cdmi_put(
-            destination, data=response.json()['value'])
+            destination, data=b64decode(response.json()['value']))
         if upload.status_code != 201:
             self.abort_request('Unable to move the data to register space')
             return
