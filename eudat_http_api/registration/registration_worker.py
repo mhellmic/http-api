@@ -101,9 +101,12 @@ class RegistrationWorker(threading.Thread):
         handle['checksum'] = 0
         handle['location'] = None
 
+        self.request.pid = handle_key
+        self.db_session.add(self.request)
+        self.db_session.commit()
+
         self.logger.debug('Request %d finished' % self.request.id)
-        self.update_status('Request finished check %s' % self.destination,
-                           'SUCCESS')
+        self.update_status('Request finished', 'SUCCESS')
 
     def abort_request(self, reason_string):
         self.update_status(reason_string, 'FAIL')

@@ -53,6 +53,12 @@ def get_registered_base_url():
                                )
 
 
+def get_storage_host():
+    return 'http://%s:%d' % (current_app.config.get('STORAGE_HOST', None),
+                             current_app.config.get('STORAGE_PORT', None)
+                             )
+
+
 @registration.route('/request/', methods=['GET'])
 @auth.requires_auth
 def get_requests():
@@ -147,6 +153,8 @@ def get_request(request_id):
         return abort(404)
 
     r.status_description_list = r.status_description.split(';')
+    r.handle_url = '%s/registered/%s' % (get_storage_host(),
+                                         r.pid)
 
     if request_wants(ContentTypes.json):
         return flask.jsonify(
