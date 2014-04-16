@@ -11,6 +11,10 @@ from eudat_http_api.epicclient import EpicClient
 from eudat_http_api.epicclient import HttpClient
 from eudat_http_api.cdmiclient import CDMIClient
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import sessionmaker
+
 from eudat_http_api.registration.models import db
 from eudat_http_api import invenioclient
 from eudat_http_api import auth
@@ -99,6 +103,13 @@ def post_request():
     cdmiclient = CDMIClient(auth=HTTPBasicAuth(request.authorization.username,
                             request.authorization.password))
 
+    db_engine = create_engine(
+        current_app.config.get('SQLALCHEMY_DATABASE_URI'))
+    session_factory = sessionmaker(bind=db_engine)
+    Session = scoped_session(session_factory)
+    db_session = Session()
+    db_session._model_changes = {}
+
     # FIXME: due to the fuckedup blueprints I don't know how to define the
     # destination url, something like:
     # url_for('http_storage.put_cdmi_obj',objpath='/')
@@ -109,7 +120,8 @@ def post_request():
                            epicclient=EpicClient(httpClient=httpClient),
                            logger=current_app.logger,
                            cdmiclient=cdmiclient,
-                           base_url=get_registered_base_url())
+                           base_url=get_registered_base_url(),
+                           db_session=db_session)
     # we have to close it explicitly already here otherwise the request object
     # is bound to this session
     db.session.close()

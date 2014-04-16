@@ -6,7 +6,7 @@ import threading
 import time
 import hashlib
 
-from eudat_http_api.registration.models import db, RegistrationRequest
+from eudat_http_api.registration.models import RegistrationRequest
 
 #jj: we probably want to move back to such a way of defining workflow
 # (is more extensible)
@@ -26,7 +26,8 @@ workflow = ['check_source', 'upload', 'crate_handle']
 
 
 class RegistrationWorker(threading.Thread):
-    def __init__(self, request_id, epicclient, logger, cdmiclient, base_url):
+    def __init__(self, request_id, epicclient, logger, cdmiclient, base_url,
+                 db_session):
         threading.Thread.__init__(self)
         self.logger = logger
         self.request = RegistrationRequest.query.get(request_id)
@@ -34,11 +35,13 @@ class RegistrationWorker(threading.Thread):
         self.cdmiclient = cdmiclient
         self.base_url = base_url
         self.destination = ''
+        self.db_session = db_session
 
-    def update_status(self, status):
-        self.request.status_description = status
-        db.session.add(self.request)
-        db.session.commit()
+    def update_status(self, status, status_short=None):
+        self.request.status = status_short
+        self.request.status_description += ';'+status
+        self.db_session.add(self.request)
+        self.db_session.commit()
 
     def run(self):
         self.logger.debug('starting to process request with id = %s'
