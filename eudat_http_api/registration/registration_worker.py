@@ -39,7 +39,8 @@ class RegistrationWorker(threading.Thread):
 
     def update_status(self, status, status_short=None):
         self.request.status = status_short
-        self.request.status_description += ';'+status
+        if status is not None:
+            self.request.status_description += ';'+status
         self.db_session.add(self.request)
         self.db_session.commit()
 
@@ -105,6 +106,7 @@ class RegistrationWorker(threading.Thread):
                           % (self.request.id, reason_string))
 
     def continue_request(self, next_step):
+        self.update_status(None, 'RUNNING')
         self.logger.debug('Request id = %s advanced to = %s'
                           % (self.request.id, next_step.__name__))
         #jj: not sure perhaps we could be more flexible with argument passing
