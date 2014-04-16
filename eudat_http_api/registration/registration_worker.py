@@ -92,6 +92,9 @@ class RegistrationWorker(threading.Thread):
     def get_handle(self):
         self.update_status('Creating handle')
         time.sleep(5)
+        handle_key = "11007/00-ZZZZ-0000-0000-FAKE-7"
+
+        self.update_status('Handle created: %s' % handle_key)
 
         handle = dict()
         handle['url'] = self.destination

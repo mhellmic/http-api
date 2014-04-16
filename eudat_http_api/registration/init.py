@@ -6,6 +6,7 @@ from flask import current_app
 from flask import request
 from flask import json
 from flask import abort, url_for
+from flask import redirect
 from eudat_http_api.common import request_wants, ContentTypes
 from eudat_http_api.epicclient import EpicClient
 from eudat_http_api.epicclient import HttpClient
@@ -173,17 +174,17 @@ def get_pids_by_prefix():
 @auth.requires_auth
 def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
-    pid = pid_prefix + '/' + pid_suffix
-
-    #FIXIT: invenio should not be exposed we need an abstraction
-    if 'metadata' in flask.request.args:
-        invenioclient.get_metadata(pid)
+    #pid = pid_prefix + '/' + pid_suffix
 
     # resolve PID
+    #handle_key = "11007/00-ZZZZ-0000-0000-FAKE-7"
 
     # extract link to data object
+    data_object_url = ('http://127.0.0.1:5000/tmp/registered/'
+                       '711a84d7159a8ad13e4a42c0e0eb6e1c7af80'
+                       '30684a5252a99421e5cf8988925')
 
     # choose link to data object
 
     # return data object
-    return 'nothing there, baeh!'
+    return redirect(data_object_url, code=302)
