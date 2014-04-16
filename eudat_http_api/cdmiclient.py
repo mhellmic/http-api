@@ -15,7 +15,8 @@ class CDMIClient:
             'Accept': 'application/cdmi-object',
             'X-CDMI-Specification-Version': '1.0.2',
         }
-        r = requests.head(url, headers=headers, auth=self.auth)
+        r = requests.head(url, headers=headers,
+                          auth=self.auth, allow_redirects=True)
         return r
 
     def cdmi_get(self, url):
