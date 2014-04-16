@@ -4,6 +4,10 @@ import requests
 
 class CDMIClient:
     def __init__(self, auth):
+        # I wouldn't make auth a class member, but have it as an argument
+        # to each request. I can imagine that we will need different
+        # credentials or auth mechanisms for the source and the
+        # destination requests.
         self.auth = auth
 
     def cdmi_head(self, url):

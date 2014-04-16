@@ -15,6 +15,12 @@ from eudat_http_api.registration.models import db, RegistrationRequest
 # wf = [ check_source, upload, ... ]
 # for func in wf:
 #   func()
+# or
+# for func in wf:
+#   try:
+#       func()
+#   except:
+#       do_something()
 
 workflow = ['check_source', 'upload', 'crate_handle']
 

@@ -25,6 +25,12 @@ RODSZONE = 'tempZone'
 HOST = '127.0.0.1'
 PORT = 8080
 
+# these are not meant for eternity, we might
+# come up with something better
+STORAGE_HOST = HOST
+STORAGE_PORT = PORT
+REGISTERED_PREFIX = '/tmp/registered/'
+
 HANDLE_URI = ''
 HANDLE_USER = ''
 HANDLE_PASS = ''

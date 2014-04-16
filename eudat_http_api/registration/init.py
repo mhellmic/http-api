@@ -40,6 +40,14 @@ def get_hal_links(reg_requests, page):
     return navi
 
 
+def get_registered_base_url():
+    return 'http://%s:%d%s' % (current_app.config.get('STORAGE_HOST', None),
+                               current_app.config.get('STORAGE_PORT', None),
+                               current_app.config.get('REGISTERED_PREFIX',
+                                                      None)
+                               )
+
+
 @registration.route('/request/', methods=['GET'])
 @auth.requires_auth
 def get_requests():
@@ -101,7 +109,7 @@ def post_request():
                            epicclient=EpicClient(httpClient=httpClient),
                            logger=current_app.logger,
                            cdmiclient=cdmiclient,
-                           base_url='http://localhost:8080/tmp/')
+                           base_url=get_registered_base_url())
     # we have to close it explicitly already here otherwise the request object
     # is bound to this session
     db.session.close()
