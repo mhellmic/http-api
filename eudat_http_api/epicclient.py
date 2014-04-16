@@ -1,17 +1,25 @@
-
 from requests import get, post, put, delete
 import json
 
+
 def create_uri(baseuri, prefix, suffix=''):
-        uri = baseuri + '/' + prefix
-        if suffix != '':
-            uri += '/' + suffix
-        return uri
+    separator = '/'
+    if baseuri[-1] == '/':
+        separator = ''
+
+    uri = baseuri + separator + prefix
+    if uri[-1] != '/':
+        uri += '/'
+    if suffix != '':
+        uri += suffix
+    return uri
+
 
 class HttpClient():
     def __init__(self, baseuri, credentials):
         self.credentials = credentials
         self.baseuri = baseuri
+
 
     def get(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
@@ -49,20 +57,20 @@ class HttpClient():
             self._debugMsg('An Exception occurred during request POST %s\n %s' % (uri, e))
             return None
 
-
-
     def _debugMsg(self, msg):
         print '[ %s ]' % msg
 
 
-def convert_dict_to_handle(keyValues):
-    index = 1
-    dict = {}
-    for key in keyValues:
-        dict[str(index)] = {'type': key, 'data': keyValues[key]}
-        index += 1
-    return json.dumps(dict)
-
+def convert_to_handle(location, checksum):
+    if checksum:
+        new_handle_json = json.dumps([{'type': 'URL',
+                                             'parsed_data': location},
+                                            {'type': 'CHECKSUM',
+                                             'parsed_data': checksum}])
+    else:
+        new_handle_json = json.dumps([{'type': 'URL',
+                                             'parsed_data': location}])
+    return new_handle_json
 
 class EpicClient():
     """Class implementing an EPIC client."""
@@ -73,7 +81,6 @@ class EpicClient():
         self.client = httpClient
         self.accept_format = 'application/json'
         self.debug = debug
-
 
     def _debugMsg(self, method, msg):
         """Internal: Print a debug message if debug is enabled."""
@@ -101,7 +108,7 @@ class EpicClient():
 
         return response.content
 
-    def createHandle(self, prefix, suffix, keyValues):
+    def createHandle(self, prefix, suffix, location, checksum):
         """Create a new handle for a file.
         Parameters:
         prefix: 	URI to the resource, or the prefix if suffix is not ''.
@@ -114,25 +121,23 @@ class EpicClient():
         #if-none-match is here for "conditional" PUT only if url don't exist yet
         hdrs = {'If-None-Match': '*', 'Content-Type': 'application/json'}
 
-        new_handle_json = convert_dict_to_handle(keyValues)
+        new_handle_json = convert_to_handle(location, checksum)
         response = self.client.put(prefix=prefix, suffix=suffix, headers=hdrs, data=new_handle_json)
 
         if response.status_code != 201:
             self._debugMsg('createHandleWithLocation', 'Not Created: Response status: %s' % response.status_code)
             return None
+        return response.headers['Location']
 
-        return response['location']
-
-    def createNew(self, prefix, keyValues):
+    def create_new(self, prefix, location, checksum):
         headers = {'Content-Type': 'application/json'}
-        new_handle_json = convert_dict_to_handle(keyValues)
+        new_handle_json = convert_to_handle(location, checksum)
         response = self.client.post(prefx=prefix, headers=headers, data=new_handle_json)
         if response.status_code != 201:
             self._debugMsg('createNew', 'Not Created: Response status %s' % response.status_coce)
             return None
 
-        return response['location']
-
+        return response.headers['Location']
 
     def modifyHandle(self, prefix, key, value, suffix=''):
         """Modify a parameter of a handle
@@ -185,7 +190,6 @@ class EpicClient():
             return False
 
         return True
-
 
     def deleteHandle(self, prefix, suffix=''):
         """Delete a handle from the server.
