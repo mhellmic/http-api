@@ -3,5 +3,12 @@
        <tr><td>Id</td><td><a href="{{ url_for('.get_request', request_id=r.id) }}">{{ r.id }}</a></td></tr>
        <tr><td>Source</td><td>{{ r.src_url }}</td></tr>
        <tr><td>Created</td><td>{{ r.timestamp }}</td></tr>
-       <tr><td>Status</td><td>{{ r.status_description }}</td></tr>
+       <tr><td>Status</td><td>{{ r.status }}</td></tr>
+       {% for desc in r.status_description_list %}
+       {% if loop.index == 1 %}
+       <tr><td>Status Description</td><td>{{ desc }}</td></tr>
+       {% else %}
+       <tr><td></td><td>{{ desc }}</td></tr>
+       {% endif %}
+       {% endfor %}
    </table>

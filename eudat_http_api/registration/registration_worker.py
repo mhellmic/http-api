@@ -96,9 +96,11 @@ class RegistrationWorker(threading.Thread):
         handle['location'] = None
 
         self.logger.debug('Request %d finished' % self.request.id)
-        self.update_status('Request finished check %s' % self.destination)
+        self.update_status('Request finished check %s' % self.destination,
+                           'SUCCESS')
 
     def abort_request(self, reason_string):
+        self.update_status(reason_string, 'FAIL')
         self.logger.error('Aborting request id = %s reason= %s'
                           % (self.request.id, reason_string))
 

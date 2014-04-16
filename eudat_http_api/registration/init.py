@@ -127,6 +127,8 @@ def post_request():
     db.session.close()
     p.start()
 
+    r.status_description_list = r.status_description.split(';')
+
     if request_wants(ContentTypes.json):
         return flask.jsonify(request_id=r.id), 201
     else:
@@ -142,6 +144,8 @@ def get_request(request_id):
     #TODO: json error?
     if r is None:
         return abort(404)
+
+    r.status_description_list = r.status_description.split(';')
 
     if request_wants(ContentTypes.json):
         return flask.jsonify(
