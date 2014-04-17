@@ -58,7 +58,7 @@ class MalformedByteRangeException(CdmiException):
 
 cdmi_body_fields = set([
     'objectType',
-    'objectId',
+    'objectID',
     'objectName',
     'parentURI',
     'parentID',
@@ -516,7 +516,11 @@ def _get_cdmi_json_generator(path, obj_type, **data):
     meta = metadata.stat(path, user_metadata=None)
 
     def get_range(range_max, range_tuple=(0, None)):
-        range_start, range_end = range_tuple
+        if range_tuple is None:
+            range_start, range_end = 0, None
+        else:
+            range_start, range_end = range_tuple
+
         if range_end is None or range_end > range_max:
             range_end = range_max
         yield flask_json.dumps('%s-%s' % (range_start, range_end))
