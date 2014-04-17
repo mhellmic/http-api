@@ -18,6 +18,10 @@ class MockConfig(Config):
 
 
 class LocalConfig(Config):
+    ACTIVATE_STORAGE_READ = True
+    ACTIVATE_STORAGE_WRITE = True
+    ACTIVATE_REGISTRATION = True
+
     STORAGE = 'local'
     EXPORTEDPATHS = ['/tmp/']
     USERS = {
@@ -26,6 +30,10 @@ class LocalConfig(Config):
 
 
 class IrodsConfig(Config):
+    ACTIVATE_STORAGE_READ = True
+    ACTIVATE_STORAGE_WRITE = True
+    ACTIVATE_REGISTRATION = True
+
     STORAGE = 'irods'
     RODSHOST = 'localhost'
     RODSPORT = 1247

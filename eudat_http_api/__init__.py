@@ -17,13 +17,19 @@ def create_app(config_name):
         # the app context is needed to switch the storage
         # backend based on the config parameter.
         # (which is bound to the app object)
-        from eudat_http_api.http_storage.init import http_storage
-        app.register_blueprint(http_storage)
+        if app.config.get('ACTIVATE_STORAGE_READ', False):
+            from eudat_http_api.http_storage.init import http_storage_read
+            app.register_blueprint(http_storage_read)
 
-        from eudat_http_api.registration.init import registration
-        app.register_blueprint(registration)
+        if app.config.get('ACTIVATE_STORAGE_WRITE', False):
+            from eudat_http_api.http_storage.init import http_storage_write
+            app.register_blueprint(http_storage_write)
 
-        from eudat_http_api.registration import models
-        models.db.init_app(app)
+        if app.config.get('ACTIVATE_REGISTRATION', False):
+            from eudat_http_api.registration.init import registration
+            app.register_blueprint(registration)
+
+            from eudat_http_api.registration import models
+            models.db.init_app(app)
 
     return app
