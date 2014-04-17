@@ -1,6 +1,7 @@
 #from eudat_http_api import db
 from flask.ext.sqlalchemy import SQLAlchemy
 from marshmallow import Serializer, fields
+import re
 
 db = SQLAlchemy()
 
@@ -30,6 +31,10 @@ class RegistrationRequestSerializer(Serializer):
     status_description = fields.Function(
         lambda obj: obj.status_description.split(';'))
 
+    handle_url = fields.String(attribute='pid')
+    pid = fields.Function(lambda obj: re.match('^http://.*/(\d+/.+)$',
+                                               obj.pid).group(1))
+
     class Meta:
         fields = ('id',
                   'src_url',
@@ -37,4 +42,5 @@ class RegistrationRequestSerializer(Serializer):
                   'status_description',
                   'timestamp',
                   'checksum',
-                  'pid')
+                  'pid',
+                  'handle_url')

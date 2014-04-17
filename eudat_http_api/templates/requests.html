@@ -10,18 +10,18 @@
 <h2>Create request</h2>
 
 <form action="" method="post">
-    Source: <input name="src_url" type="text"/>
+    Source: <input name="src_url" type="text" size="50"/>
     <input type="submit" name="register"/>
 </form>
 
 <h2>List of registration requests</h2>
 <ul>
-    {% for r in requests.items %}
+    {% for r in requests %}
       {% include 'request.html' %}
     {% endfor %}
 
-    {% if requests.has_prev %}<a href="{{ url_for('.get_requests', page = requests.prev_num) }}"><< Newer requests</a>{% else %}<< Newer requests{% endif %} |
-    {% if requests.has_next %}<a href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests >></a>{% else %}Older requests >>{% endif %}
+    {% if has_prev %}<a href="{{ url_for('.get_requests', page = has_prev) }}"><< Newer requests</a>{% else %}<< Newer requests{% endif %} |
+    {% if has_next %}<a href="{{ url_for('.get_requests', page = has_next) }}">Older requests >></a>{% else %}Older requests >>{% endif %}
 </ul>
 </body>
 </html>

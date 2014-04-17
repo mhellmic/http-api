@@ -97,7 +97,7 @@ class RegistrationWorker(threading.Thread):
         handle = dict()
         handle['url'] = self.destination
         handle['checksum'] = 0
-        handle['location'] = None
+        handle['location'] = self.destination
 
         handle_location = self.epicclient.createNew('44', handle)
         self.update_status('Handle created: %s' % handle_location)
@@ -106,12 +106,7 @@ class RegistrationWorker(threading.Thread):
             self.abort_request('Creating a handle failed')
             return
 
-        pid = None
-        try:
-            pid = re.match('^http://.*/(\d+/.+)$', handle_location).group(1)
-        except AttributeError:
-            pass
-        self.request.pid = pid
+        self.request.pid = handle_location
         self.db_session.add(self.request)
         self.db_session.commit()
 

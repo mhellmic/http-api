@@ -17,7 +17,6 @@ from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
 from eudat_http_api.registration.models import db
-from eudat_http_api import invenioclient
 from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import RegistrationWorker
 
@@ -69,13 +68,26 @@ def get_requests():
                                                        REQUESTS_PER_PAGE,
                                                        False)
 
+    has_next = False
+    if reg_requests.has_next:
+        has_next = reg_requests.next_num
+    has_prev = False
+    if reg_requests.has_prev:
+        has_prev = reg_requests.prev_num
+
     if request_wants(ContentTypes.json):
         return flask.jsonify(
             {"requests": RegistrationRequestSerializer(reg_requests.items,
                                                        many=True).data,
              "_links": get_hal_links(reg_requests, page)})
 
-    return flask.render_template('requests.html', requests=reg_requests)
+    return flask.render_template(
+        'requests.html',
+        requests=RegistrationRequestSerializer(reg_requests.items,
+                                               many=True).data,
+        request_details=False,
+        has_next=has_next,
+        has_prev=has_prev)
 
 
 @registration.route('/request/', methods=['POST'])
@@ -152,17 +164,17 @@ def get_request(request_id):
     if r is None:
         return abort(404)
 
-    handle_url = '%s/registered/%s' % (get_storage_host(),
-                                       r.pid)
-
     if request_wants(ContentTypes.json):
         return flask.jsonify(
             {'request': RegistrationRequestSerializer(r).data}
         )
 
-    return flask.render_template('singleRequest.html',
-                                 r=RegistrationRequestSerializer(r).data,
-                                 handle_url=handle_url)
+    return flask.render_template(
+        'singleRequest.html',
+        r=RegistrationRequestSerializer(r).data,
+        lhandle_base=get_storage_host()+'/registered/',
+        request_details=True
+    )
 
 
 #### /registered container ####
@@ -197,13 +209,15 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     if handle_record is None:
         abort(404)
 
+    handle_record_json = json.loads(handle_record)
+    data_object_url = None
     # extract link to data object
-    data_object_url = ('http://127.0.0.1:5000/tmp/registered/'
-                       '711a84d7159a8ad13e4a42c0e0eb6e1c7af80'
-                       '30684a5252a99421e5cf8988925')
-
+    for _, value in handle_record_json.iteritems():
+        if value['type'] == 'location':
+            data_object_url = value['data']
+            break
     # choose link to data object
 
     # return data object
-    return handle_record
-    #return redirect(data_object_url, code=302)
+    #return handle_record
+    return redirect(data_object_url, code=302)
