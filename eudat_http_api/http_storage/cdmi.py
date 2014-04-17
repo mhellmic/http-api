@@ -2,12 +2,13 @@
 
 from __future__ import with_statement
 
-import base64
+from base64 import b64encode, b64decode
 from collections import deque
 from functools import wraps
 from inspect import isgenerator
 import json
 import re
+import requests
 
 from urlparse import urlparse
 
@@ -49,6 +50,22 @@ class MalformedArgumentValueException(CdmiException):
 
 
 class MalformedByteRangeException(CdmiException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+class MalformedMsgBodyException(CdmiException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+class NotAuthorizedException(CdmiException):
     def __init__(self, msg):
         self.msg = msg
 
@@ -356,10 +373,21 @@ def put_cdmi_file_obj(path):
                 break
             yield data
 
-    gen = stream_generator(request.stream)
+    if common.request_wants_cdmi():
+        cdmi_json, value_gen = _parse_cdmi_msg_body_fields(request.stream)
+        if 'copy' in cdmi_json:
+            value_uri = '%s?value' % cdmi_json['copy']
+            user = request.authorization['username']
+            pw = request.authorization['password']
+            auth = requests.auth.HTTPBasicAuth(user, pw)
+            stream = _get_value_stream(value_uri, auth)
+            value_gen = stream_generator(stream)
+    else:
+        value_gen = stream_generator(request.stream)
+
     bytes_written = 0
     try:
-        bytes_written = storage.write(path, gen)
+        bytes_written = storage.write(path, value_gen)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
@@ -372,7 +400,79 @@ def put_cdmi_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
+    if common.request_wants_cdmi():
+        response_headers = {
+            'Content-Type': 'application/cdmi-object',
+            'X-CDMI-Specification-Version': CDMI_VERSION,
+        }
+        cdmi_json_gen = _get_cdmi_json_file_generator(path,
+                                                      None,
+                                                      None)
+        cdmi_filters = {
+            'objectType': None,
+            'objectID': None,
+            'objectName': None,
+            'parentURI': None,
+            'parentID': None,
+            'domainURI': None,
+            'capabilitiesURI': None,
+            'completionStatus': None,
+            'mimetype': None,
+            'metadata': True,
+        }
+        filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                        if a in cdmi_filters)
+
+        json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
+        return Response(stream_with_context(json_stream_wrapper),
+                        headers=response_headers)
     return 'Created: %d' % (bytes_written), 201
+
+
+def _parse_cdmi_msg_body_fields(handle, buffer_size=4194304):
+    """Parses the message body fields of a cdmi request.
+
+    This function parses all fields except the value
+    field. It returns a dictionary with the fields and
+    a generator that can be used to get the value field.
+
+    It takes advantage that the value field must always
+    be the last. An excerpt from the cdmi 1.0.2 spec:
+    "The request and response message body JSON fields
+     may be specified or returned in any order, with the
+     exception that, if present, for data objects, the
+     valuerange and value fields shall appear last and
+     in that order."
+
+     FIXIT: this first implementation is only partial,
+     to accomodate requests that fit in one buffer_size.
+
+    """
+    data = handle.read(buffer_size)
+
+    data_json = None
+    try:
+        data_json = flask_json.loads(data)
+    except ValueError:
+        raise MalformedMsgBodyException('WRONG')
+
+    if 'value' in data_json:
+        def cdmi_value_generator(value, encoding):
+            yield value
+
+        value_gen = cdmi_value_generator(data_json['value'])
+        return data_json, value_gen
+    else:
+        return data_json, None
+
+
+def _get_value_stream(uri, auth):
+    response = requests.get(uri, stream=True, auth=auth)
+    if response.status_code > 299:
+        print response.status_code
+        raise NotAuthorizedException('not authorized at the source')
+
+    return response.raw
 
 
 def del_cdmi_file_obj(path):
@@ -533,7 +633,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
     def wrap_json_string(gen):
         yield '"'
         for part in gen:
-            yield base64.b64encode(part)
+            yield b64encode(part)
         yield '"'
 
     def json_list_gen(iterable, func):
