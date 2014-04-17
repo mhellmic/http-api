@@ -86,6 +86,7 @@ def get_requests():
         requests=RegistrationRequestSerializer(reg_requests.items,
                                                many=True).data,
         request_details=False,
+        lhandle_base=get_storage_host()+'/registered/',
         has_next=has_next,
         has_prev=has_prev)
 

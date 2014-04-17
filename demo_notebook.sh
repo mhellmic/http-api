@@ -45,5 +45,15 @@ curl -u testname:testpass -H 'accept: application/cdmi-container' -H 'X-CDMI-Spe
 # copy the pid link, paste in new tab, explain
 # go to get the file
 
-# 8. Register from the command line
+# 8. Get the registered file from command line
+# show redirection
+curl -u testname:testpass http://127.0.0.1:5000/registered/PID
+
+# get file
+curl -L -u testname:testpass http://127.0.0.1:5000/registered/PID
+
+# get file as cdmi
+curl -L -H 'accept: application/cdmi-object' -H 'X-CDMI-Specification-Version: 1.0.2' -u testname:testpass http://127.0.0.1:5000/registered/PID
+
+# 9. Register from the command line
 curl -X POST -u testname:testpass -H 'accept: application/json' http://localhost:5000/request/ --data 'src_url=http://localhost:5000/tmp/http_server/h1big.root'

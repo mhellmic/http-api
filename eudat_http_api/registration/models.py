@@ -32,8 +32,8 @@ class RegistrationRequestSerializer(Serializer):
         lambda obj: obj.status_description.split(';'))
 
     handle_url = fields.String(attribute='pid')
-    pid = fields.Function(lambda obj: re.match('^http://.*/(\d+/.+)$',
-                                               obj.pid).group(1))
+    pid = fields.Function(lambda obj: str(re.match('^http://.*/(\d+/.+)$',
+                                                   obj.pid).group(1)))
 
     class Meta:
         fields = ('id',
