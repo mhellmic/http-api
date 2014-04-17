@@ -514,6 +514,7 @@ def _get_cdmi_json_dir_generator(path, list_gen):
 
 
 def _get_cdmi_json_generator(path, obj_type, **data):
+    base_uri, obj_name = common.split_path(path)
     meta = metadata.stat(path, user_metadata=None)
 
     def get_range(range_max, range_tuple=(0, None)):
@@ -544,10 +545,10 @@ def _get_cdmi_json_generator(path, obj_type, **data):
 
     yield ('objectType', lambda x=None: 'application/cdmi-%s' % obj_type)
     yield ('objectID', lambda x=None: meta.get('objectID', None))
-    yield ('objectName', lambda x=None: meta.get('name', None))
+    yield ('objectName', lambda x=None: obj_name)
     yield ('parentURI',
            lambda x=None: common.add_trailing_slash(
-               meta.get('base', None)))
+               base_uri))
     yield ('parentID', lambda x=None: meta.get('parentID', None))
     yield ('domainURI', lambda x=None: '/cdmi_domains/%s/'
            % get_config_parameter('CDMI_DOMAIN', None))
