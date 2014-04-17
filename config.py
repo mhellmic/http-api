@@ -46,3 +46,11 @@ IRODS_SHARED_SPACE = '/%s/replicate/' % RODSZONE
 # #  data will be stored (for test local zone is ok). HTTP does not write to
 # # this location this is done by replication rules.
 IRODS_REPLICATION_DESTINATION = '/%s/replicated/' % RODSZONE
+
+HANDLE_URI = ''
+HANDLE_USER = ''
+HANDLE_PASS = ''
+
+ACTIVATE_STORAGE_READ = True
+ACTIVATE_STORAGE_WRITE = True
+ACTIVATE_REGISTRATION = True
