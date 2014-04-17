@@ -27,5 +27,14 @@ class RegistrationRequest(db.Model):
 
 
 class RegistrationRequestSerializer(Serializer):
+    status_description = fields.Function(
+        lambda obj: obj.status_description.split(';'))
+
     class Meta:
-        fields = ('id', 'src_url', 'status_description', 'timestamp', 'checksum', 'pid')
+        fields = ('id',
+                  'src_url',
+                  'status',
+                  'status_description',
+                  'timestamp',
+                  'checksum',
+                  'pid')

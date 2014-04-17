@@ -34,12 +34,12 @@ registration = Blueprint('registration', __name__,
 def get_hal_links(reg_requests, page):
     """returns links in json hal format"""
     navi = dict()
-    navi['self'] = {'href': url_for('get_requests', page=page)}
+    navi['self'] = {'href': url_for('registration.get_requests', page=page)}
     if reg_requests.has_next:
-        navi['next'] = {'href': url_for('get_requests',
+        navi['next'] = {'href': url_for('registration.get_requests',
                                         page=reg_requests.next_num)}
     if reg_requests.has_prev:
-        navi['prev'] = {'href': url_for('get_requests',
+        navi['prev'] = {'href': url_for('registration.get_requests',
                                         page=reg_requests.prev_num)}
 
     return navi
@@ -152,16 +152,17 @@ def get_request(request_id):
     if r is None:
         return abort(404)
 
-    r.status_description_list = r.status_description.split(';')
-    r.handle_url = '%s/registered/%s' % (get_storage_host(),
-                                         r.pid)
+    handle_url = '%s/registered/%s' % (get_storage_host(),
+                                       r.pid)
 
     if request_wants(ContentTypes.json):
         return flask.jsonify(
             {'request': RegistrationRequestSerializer(r).data}
         )
 
-    return flask.render_template('singleRequest.html', r=r)
+    return flask.render_template('singleRequest.html',
+                                 r=RegistrationRequestSerializer(r).data,
+                                 handle_url=handle_url)
 
 
 #### /registered container ####
@@ -170,12 +171,12 @@ def get_request(request_id):
 
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
 @auth.requires_auth
-def get_pids_by_prefix():
+def get_pids_by_prefix(pid_prefix):
     # search PIDs with this prefix on handle.net
 
     # return list of PIDs
     # (with links to /registered/<full_pid>) to download
-    pass
+    abort(404)
 
 
 @registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
@@ -186,6 +187,15 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
 
     # resolve PID
     #handle_key = "11007/00-ZZZZ-0000-0000-FAKE-7"
+    httpClient = HttpClient(current_app.config['HANDLE_URI'],
+                            HTTPBasicAuth(current_app.config['HANDLE_USER'],
+                                          current_app.config['HANDLE_PASS']))
+    epic_client = EpicClient(httpClient=httpClient)
+
+    handle_record = epic_client.retrieveHandle(prefix=pid_prefix,
+                                               suffix=pid_suffix)
+    if handle_record is None:
+        abort(404)
 
     # extract link to data object
     data_object_url = ('http://127.0.0.1:5000/tmp/registered/'
@@ -195,4 +205,5 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     # choose link to data object
 
     # return data object
-    return redirect(data_object_url, code=302)
+    return handle_record
+    #return redirect(data_object_url, code=302)

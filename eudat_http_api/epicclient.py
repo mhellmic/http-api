@@ -3,17 +3,11 @@ import json
 
 
 def create_uri(baseuri, prefix, suffix=''):
-    separator = '/'
-    if baseuri[-1] == '/':
-        separator = ''
-
-    uri = baseuri + separator + prefix
-    if uri[-1] != '/':
-        uri += '/'
-    if suffix != '':
-        uri += suffix
-    return uri
-
+        # it can be simpler, because prefix/<emptysuffix>
+        # should have a slash at the end.
+        # there are also URI concat functions that we
+        # can use
+        return '/'.join([baseuri, prefix, suffix])
 
 class HttpClient():
     def __init__(self, baseuri, credentials):
@@ -52,7 +46,7 @@ class HttpClient():
         uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
         kwargs['auth'] = self.credentials
         try:
-            return post(url=uri, *args, **kwargs)
+            return post(url=uri, allow_redirects=True, *args, **kwargs)
         except Exception as e:
             self._debugMsg('An Exception occurred during request POST %s\n %s' % (uri, e))
             return None
@@ -102,6 +96,9 @@ class EpicClient():
 
         response = self.client.get(prefix=prefix, suffix=suffix, headers=hdrs)
 
+        if response is None:
+            return None
+
         if response.status_code != 200:
             self._debugMsg('retrieveHandle', 'Response status: %s' % response.status_code)
             return None
@@ -132,12 +129,13 @@ class EpicClient():
     def create_new(self, prefix, location, checksum):
         headers = {'Content-Type': 'application/json'}
         new_handle_json = convert_to_handle(location, checksum)
-        response = self.client.post(prefx=prefix, headers=headers, data=new_handle_json)
+        response = self.client.post(prefix=prefix, suffix='',
+                                    headers=headers, data=new_handle_json)
         if response.status_code != 201:
-            self._debugMsg('createNew', 'Not Created: Response status %s' % response.status_coce)
+            self._debugMsg('createNew', 'Not Created: Response status %s' % response.status_code)
             return None
 
-        return response.headers['Location']
+        return response.headers.get('Location')
 
     def modifyHandle(self, prefix, key, value, suffix=''):
         """Modify a parameter of a handle

@@ -3,6 +3,7 @@
 from __future__ import with_statement
 
 from base64 import b64decode
+import re
 import threading
 import time
 import hashlib
@@ -91,17 +92,26 @@ class RegistrationWorker(threading.Thread):
 
     def get_handle(self):
         self.update_status('Creating handle')
-        time.sleep(5)
-        handle_key = "11007/00-ZZZZ-0000-0000-FAKE-7"
-
-        self.update_status('Handle created: %s' % handle_key)
+        #time.sleep(5)
 
         handle = dict()
         handle['url'] = self.destination
         handle['checksum'] = 0
         handle['location'] = None
 
-        self.request.pid = handle_key
+        handle_location = self.epicclient.createNew('44', handle)
+        self.update_status('Handle created: %s' % handle_location)
+
+        if handle_location is None:
+            self.abort_request('Creating a handle failed')
+            return
+
+        pid = None
+        try:
+            pid = re.match('^http://.*/(\d+/.+)$', handle_location).group(1)
+        except AttributeError:
+            pass
+        self.request.pid = pid
         self.db_session.add(self.request)
         self.db_session.commit()
 
