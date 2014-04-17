@@ -4,6 +4,7 @@ from __future__ import with_statement
 
 import errno
 from functools import wraps
+from itertools import imap
 import os
 import stat as sys_stat
 from flask import current_app
@@ -200,8 +201,8 @@ def ls(path):
             return StorageDir(name, path)
 
     try:
-        return (map(lambda x: get_obj_type(os.path.join(path, x)),
-                    os.listdir(path)))
+        return (imap(lambda x: get_obj_type(os.path.join(path, x)),
+                     os.listdir(path)))
     except IOError as e:
         _handle_oserror(path, e)
     except OSError as e:
