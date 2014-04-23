@@ -547,10 +547,11 @@ def get_cdmi_dir_obj(path):
         #buffered_stream = _wrap_with_buffer(json_stream_wrapper)
         return Response(stream_with_context(buffered_stream))
     else:
-        return render_template('dirlisting.html',
-                               dirlist=dir_gen,
-                               path=path,
-                               parent_path=common.split_path(path)[0])
+        return render_template(
+            'dirlisting.html',
+            dirlist=dir_gen,
+            path=path,
+            parent_path=common.add_trailing_slash(common.split_path(path)[0]))
 
 
 def _get_cdmi_filters(args_dict):
