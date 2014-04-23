@@ -215,7 +215,6 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
         handle_record_list.extend([])
     except AttributeError:
         handle_record_list = [handle_record_list]
-    print handle_record_list
     data_object_url = None
     # extract link to data object
     for record_item in handle_record_list:
