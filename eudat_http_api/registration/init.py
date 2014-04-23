@@ -210,12 +210,17 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     if handle_record is None:
         abort(404)
 
-    handle_record_json = json.loads(handle_record)
+    handle_record_list = json.loads(handle_record)
+    try:
+        handle_record_list.extend([])
+    except AttributeError:
+        handle_record_list = [handle_record_list]
+    print handle_record_list
     data_object_url = None
     # extract link to data object
-    for _, value in handle_record_json.iteritems():
-        if value['type'] == 'location':
-            data_object_url = value['data']
+    for record_item in handle_record_list:
+        if record_item.get('type', None) == 'URL':
+            data_object_url = record_item['parsed_data'].get('location', None)
             break
     # choose link to data object
 
