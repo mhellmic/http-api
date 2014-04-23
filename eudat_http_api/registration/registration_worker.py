@@ -99,10 +99,11 @@ class RegistrationWorker(threading.Thread):
         handle['checksum'] = 0
         handle['location'] = self.destination
 
-        handle_location = self.epicclient.createNew('44', handle)
+        handle_location = self.epicclient.create_new('44', handle, None)
         self.update_status('Handle created: %s' % handle_location)
 
         if handle_location is None:
+            self.cdmiclient.cdmi_delete(self.destination)
             self.abort_request('Creating a handle failed')
             return
 

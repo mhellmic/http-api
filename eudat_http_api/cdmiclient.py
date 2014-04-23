@@ -36,3 +36,13 @@ class CDMIClient:
         }
 
         return requests.put(url, data=data, auth=self.auth)
+
+    def cdmi_delete(self, url):
+        headers = {
+            'Accept': 'application/cdmi-object',
+            'X-CDMI-Specification-Version': '1.0.2',
+        }
+
+        r = requests.delete(url, headers=headers, auth=self.auth)
+
+        return r

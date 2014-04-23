@@ -131,6 +131,9 @@ class EpicClient():
         new_handle_json = convert_to_handle(location, checksum)
         response = self.client.post(prefix=prefix, suffix='',
                                     headers=headers, data=new_handle_json)
+        if response is None:
+            return None
+
         if response.status_code != 201:
             self._debugMsg('createNew', 'Not Created: Response status %s' % response.status_code)
             return None
