@@ -657,7 +657,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
     yield ('domainURI', lambda x=None: '/cdmi_domains/%s/'
            % get_config_parameter('CDMI_DOMAIN', None))
     yield ('capabilitiesURI', lambda x=None: '/cdmi_capabilities/%s/'
-           % 'dataobject' if obj_type == 'object' else obj_type)
+           % ('dataobject' if obj_type == 'object' else obj_type))
     yield ('completionStatus', lambda x=None: 'Complete')
     #'percentComplete': '%s',  # optional
     yield ('metadata', partial(get_usermetadata, path))
