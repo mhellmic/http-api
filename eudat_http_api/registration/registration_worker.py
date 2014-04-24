@@ -77,13 +77,15 @@ class RegistrationWorker(threading.Thread):
         self.update_status('Copying data object to new location')
         time.sleep(5)
         destination = self.get_destination(self.request.src_url)
-        response = self.cdmiclient.cdmi_get(self.request.src_url)
+        #response = self.cdmiclient.cdmi_get(self.request.src_url)
         self.logger.debug('Moving %s to %s' % (self.request.src_url,
                                                destination))
         # cdmi_put is just a normal PUT!
-        upload = self.cdmiclient.cdmi_put(
-            destination, data=b64decode(response.json()['value']))
-        if upload.status_code != 201:
+        #upload = self.cdmiclient.cdmi_put(
+        #    destination, data=b64decode(response.json()['value']))
+        upload_response = self.cdmiclient.cdmi_copy(
+            destination, self.request.src_url)
+        if upload_response.status_code != 201:
             self.abort_request('Unable to move the data to register space')
             return
 
