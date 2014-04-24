@@ -125,18 +125,17 @@ def copy_data_object(context):
     update_request(context, 'Copying data object to the new location')
     destination = get_destination(context)
     username, password = extract_credentials(context.auth)
-    conn = connect_to_irods(config['RODSHOST'], config['RODSPORT'],
-                            username,
-                            password,
-                            config['RODSZONE'])
-    target = get_irods_file_handle(connection=conn, filename=destination)
-    source = get(url=context.src_url, auth=context.auth, stream=True)
-    stream_download(source, target)
-    target.close()
-    conn.disconnect()
 
     context.destination = destination
-    context.checksum = get_checksum(destination)
+    # this is probably not the right place. the storage backend should
+    # create a checksum if required. let's check if that is possible.
+    #context.checksum = get_checksum(destination)
+
+    upload_response = self.cdmiclient.cdmi_copy(
+        context.destination, context.src_url)
+    if upload_response.status_code != 201:
+        self.abort_request('Unable to move the data to register space')
+        return False
 
     return True
 
@@ -226,6 +225,3 @@ def start_workers(num_worker_thread):
         t = threading.Thread(target=executor)
         t.daemon = True
         t.start()
-
-
-
