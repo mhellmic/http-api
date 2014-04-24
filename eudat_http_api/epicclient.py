@@ -15,6 +15,18 @@ def create_uri(base_uri, prefix, suffix=''):
     return uri
 
 
+def log_exceptions(func):
+
+    def logger(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print 'Error while executing %s: %s' % (func.__name__, e)
+            return None
+
+    return logger
+
+
 class HttpClient():
     """http client for the communication"""
 
@@ -22,57 +34,34 @@ class HttpClient():
         self.credentials = credentials
         self.base_uri = base_uri
 
-    def get(self, prefix, suffix, *args, **kwargs):
+    @log_exceptions
+    def get(self, prefix, suffix, **kwargs):
         uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
-        kwargs['auth'] = self.credentials
-        try:
-            return get(url=uri, *args, **kwargs)
-        except Exception as e:
-            self._debug_msg('An Exception occurred during request GET %s\n %s' % (uri, e))
-            return None
+        return get(url=uri, auth=self.credentials, **kwargs)
 
-    def put(self, prefix, suffix, *args, **kwargs):
+    @log_exceptions
+    def put(self, prefix, suffix, **kwargs):
         uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
-        kwargs['auth'] = self.credentials
-        try:
-            return put(url=uri, *args, **kwargs)
-        except Exception as e:
-            self._debug_msg('An Exception occurred during request PUT %s\n %s' % (uri, e))
-            return None
+        return put(url=uri, auth=self.credentials, **kwargs)
 
+    @log_exceptions
     def delete(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
-        kwargs['auth'] = self.credentials
-        try:
-            return delete(url=uri, *args, **kwargs)
-        except Exception as e:
-            self._debug_msg('An Exception occurred during request DELETE %s\n %s' % (uri, e))
-            return None
+        return delete(url=uri, auth=self.credentials, **kwargs)
 
+    @log_exceptions
     def post(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
-        kwargs['auth'] = self.credentials
-        try:
-            return post(url=uri, *args, **kwargs)
-        except Exception as e:
-            self._debug_msg('An Exception occurred during request POST %s\n %s' % (uri, e))
-            return None
-
-    @staticmethod
-    def _debug_msg(msg):
-        print '[ %s ]' % msg
+        return post(url=uri, auth=self.credentials, **kwargs)
 
 
 def convert_to_handle(location, checksum):
+    handle_content = {'type': 'URL', 'parsed_data': location}
+
     if checksum:
-        new_handle_json = json.dumps([{'type': 'URL',
-                                             'parsed_data': location},
-                                            {'type': 'CHECKSUM',
-                                             'parsed_data': checksum}])
-    else:
-        new_handle_json = json.dumps([{'type': 'URL',
-                                             'parsed_data': location}])
-    return new_handle_json
+        handle_content.update({'type': 'CHECKSUM', 'parsed_data': checksum})
+
+    return json.dumps([handle_content])
 
 
 class EpicClient():
