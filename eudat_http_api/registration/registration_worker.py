@@ -66,10 +66,10 @@ class RegistrationWorker(threading.Thread):
 
         #check metadat will be moved in the future to become a separate
         #workflow step
-        response = self.cdmiclient.cdmi_get('%s?%s' % (self.request.src_url,
-                                                       'metadata'))
-        metadata_json = response.json()
-        self.logger.debug('metadata exist? %s' % metadata_json)
+        #response = self.cdmiclient.cdmi_get('%s?%s' % (self.request.src_url,
+        #                                               'metadata'))
+        #metadata_json = response.json()
+        #self.logger.debug('metadata exist? %s' % metadata_json)
 
         self.continue_request(self.copy_data_object)
 
