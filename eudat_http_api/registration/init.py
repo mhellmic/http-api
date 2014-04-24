@@ -22,7 +22,6 @@ from config import REQUESTS_PER_PAGE
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
-
 registration = Blueprint('registration', __name__,
                          template_folder='templates')
 
@@ -54,7 +53,6 @@ def get_requests():
              "_links": get_hal_links(reg_requests, page)})
 
     return flask.render_template('requests.html', requests=reg_requests)
-
 
 
 @registration.route('/request/', methods=['POST'])
@@ -115,10 +113,8 @@ def get_request(request_id):
 
     return flask.render_template('singleRequest.html', r=r)
 
-
 #### /registered container ####
 #jj: this is a separate component?
-
 
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
 @auth.requires_auth
