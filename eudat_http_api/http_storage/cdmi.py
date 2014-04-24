@@ -376,7 +376,7 @@ def put_cdmi_file_obj(path):
     if common.request_wants_cdmi():
         cdmi_json, value_gen = _parse_cdmi_msg_body_fields(request.stream)
         if 'copy' in cdmi_json:
-            value_uri = '%s?value' % cdmi_json['copy']
+            value_uri = '%s' % cdmi_json['copy']
             user = request.authorization['username']
             pw = request.authorization['password']
             auth = requests.auth.HTTPBasicAuth(user, pw)
@@ -425,7 +425,7 @@ def put_cdmi_file_obj(path):
 
         json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
         return Response(stream_with_context(json_stream_wrapper),
-                        headers=response_headers)
+                        headers=response_headers), 201
     return 'Created: %d' % (bytes_written), 201
 
 
