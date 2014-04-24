@@ -20,7 +20,6 @@ class HttpClient():
         self.credentials = credentials
         self.baseuri = baseuri
 
-
     def get(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
         kwargs['auth'] = self.credentials
@@ -72,6 +71,7 @@ def convert_to_handle(location, checksum):
                                              'parsed_data': location}])
     return new_handle_json
 
+
 class EpicClient():
     """Class implementing an EPIC client."""
 
@@ -111,9 +111,9 @@ class EpicClient():
     def createHandle(self, prefix, suffix, location, checksum):
         """Create a new handle for a file.
         Parameters:
-        prefix: 	URI to the resource, or the prefix if suffix is not ''.
-        suffix: 	The suffix of the handle. Default: ''.
-        keyValues: 	Dictionary with all key:value pairs to add to this handle.
+        prefix:     URI to the resource, or the prefix if suffix is not ''.
+        suffix:     The suffix of the handle. Default: ''.
+        keyValues:     Dictionary with all key:value pairs to add to this handle.
                 The 'URL' key is required, all other keys are optional and up to the caller''
         Returns the URI of the new handle, None if an error occurred.
 
@@ -143,10 +143,10 @@ class EpicClient():
         """Modify a parameter of a handle
 
         Parameters:
-        prefix: 	URI to the resource, or the prefix if suffix is not ''.
-        key: 		The parameter "type" wanted to change
-        value: 		New value to store in "data"
-        suffix: 	The suffix of the handle. Default: ''.
+        prefix:     URI to the resource, or the prefix if suffix is not ''.
+        key:         The parameter "type" wanted to change
+        value:         New value to store in "data"
+        suffix:     The suffix of the handle. Default: ''.
         Returns True if modified or parameter not found, False otherwise.
 
         """
@@ -164,7 +164,8 @@ class EpicClient():
         handle = json.loads(handle_json)
         maxIdx = 0
         for idx in handle:
-            if int(idx) > maxIdx: maxIdx = int(idx)
+            if int(idx) > maxIdx:
+                maxIdx = int(idx)
             if 'type' in handle[idx] and handle[idx]['type'] == key:
                 self._debugMsg('modifyHandle', 'Found key %s idx = %d' % (key, idx))
                 if value is None:
@@ -207,5 +208,3 @@ class EpicClient():
             return False
 
         return True
-
-
