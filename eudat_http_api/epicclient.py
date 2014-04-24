@@ -2,12 +2,12 @@ from requests import get, post, put, delete
 import json
 
 
-def create_uri(baseuri, prefix, suffix=''):
+def create_uri(base_uri, prefix, suffix=''):
     separator = '/'
-    if baseuri[-1] == '/':
+    if base_uri[-1] == '/':
         separator = ''
 
-    uri = baseuri + separator + prefix
+    uri = base_uri + separator + prefix
     if uri[-1] != '/':
         uri += '/'
     if suffix != '':
@@ -16,47 +16,50 @@ def create_uri(baseuri, prefix, suffix=''):
 
 
 class HttpClient():
-    def __init__(self, baseuri, credentials):
+    """http client for the communication"""
+
+    def __init__(self, base_uri, credentials):
         self.credentials = credentials
-        self.baseuri = baseuri
+        self.base_uri = base_uri
 
     def get(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
+        uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
         kwargs['auth'] = self.credentials
         try:
             return get(url=uri, *args, **kwargs)
         except Exception as e:
-            self._debugMsg('An Exception occurred during request GET %s\n %s' % (uri, e))
+            self._debug_msg('An Exception occurred during request GET %s\n %s' % (uri, e))
             return None
 
     def put(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
+        uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
         kwargs['auth'] = self.credentials
         try:
             return put(url=uri, *args, **kwargs)
         except Exception as e:
-            self._debugMsg('An Exception occurred during request PUT %s\n %s' % (uri, e))
+            self._debug_msg('An Exception occurred during request PUT %s\n %s' % (uri, e))
             return None
 
     def delete(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
+        uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
         kwargs['auth'] = self.credentials
         try:
             return delete(url=uri, *args, **kwargs)
         except Exception as e:
-            self._debugMsg('An Exception occurred during request DELETE %s\n %s' % (uri, e))
+            self._debug_msg('An Exception occurred during request DELETE %s\n %s' % (uri, e))
             return None
 
     def post(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(self.baseuri, prefix=prefix, suffix=suffix)
+        uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
         kwargs['auth'] = self.credentials
         try:
             return post(url=uri, *args, **kwargs)
         except Exception as e:
-            self._debugMsg('An Exception occurred during request POST %s\n %s' % (uri, e))
+            self._debug_msg('An Exception occurred during request POST %s\n %s' % (uri, e))
             return None
 
-    def _debugMsg(self, msg):
+    @staticmethod
+    def _debug_msg(msg):
         print '[ %s ]' % msg
 
 
@@ -75,20 +78,20 @@ def convert_to_handle(location, checksum):
 class EpicClient():
     """Class implementing an EPIC client."""
 
-    def __init__(self, httpClient, debug=False):
+    def __init__(self, http_client, debug=False):
         """Initialize object with connection parameters."""
         # assert isinstance(self.client.get, )?
-        self.client = httpClient
+        self.client = http_client
         self.accept_format = 'application/json'
         self.debug = debug
 
-    def _debugMsg(self, method, msg):
+    def _debug_msg(self, method, msg):
         """Internal: Print a debug message if debug is enabled."""
         #fixme: should be using logger
         if self.debug:
             print '[ %s ] %s' % (method, msg)
 
-    def retrieveHandle(self, prefix, suffix=''):
+    def retrieve_handle(self, prefix, suffix=''):
         """Retrieve a handle from the PID service.
         Parameters:
         prefix: URI to the resource, or the prefix if suffix is not ''.
@@ -96,19 +99,19 @@ class EpicClient():
         Returns the content of the handle in JSON, None on error.
 
         """
-        hdrs = None
+        headers = None
         if self.accept_format:
-            hdrs = {'Accept': self.accept_format}
+            headers = {'Accept': self.accept_format}
 
-        response = self.client.get(prefix=prefix, suffix=suffix, headers=hdrs)
+        response = self.client.get(prefix=prefix, suffix=suffix, headers=headers)
 
         if response.status_code != 200:
-            self._debugMsg('retrieveHandle', 'Response status: %s' % response.status_code)
+            self._debug_msg('retrieveHandle', 'Response status: %s' % response.status_code)
             return None
 
         return response.content
 
-    def createHandle(self, prefix, suffix, location, checksum):
+    def create_handle(self, prefix, suffix, location, checksum):
         """Create a new handle for a file.
         Parameters:
         prefix:     URI to the resource, or the prefix if suffix is not ''.
@@ -119,13 +122,14 @@ class EpicClient():
 
         """
         #if-none-match is here for "conditional" PUT only if url don't exist yet
-        hdrs = {'If-None-Match': '*', 'Content-Type': 'application/json'}
+        headers = {'If-None-Match': '*',
+                   'Content-Type': 'application/json'}
 
         new_handle_json = convert_to_handle(location, checksum)
-        response = self.client.put(prefix=prefix, suffix=suffix, headers=hdrs, data=new_handle_json)
+        response = self.client.put(prefix=prefix, suffix=suffix, headers=headers, data=new_handle_json)
 
         if response.status_code != 201:
-            self._debugMsg('createHandleWithLocation', 'Not Created: Response status: %s' % response.status_code)
+            self._debug_msg('createHandleWithLocation', 'Not Created: Response status: %s' % response.status_code)
             return None
         return response.headers['Location']
 
@@ -134,65 +138,12 @@ class EpicClient():
         new_handle_json = convert_to_handle(location, checksum)
         response = self.client.post(prefx=prefix, headers=headers, data=new_handle_json)
         if response.status_code != 201:
-            self._debugMsg('createNew', 'Not Created: Response status %s' % response.status_coce)
+            self._debug_msg('createNew', 'Not Created: Response status %s' % response.status_coce)
             return None
 
         return response.headers['Location']
 
-    def modifyHandle(self, prefix, key, value, suffix=''):
-        """Modify a parameter of a handle
-
-        Parameters:
-        prefix:     URI to the resource, or the prefix if suffix is not ''.
-        key:         The parameter "type" wanted to change
-        value:         New value to store in "data"
-        suffix:     The suffix of the handle. Default: ''.
-        Returns True if modified or parameter not found, False otherwise.
-
-        """
-
-        hdrs = {'Content-Type': 'application/json'}
-
-        if not key:
-            return False
-
-        handle_json = self.retrieveHandle(prefix, suffix)
-        if not handle_json:
-            self._debugMsg('modifyHandle', 'Cannot modify an non-existing handle: %s/%s' % (prefix, suffix))
-            return False
-
-        handle = json.loads(handle_json)
-        maxIdx = 0
-        for idx in handle:
-            if int(idx) > maxIdx:
-                maxIdx = int(idx)
-            if 'type' in handle[idx] and handle[idx]['type'] == key:
-                self._debugMsg('modifyHandle', 'Found key %s idx = %d' % (key, idx))
-                if value is None:
-                    del (handle[idx])
-                else:
-                    handle[idx]['data'] = value
-                break
-        else:
-            if value is None:
-                self._debugMsg('modifyHandle', 'Key %s  not found. Quiting' % key)
-                return True
-
-            idx = maxIdx + 1
-            self._debugMsg('modifyHandle', "Key " + key + " not found. Generating new idx=" + str(idx))
-            handle[idx] = {'type': key, 'data': value}
-
-        handle_json = json.dumps(handle)
-        self._debugMsg('modifyHandle', 'JSON: %s ' + handle_json)
-        response = self.client.put(prefix=prefix, suffix=suffix, headers=hdrs, data=handle_json)
-
-        if response.status_code != 200:
-            self._debugMsg('modifyHandle', 'Not Modified: Response status: %s' % response.status_code)
-            return False
-
-        return True
-
-    def deleteHandle(self, prefix, suffix=''):
+    def delete_handle(self, prefix, suffix=''):
         """Delete a handle from the server.
 
         Parameters:
@@ -204,7 +155,7 @@ class EpicClient():
         response = self.client.delete(suffix=suffix, prefix=prefix)
 
         if response.status_code != 200:
-            self._debugMsg('deleteHandle', 'Not Deleted: Response status: %s ' % response.status_code)
+            self._debug_msg('delete_handle', 'Not Deleted: Response status: %s ' % response.status_code)
             return False
 
         return True
