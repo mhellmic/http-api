@@ -3,8 +3,13 @@
 mkdir /tmp/http_server
 echo "Hello, I am a small testfile" > /tmp/http_server/testfile
 mkdir /tmp/http_server/testfolder
-echo "Hello, I am a small testfile in a nested directory" > /tmp/http_server/testfile
+echo "Hello, I am a small testfile in a nested directory" > /tmp/http_server/testfolder/testfile
+echo "Hi, I am another testfile" > /tmp/http_server/anothertestfile
 mkdir /tmp/http_server/registered
+rm -r /tmp/http_server/registered/*
+rm /tmp/http_server/h1big.root
+
+exit 0
 
 # create 100k dir
 # put h1big.root in /tmp
@@ -21,13 +26,14 @@ mkdir /tmp/http_server/registered
 # 2. list folder with curl
 curl -u testname:testpass http://localhost:5000/tmp/http_server/
 
-# 3. list folder with curl json
-#curl -u testname:testpass -H 'accept: application/json' http://localhost:5000/tmp/http_server/
-
-# 4. put file with curl, then list folder
-curl -X PUT -u testname:testpass -H 'accept: application/json' http://localhost:5000/tmp/http_server/h1big.root --upload-file /tmp/h1big.root
+# 3. put file with curl, then list folder
+curl -X PUT -u testname:testpass  http://localhost:5000/tmp/http_server/h1big.root --upload-file /tmp/h1big.root
 curl -u testname:testpass http://localhost:5000/tmp/http_server/
 # go to http://localhost:5000/tmp/http_server
+
+# 4. delete a file with curl, then list folder
+curl -X DELETE -u testname:testpass http://localhost:5000/tmp/http_server/anothertestfile
+curl -u testname:testpass http://localhost:5000/tmp/http_server/
 
 # 5. get a folder with cdmi
 curl -u testname:testpass -H 'accept: application/cdmi-container' -H 'X-CDMI-Specification-Version: 1.0.2' http://localhost:5000/tmp/http_server/
@@ -37,6 +43,7 @@ curl -u testname:testpass -H 'accept: application/cdmi-container' -H 'X-CDMI-Spe
 
 
 ## Registering workflow
+echo 'the register workflow'
 
 # 7. Register a file
 # go to http://localhost:5000/request/ in a new tab
