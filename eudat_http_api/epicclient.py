@@ -131,20 +131,3 @@ class EpicClient():
             return None
 
         return response.headers['Location']
-
-    def delete_handle(self, prefix, suffix=''):
-        """Delete a handle from the server.
-
-        Parameters:
-        prefix: URI to the resource, or the prefix if suffix is not ''.
-        suffix: The suffix of the handle. Default: ''.
-        Returns True if deleted, False otherwise.
-
-        """
-        response = self.client.delete(suffix=suffix, prefix=prefix)
-
-        if response.status_code != 200:
-            self._debug_msg('delete_handle', 'Not Deleted: Response status: %s ' % response.status_code)
-            return False
-
-        return True
