@@ -2,9 +2,7 @@
 
 from __future__ import with_statement
 
-import json
 import threading
-import time
 import hashlib
 
 from eudat_http_api.registration.models import db, RegistrationRequest
@@ -14,12 +12,12 @@ workflow = ['check_source', 'upload', 'crate_handle']
 
 
 class RegistrationWorker(threading.Thread):
-    def __init__(self, request_id, epicclient, logger, cdmiclient, base_url):
+    def __init__(self, request_id, epic_client, logger, cdmi_client, base_url):
         threading.Thread.__init__(self)
         self.logger = logger
         self.request = RegistrationRequest.query.get(request_id)
-        self.epicclient = epicclient
-        self.cdmiclient = cdmiclient
+        self.epic_client = epic_client
+        self.cdmi_client = cdmi_client
         self.base_url = base_url
         self.destination = ''
 
@@ -34,18 +32,16 @@ class RegistrationWorker(threading.Thread):
 
     def check_src(self):
         self.update_status('Checking source')
-        time.sleep(5)
-
         # check existence and correct permissions on source
-        response = self.cdmiclient.cdmi_head('%s' % self.request.src_url)
+        response = self.cdmi_client.cdmi_head('%s' % self.request.src_url)
         if response.status_code > 299:
             self.abort_request('Source is not available: %d' % response.status_code)
             return
         else:
             self.logger.debug('Source exist')
 
-        #check metadat will be moved in the future to become a separate workflow step
-        response = self.cdmiclient.cdmi_get('%s?%s' % (self.request.src_url, 'metadata'))
+        #check metadata will be moved in the future to become a separate workflow step
+        response = self.cdmi_client.cdmi_get('%s?%s' % (self.request.src_url, 'metadata'))
         metadata_json = response.json()
         self.logger.debug('metadata exist? %s' % metadata_json)
 
@@ -53,11 +49,10 @@ class RegistrationWorker(threading.Thread):
 
     def copy_data_object(self):
         self.update_status('Copying data object to new location')
-        time.sleep(5)
         destination = self.get_destination(self.request.src_url)
-        response = self.cdmiclient.cdmi_get(self.request.src_url)
+        response = self.cdmi_client.cdmi_get(self.request.src_url)
         self.logger.debug('Moving %s to %s' % (self.request.src_url, destination))
-        upload = self.cdmiclient.cdmi_put(destination, data=response.json()['value'])
+        upload = self.cdmi_client.cdmi_put(destination, data=response.json()['value'])
         if upload.status_code != 201:
             self.abort_request('Unable to move the data to register space')
             return
@@ -67,7 +62,6 @@ class RegistrationWorker(threading.Thread):
 
     def get_handle(self):
         self.update_status('Creating handle')
-        time.sleep(5)
 
         handle = dict()
         handle['url'] = self.destination

@@ -86,8 +86,8 @@ def post_request():
 
     # FIXME: due to the fuckedup blueprints I don't know how to define the destination url, something like:
     # url_for('http_storage.put_cdmi_obj',objpath='/')
-    p = RegistrationWorker(request_id=r.id, epicclient=EpicClient(httpClient=httpClient),
-                           logger=current_app.logger, cdmiclient=cdmiclient, base_url='http://localhost:8080/tmp/')
+    p = RegistrationWorker(request_id=r.id, epic_client=EpicClient(httpClient=httpClient),
+                           logger=current_app.logger, cdmi_client=cdmiclient, base_url='http://localhost:8080/tmp/')
     #we have to close it explicitly already here otherwise the request object is bound to this session
     db.session.close()
     p.start()

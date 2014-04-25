@@ -49,13 +49,13 @@ class HttpClient():
         return post(url=uri, auth=self.credentials, **kwargs)
 
 
-def convert_to_handle(location, checksum):
-    handle_content = {'type': 'URL', 'parsed_data': location}
+def convert_to_handle(location, checksum=0):
+    handle_content = [{'type': 'URL', 'parsed_data': location}]
 
     if checksum:
-        handle_content.update({'type': 'CHECKSUM', 'parsed_data': checksum})
+        handle_content.append({'type': 'CHECKSUM', 'parsed_data': checksum})
 
-    return json.dumps([handle_content])
+    return json.dumps(handle_content)
 
 
 class EpicClient():
@@ -88,6 +88,9 @@ class EpicClient():
 
         response = self.client.get(prefix=prefix, suffix=suffix, headers=headers)
 
+        if response is None:
+            return None
+
         if response.status_code != 200:
             self._debug_msg('retrieveHandle', 'Response status: %s' % response.status_code)
             return None
@@ -111,6 +114,9 @@ class EpicClient():
         new_handle_json = convert_to_handle(location, checksum)
         response = self.client.put(prefix=prefix, suffix=suffix, headers=headers, data=new_handle_json)
 
+        if response is None:
+            return None
+
         if response.status_code != 201:
             self._debug_msg('createHandleWithLocation', 'Not Created: Response status: %s' % response.status_code)
             return None
@@ -120,6 +126,10 @@ class EpicClient():
         headers = {'Content-Type': 'application/json'}
         new_handle_json = convert_to_handle(location, checksum)
         response = self.client.post(prefx=prefix, headers=headers, data=new_handle_json)
+
+        if response is None:
+            return None
+
         if response.status_code != 201:
             self._debug_msg('createNew', 'Not Created: Response status %s' % response.status_coce)
             return None
