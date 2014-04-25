@@ -125,7 +125,7 @@ class EpicClient():
     def create_new(self, prefix, location, checksum):
         headers = {'Content-Type': 'application/json'}
         new_handle_json = convert_to_handle(location, checksum)
-        response = self.client.post(prefx=prefix, headers=headers, data=new_handle_json)
+        response = self.client.post(prefix=prefix, headers=headers, data=new_handle_json)
 
         if response is None:
             return None

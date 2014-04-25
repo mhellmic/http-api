@@ -1,8 +1,16 @@
 import unittest
+import uuid
 
 from eudat_http_api.epicclient import EpicClient, convert_to_handle
 from eudat_http_api.epicclient import create_uri
 import json
+
+
+def extract_prefix_suffix(handle, baseuri):
+    myurl = handle
+    myurl.replace(baseuri, '')
+    array = myurl.split('/')
+    return array[-2], array[-1]
 
 
 class FakedHttpClient():
@@ -22,7 +30,19 @@ class FakedHttpClient():
         print 'GET %s' % uri
         return r
 
-    def add_handle(self, suffix, prefix, value):
+    def post(self, prefix, headers, data):
+        print 'Posting to %s' % prefix
+        suffix = str(uuid.uuid1())
+        self.add_handle(prefix=prefix, suffix=suffix, value=data)
+        class Response():
+            pass
+
+        r = Response()
+        r.status_code = 201
+        r.headers = {'Location': create_uri(base_uri=self.base_uri, prefix=prefix, suffix=suffix)}
+        return r
+
+    def add_handle(self, prefix, suffix, value):
         self.handles[create_uri(base_uri=self.base_uri, prefix=prefix, suffix=suffix)] = value
         print self.handles
 
@@ -54,14 +74,6 @@ class TestCase(unittest.TestCase):
         uri = create_uri(base_uri='http://foo.bar', prefix='9093', suffix='666')
         assert uri == 'http://foo.bar/9093/666'
 
-    def test_retrieve(self):
-        response = self.epic_client.retrieve_handle(prefix='11858', suffix='00-ZZZZ-0000-0000-000C-7')
-        assert response is not None
-        # jj: not sure if we should return string or json?
-        response = json.loads(response)
-        assert response['values'][0]['type'] == 'FILESIZE'
-        assert response['values'][1]['type'] == 'TITLE'
-
     def test_create_handle_wo_checksum(self):
         a = convert_to_handle('http://foo.bar/')
         assert a is not None
@@ -81,11 +93,34 @@ class TestCase(unittest.TestCase):
         assert json_array[1]['type'] == 'CHECKSUM'
         assert json_array[1]['parsed_data'] == 666
 
-
-
+    def test_retrieve(self):
+        response = self.epic_client.retrieve_handle(prefix='11858', suffix='00-ZZZZ-0000-0000-000C-7')
+        assert response is not None
+        # jj: not sure if we should return string or json?
+        response = json.loads(response)
+        assert response['values'][0]['type'] == 'FILESIZE'
+        assert response['values'][1]['type'] == 'TITLE'
 
     def test_create(self):
-        pass
+        response = self.epic_client.create_new(prefix='666', location='http://foo.bar/', checksum=667)
+        assert response is not None
+        assert response.count('666') > 0
+        prefix, suffix = extract_prefix_suffix(response, '')
+
+        handle = self.epic_client.retrieve_handle(prefix=prefix, suffix=suffix)
+        assert response is not None
+        response = json.loads(handle)
+        print response
+
+        assert len(response) == 2
+        assert response[0]['type'] == 'URL'
+        assert response[0]['parsed_data'] == 'http://foo.bar/'
+
+        assert response[1]['type'] == 'CHECKSUM'
+        assert response[1]['parsed_data'] == 667
+
+
+
 
 
 
