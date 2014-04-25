@@ -1,4 +1,3 @@
-
 import unittest
 
 from eudat_http_api.epicclient import EpicClient
@@ -7,13 +6,13 @@ import json
 
 
 class FakedHttpClient():
-
     def __init__(self):
         self.handles = dict()
         self.baseuri = ''
 
     def get(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(baseuri=self.baseuri, prefix=prefix, suffix=suffix)
+        uri = create_uri(base_uri=self.baseuri, prefix=prefix, suffix=suffix)
+
         class Response():
             pass
 
@@ -25,49 +24,45 @@ class FakedHttpClient():
 
 
     def addHandle(self, suffix, prefix, value):
-        self.handles[create_uri(baseuri=self.baseuri, prefix=prefix, suffix=suffix)] = value
+        self.handles[create_uri(base_uri=self.baseuri, prefix=prefix, suffix=suffix)] = value
         print self.handles
 
 
-
-
-
 class TestCase(unittest.TestCase):
-
     def setUp(self):
         self.httpclient = FakedHttpClient()
 
         self.httpclient.addHandle(prefix='11858', suffix='00-ZZZZ-0000-0000-000C-7',
-                              value='{ "handle": "11858/00-ZZZZ-0000-0000-000C-7", '
-                                    '"responseCode": 1, '
-                                    '"values": [ { "data": "0", "index": 2, '
-                                    '"timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "FILESIZE" }, '
+                                  value='{ "handle": "11858/00-ZZZZ-0000-0000-000C-7", '
+                                        '"responseCode": 1, '
+                                        '"values": [ { "data": "0", "index": 2, '
+                                        '"timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "FILESIZE" }, '
                                         '{ "data": "GWDG", "index": 5, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "TITLE" }, '
                                         '{ "data": "demo2", "index": 8, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "CREATOR" }, '
                                         '{ "data": { "format": "admin", "value": { "handle": "0.NA/11858", "index": 200, "permissions": "010001110000" } }, '
                                         '"index": 100, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "HS_ADMIN" }, '
                                         '{ "data": "http://www.gwdg.de/aktuell/index4.html", "index": 1, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "URL" } '
-                                    '] }'
+                                        '] }'
         )
-        self.epicclient = EpicClient(httpClient=self.httpclient, debug=True)
+        self.epicclient = EpicClient(http_client=self.httpclient, debug=True)
 
 
     def tearDown(self):
         pass
 
-    def test_getUri(self):
-        uri = create_uri(baseuri='http://foo.bar', prefix='9093')
-        assert uri == 'http://foo.bar/9093'
-        uri = create_uri(baseuri='http://foo.bar', prefix='9093', suffix='666')
+    def test_create_uri(self):
+        uri = create_uri(base_uri='http://foo.bar', prefix='9093')
+        assert uri == 'http://foo.bar/9093/'
+        uri = create_uri(base_uri='http://foo.bar', prefix='9093', suffix='666')
         assert uri == 'http://foo.bar/9093/666'
 
     def test_retrieve(self):
-        response = self.epicclient.retrieveHandle(prefix='11858', suffix='00-ZZZZ-0000-0000-000C-7')
-        assert response != None
+        response = self.epicclient.retrieve_handle(prefix='11858', suffix='00-ZZZZ-0000-0000-000C-7')
+        assert response is not None
         # jj: not sure if we should return string or json?
         response = json.loads(response)
-        assert response['values'][0]['type']=='FILESIZE'
-        assert response['values'][1]['type']=='TITLE'
+        assert response['values'][0]['type'] == 'FILESIZE'
+        assert response['values'][1]['type'] == 'TITLE'
 
 
 

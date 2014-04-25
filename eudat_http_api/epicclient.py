@@ -3,16 +3,10 @@ import json
 
 
 def create_uri(base_uri, prefix, suffix=''):
-    separator = '/'
-    if base_uri[-1] == '/':
-        separator = ''
+    return '/'.join([base_uri, prefix, suffix])
 
-    uri = base_uri + separator + prefix
-    if uri[-1] != '/':
-        uri += '/'
-    if suffix != '':
-        uri += suffix
-    return uri
+
+
 
 
 def log_exceptions(func):
