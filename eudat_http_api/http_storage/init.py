@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from functools import wraps
+
+from flask import abort
 from flask import Blueprint
 
 from eudat_http_api import common
+from eudat_http_api.http_storage import common as http_common
 from eudat_http_api.http_storage import cdmi
 from eudat_http_api.http_storage import noncdmi
+from eudat_http_api.http_storage import json
 from eudat_http_api import auth
 
 http_storage_read = Blueprint('http_storage_read', __name__,
@@ -21,10 +25,15 @@ def check_access_type(f):
         access_module = None
         if common.request_is_cdmi():
             access_module = cdmi
+        elif common.request_wants_json():
+            access_module = json
         else:
             access_module = noncdmi
 
-        return f(access_module, *args, **kwargs)
+        try:
+            return f(access_module, *args, **kwargs)
+        except AttributeError:
+            abort(406)
 
     return decorated
 
@@ -32,9 +41,9 @@ def check_access_type(f):
 @http_storage_read.route('/', methods=['GET'], defaults={'objpath': '/'})
 @http_storage_read.route('/<path:objpath>', methods=['GET'])
 @auth.requires_auth
-@cdmi.check_cdmi
+@check_access_type
 def get_obj(access_module, objpath='/'):
-    absolute_objpath = cdmi.make_absolute_path(objpath)
+    absolute_objpath = http_common.make_absolute_path(objpath)
     if absolute_objpath[-1] == '/':
         return access_module.get_dir_obj(absolute_objpath)
     else:
