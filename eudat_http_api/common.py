@@ -42,3 +42,7 @@ def request_wants_json():
 
 def request_wants_cdmi():
     return any(map(request_wants, ContentTypes.cdmi))
+
+
+def request_is_cdmi():
+    return 'X-CDMI-Specification-Version' in request.headers
