@@ -23,10 +23,8 @@ class TestCase(unittest.TestCase):
 
     def test_workflow(self):
         print 'Starting thread'
-        r = RegistrationRequest(id=666, src_url="some url", status_description='W', timestamp=datetime.utcnow())
-        dummy_logger = TestCase.DummyLogger()
-
+        r = RegistrationRequest(id=666, src_url='some url', status_description='W', timestamp=datetime.utcnow())
         # start worker
-        p = RegistrationWorker(request=r, logger=dummy_logger)
+        p = RegistrationWorker(request_id=666, epic_client=None, logger=None, cdmi_client=None, base_url='');
         p.start()
         p.join()

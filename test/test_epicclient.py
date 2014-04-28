@@ -1,7 +1,7 @@
 import unittest
 import uuid
 
-from eudat_http_api.epicclient import EpicClient, convert_to_handle
+from eudat_http_api.epicclient import EpicClient, convert_to_handle, log_exceptions
 from eudat_http_api.epicclient import create_uri
 import json
 
@@ -20,19 +20,36 @@ class FakedHttpClient():
 
     def get(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(base_uri=self.base_uri, prefix=prefix, suffix=suffix)
+        print 'Getting %s/%s' % (prefix, suffix)
 
         class Response():
             pass
 
         r = Response()
-        r.status_code = 200
-        r.content = self.handles[uri]
-        print 'GET %s' % uri
+        if self.handles.has_key(uri):
+            r.content = self.handles[uri]
+            r.status_code = 200
+        else:
+            r.content = None
+            r.status_code = 404
+
+
         return r
 
     def post(self, prefix, headers, data):
         print 'Posting to %s' % prefix
         suffix = str(uuid.uuid1())
+        self.add_handle(prefix=prefix, suffix=suffix, value=data)
+        class Response():
+            pass
+
+        r = Response()
+        r.status_code = 201
+        r.headers = {'Location': create_uri(base_uri=self.base_uri, prefix=prefix, suffix=suffix)}
+        return r
+
+    def put(self, prefix, suffix, headers, data):
+        print 'Putting to %s/%s' % (prefix, suffix)
         self.add_handle(prefix=prefix, suffix=suffix, value=data)
         class Response():
             pass
@@ -101,6 +118,10 @@ class TestCase(unittest.TestCase):
         assert response['values'][0]['type'] == 'FILESIZE'
         assert response['values'][1]['type'] == 'TITLE'
 
+    def test_nonexisting(self):
+        response = self.epic_client.retrieve_handle(prefix='foo', suffix='barr')
+        assert response is None
+
     def test_create(self):
         response = self.epic_client.create_new(prefix='666', location='http://foo.bar/', checksum=667)
         assert response is not None
@@ -119,9 +140,38 @@ class TestCase(unittest.TestCase):
         assert response[1]['type'] == 'CHECKSUM'
         assert response[1]['parsed_data'] == 667
 
+    def test_create_with_suffix(self):
+        response = self.epic_client.create_handle(prefix='666', suffix='777', location='http://foo.bar/', checksum=667)
+        assert response is not None
+        prefix, suffix = extract_prefix_suffix(response,'')
+        assert prefix == '666'
+        assert suffix == '777'
+
+        handle = self.epic_client.retrieve_handle(prefix=prefix, suffix=suffix)
+        assert response is not None
+        response = json.loads(handle)
+        print response
+
+        assert len(response) == 2
+        assert response[0]['type'] == 'URL'
+        assert response[0]['parsed_data'] == 'http://foo.bar/'
+
+        assert response[1]['type'] == 'CHECKSUM'
+        assert response[1]['parsed_data'] == 667
+
+
+    def test_exception_logger(self):
+        def exceptional_function():
+            raise Exception
+
+        wrapped = log_exceptions(exceptional_function)
+        value = wrapped()
+        assert value is None
 
 
 
+if __name__ == '__main__':
+    unittest.main()
 
 
 

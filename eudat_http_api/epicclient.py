@@ -39,11 +39,6 @@ class HttpClient():
         return put(url=uri, auth=self.credentials, **kwargs)
 
     @log_exceptions
-    def delete(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
-        return delete(url=uri, auth=self.credentials, **kwargs)
-
-    @log_exceptions
     def post(self, prefix, suffix, *args, **kwargs):
         uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
         return post(url=uri, auth=self.credentials, **kwargs)
