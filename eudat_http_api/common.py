@@ -68,3 +68,7 @@ def is_local(storage_url, local_host, local_port, local_zone):
 
 def request_wants_cdmi():
     return any(map(request_wants, ContentTypes.cdmi))
+
+
+def request_is_cdmi():
+    return 'X-CDMI-Specification-Version' in request.headers
