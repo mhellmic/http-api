@@ -2,11 +2,10 @@
 
 from __future__ import with_statement
 
-from base64 import b64encode, b64decode
+from base64 import b64encode  # , b64decode
 from collections import deque
 from functools import wraps
 from inspect import isgenerator
-import json
 import re
 import requests
 
@@ -15,7 +14,6 @@ from urlparse import urlparse
 from flask import abort
 from flask import current_app
 from flask import redirect
-from flask import render_template
 from flask import request
 from flask import Response
 from flask import jsonify as flask_jsonify
@@ -23,11 +21,11 @@ from flask import json as flask_json
 from flask import stream_with_context
 
 from functools import partial
-from itertools import imap, chain, islice
+from itertools import islice
 
-from eudat_http_api import common
 from eudat_http_api import metadata
 from eudat_http_api.common import create_path_links
+from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
 
 
@@ -136,35 +134,6 @@ def get_config_parameter(param_name, default_value):
     return current_app.config.get(param_name, default_value)
 
 
-def make_absolute_path(path):
-    if path != '/':
-        return '/%s' % path
-    else:
-        return '/'
-
-
-def _safe_stat(path, user_metadata):
-    try:
-        return metadata.stat(path, user_metadata)
-    except storage.MalformedPathException:
-        return dict()
-    except storage.NotFoundException:
-        return dict()
-
-
-def _create_dirlist_gen(dir_gen, path):
-    """Returns a list with the directory entries."""
-    nav_links = [storage.StorageDir('.', path),
-                 storage.StorageDir('..', common.split_path(path)[0])]
-
-    return imap(lambda x: (x.name, json.dumps(
-                           {'name': x.name,
-                            'path': x.path,
-                            'metadata': _safe_stat(x.path, True)
-                            })),
-                chain(nav_links, dir_gen))
-
-
 def not_authorized_handler(e):
     return e, 403
 
@@ -190,56 +159,21 @@ def get_file_obj(path):
     problems with metadata handling, though.
     """
 
-    def parse_range(range_str):
-        start, end = range_str.split('-')
-
-        try:
-            if start == '' and end == '':
-                start = storage.START
-                end = storage.END
-            elif start == '' and end != '':
-                start = int(end)
-                end = storage.BACKWARDS
-            elif start != '' and end == '':
-                start = int(start)
-                end = storage.END
-            else:  # start != '' and end != ''
-                start = int(start)
-                end = int(end)
-            start = int(start)
-        except ValueError:
-            raise MalformedByteRangeException(
-                'The byte range provided could not be parsed.')
-
-        return start, end
-
     range_requests = []
     cdmi_filters = []
-    if common.request_wants_cdmi():
-        try:
-            cdmi_filters = _get_cdmi_filters(request.args)
-        except MalformedArgumentValueException as e:
-            return e.msg, 400
-        try:
-            range_requests = cdmi_filters['value']
-            if range_requests:  # if not []
-                cdmi_filters['valuerange'] = range_requests[0]
+    try:
+        cdmi_filters = _get_cdmi_filters(request.args)
+    except MalformedArgumentValueException as e:
+        return e.msg, 400
+    try:
+        range_requests = cdmi_filters['value']
+        if range_requests:  # if not []
+            cdmi_filters['valuerange'] = range_requests[0]
 
-                if len(range_requests) > 1:
-                    return 'no multipart range allowed', 400
-        except KeyError:
-            pass
-    elif request.headers.get('Range'):
-        ranges = request.headers.get('Range')
-        range_verify_regex = re.compile('^bytes=(\d*-\d*)(,\d*-\d*)*$')
-        if range_verify_regex.match(ranges) is None:
-            return 'The byte range provided could not be parsed.', 400
-        range_regex = re.compile('(\d*-\d*)')
-        matches = range_regex.findall(ranges)
-        try:
-            range_requests = map(parse_range, matches)
-        except MalformedByteRangeException as e:
-            return e.msg, 400
+            if len(range_requests) > 1:
+                return 'no multipart range allowed', 400
+    except KeyError:
+        pass
 
     try:
         (stream_gen,
@@ -256,76 +190,28 @@ def get_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    response_headers = {'Content-Length': content_len}
-    # do not send the content-length to enable
-    # transfer-encoding chunked -- do not use chunked to let it
-    # work with ROOT, no effect on mem usage anyway
-    # Do not try to guess the type
-    #response_headers['Content-Type'] = 'application/octet-stream'
+    def wrap_singlepart_stream_gen(stream_gen):
+        for _, _, _, data in stream_gen:
+            yield data
 
-    response_status = 200
-    multipart = False
-    if file_size != content_len:
-        response_status = 206
-        if len(range_list) > 1:
-            multipart = True
-        else:
-            response_headers['Content-Range'] = ('bytes %d-%d/%d'
-                                                 % (range_list[0][0],
-                                                    range_list[0][1],
-                                                    file_size))
+    wrapped_stream_gen = wrap_singlepart_stream_gen(stream_gen)
 
-    multipart_frontier = 'frontier'
-    if multipart:
-        del response_headers['Content-Length']
-        response_headers['Content-Type'] = ('multipart/byteranges; boundary=%s'
-                                            % multipart_frontier)
+    response_headers = {
+        'Content-Type': 'application/cdmi-object',
+        'X-CDMI-Specification-Version': CDMI_VERSION,
+    }
+    cdmi_json_gen = _get_cdmi_json_file_generator(path,
+                                                  wrapped_stream_gen,
+                                                  file_size)
+    if cdmi_filters:
+        filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                        if a in cdmi_filters)
+    else:
+        filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
-    def wrap_multipart_stream_gen(stream_gen, delim, file_size):
-        multipart = False
-        for segment_size, segment_start, segment_end, data in stream_gen:
-            if segment_size:
-                multipart = True
-                current_app.logger.debug('started a multipart segment')
-                #yield '\n--%s\n\n%s' % (delim, data)
-                yield ('\n--%s\n'
-                       'Content-Length: %d\n'
-                       'Content-Range: bytes %d-%d/%d\n'
-                       '\n%s') % (delim, segment_size,
-                                  segment_start, segment_end,
-                                  file_size, data)
-                       #% (delim, segment_size, data)
-            else:
-                yield data
-        if multipart:
-            yield '\n--%s--\n' % delim
-            # yield 'epilogue'
-
-    wrapped_stream_gen = wrap_multipart_stream_gen(stream_gen,
-                                                   multipart_frontier,
-                                                   file_size)
-
-    if common.request_wants_cdmi():
-        response_headers = {
-            'Content-Type': 'application/cdmi-object',
-            'X-CDMI-Specification-Version': CDMI_VERSION,
-        }
-        cdmi_json_gen = _get_cdmi_json_file_generator(path,
-                                                      wrapped_stream_gen,
-                                                      file_size)
-        if cdmi_filters:
-            filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
-                            if a in cdmi_filters)
-        else:
-            filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
-
-        json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
-        return Response(stream_with_context(json_stream_wrapper),
-                        headers=response_headers)
-
-    return Response(stream_with_context(wrapped_stream_gen),
-                    headers=response_headers,
-                    status=response_status)
+    json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
+    return Response(stream_with_context(json_stream_wrapper),
+                    headers=response_headers)
 
 
 class StreamWrapper(object):
@@ -500,7 +386,7 @@ def del_cdmi_file_obj(path):
     return empty_response
 
 
-def get_cdmi_dir_obj(path):
+def get_dir_obj(path):
     """Get a directory entry through CDMI.
 
     Get the listing of a directory.
@@ -508,11 +394,10 @@ def get_cdmi_dir_obj(path):
     TODO: find a way to stream the listing.
     """
     cdmi_filters = []
-    if common.request_wants_cdmi():
-        try:
-            cdmi_filters = _get_cdmi_filters(request.args)
-        except MalformedArgumentValueException as e:
-            return e.msg, 400
+    try:
+        cdmi_filters = _get_cdmi_filters(request.args)
+    except MalformedArgumentValueException as e:
+        return e.msg, 400
 
     try:
         dir_gen = storage.ls(path)
@@ -525,34 +410,28 @@ def get_cdmi_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    if common.request_wants_cdmi():
-        response_headers = {
-            'Content-Type': 'application/cdmi-container',
-            'X-CDMI-Specification-Version': CDMI_VERSION,
-        }
-        cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_gen)
-        if cdmi_filters:
-            filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
-                            if a in cdmi_filters)
-        else:
-            filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
-
-        json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
-        return Response(stream_with_context(json_stream_wrapper),
-                        headers=response_headers)
-
-    elif common.request_wants_json():
-        dir_gen_wrapper = _create_dirlist_gen(dir_gen, path)
-        json_stream_wrapper = _wrap_with_json_generator(dir_gen_wrapper)
-        buffered_stream = json_stream_wrapper
-        #buffered_stream = _wrap_with_buffer(json_stream_wrapper)
-        return Response(stream_with_context(buffered_stream))
+    response_headers = {
+        'Content-Type': 'application/cdmi-container',
+        'X-CDMI-Specification-Version': CDMI_VERSION,
+    }
+    cdmi_json_gen = _get_cdmi_json_dir_generator(path, dir_gen)
+    if cdmi_filters:
+        filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                        if a in cdmi_filters)
     else:
+<<<<<<< HEAD
         return render_template('dirlisting.html',
                                dirlist=dir_gen,
                                path=path,
                                path_links=create_path_links(path),
                                parent_path=common.split_path(path)[0])
+=======
+        filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
+
+    json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
+    return Response(stream_with_context(json_stream_wrapper),
+                    headers=response_headers)
+>>>>>>> split get_obj functions into different modules per accept-type
 
 
 def _get_cdmi_filters(args_dict):
