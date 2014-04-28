@@ -181,7 +181,7 @@ def check_cdmi(f):
     return decorated
 
 
-def get_cdmi_file_obj(path):
+def get_file_obj(path):
     """Get a file from storage through CDMI.
 
     We might want to implement 3rd party copy in
