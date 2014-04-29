@@ -87,9 +87,3 @@ def del_cdmi_obj(access_module, objpath):
 @http_storage_write.errorhandler(403)
 def not_authorized_handler(e):
     return cdmi.not_authorized_handler(e)
-
-
-@http_storage_read.teardown_request
-@http_storage_write.teardown_request
-def teardown(exception=None):
-    return cdmi.teardown(exception)

@@ -631,7 +631,3 @@ def del_dir_obj(path):
     empty_response = Response(status=204)
     del empty_response.headers['content-type']
     return empty_response
-
-
-def teardown(exception=None):
-    return storage.teardown(exception)

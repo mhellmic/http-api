@@ -264,12 +264,6 @@ def wrap_generator(gen, conn):
     connection_pool.release_connection(conn)
 
 
-def teardown(exception=None):
-    """Close the storage connection.
-    """
-    pass
-
-
 def authenticate(username, password, conn=None):
     """Authenticate with username, password.
 
