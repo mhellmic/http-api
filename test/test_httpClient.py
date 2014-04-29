@@ -1,15 +1,14 @@
 
-
 import unittest
 
-from eudat_http_api.epicclient import HttpClient
+from eudat_http_api.epicclient import HTTPClient
 from requests.auth import HTTPBasicAuth
 
 class TestCase(unittest.TestCase):
 
     def setUp(self):
-        self.client = HttpClient('http://www.google.com', HTTPBasicAuth('user', 'pass'))
-
+        self.client = HTTPClient('http://www.google.com',
+                                 HTTPBasicAuth('user', 'pass'))
 
     def tearDown(self):
         pass
@@ -21,12 +20,12 @@ class TestCase(unittest.TestCase):
         assert response.request.headers['Authorization'].startswith('Basic')
 
     def test_get_with_custom_header(self):
-        response = self.client.get(prefix='/', suffix='', headers={'X-Special': 'foo'})
+        response = self.client.get(prefix='/', suffix='',
+                                   headers={'X-Special': 'foo'})
         assert response.status_code == 200
         assert response.request.headers['X-Special'] == 'foo'
 
-
-
-
+if __name__ == '__main__':
+    unittest.main()
 
 

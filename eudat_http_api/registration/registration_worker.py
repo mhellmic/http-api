@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from __future__ import with_statement
 
 import threading
@@ -7,7 +5,7 @@ import hashlib
 
 from eudat_http_api.registration.models import db, RegistrationRequest
 
-#jj: we probably want to move back to such a way of defining workflow (is more extensible)
+#jj: we probably want to move back to such a way of defining workflow
 workflow = ['check_source', 'upload', 'crate_handle']
 
 
@@ -27,7 +25,8 @@ class RegistrationWorker(threading.Thread):
         db.session.commit()
 
     def run(self):
-        self.logger.debug('starting to process request with id = %s' % self.request.id)
+        self.logger.debug('starting to process request with id = %s'
+                          % self.request.id)
         self.continue_request(self.check_src)
 
     def check_src(self):
@@ -35,13 +34,15 @@ class RegistrationWorker(threading.Thread):
         # check existence and correct permissions on source
         response = self.cdmi_client.cdmi_head('%s' % self.request.src_url)
         if response.status_code > 299:
-            self.abort_request('Source is not available: %d' % response.status_code)
+            self.abort_request(
+                'Source is not available: %d' % response.status_code)
             return
         else:
             self.logger.debug('Source exist')
 
-        #check metadata will be moved in the future to become a separate workflow step
-        response = self.cdmi_client.cdmi_get('%s?%s' % (self.request.src_url, 'metadata'))
+        # metadata check can become a separate workflow step
+        response = self.cdmi_client.cdmi_get(
+            '%s?%s' % (self.request.src_url, 'metadata'))
         metadata_json = response.json()
         self.logger.debug('metadata exist? %s' % metadata_json)
 
@@ -51,8 +52,10 @@ class RegistrationWorker(threading.Thread):
         self.update_status('Copying data object to new location')
         destination = self.get_destination(self.request.src_url)
         response = self.cdmi_client.cdmi_get(self.request.src_url)
-        self.logger.debug('Moving %s to %s' % (self.request.src_url, destination))
-        upload = self.cdmi_client.cdmi_put(destination, data=response.json()['value'])
+        self.logger.debug(
+            'Moving %s to %s' % (self.request.src_url, destination))
+        upload = self.cdmi_client.cdmi_put(destination,
+                                           data=response.json()['value'])
         if upload.status_code != 201:
             self.abort_request('Unable to move the data to register space')
             return
@@ -72,12 +75,12 @@ class RegistrationWorker(threading.Thread):
         self.update_status('Request finished check %s' % self.destination)
 
     def abort_request(self, reason_string):
-        self.logger.error('Aborting request id = %s reason= %s' % (self.request.id, reason_string))
+        self.logger.error('Aborting request id = %s reason= %s' % (
+            self.request.id, reason_string))
 
     def continue_request(self, next_step):
-        self.logger.debug('Request id = %s advanced to = %s' % (self.request.id, next_step.__name__))
-        #jj: not sure perhaps we could be more flexible with argument passing (and require lambda or something?)
-        #jj: we could also define the workflow in a more flexible way?
+        self.logger.debug('Request id = %s advanced to = %s' % (
+            self.request.id, next_step.__name__))
         next_step()
 
     def get_destination(self, source_url):

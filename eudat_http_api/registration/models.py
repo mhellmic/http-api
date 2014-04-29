@@ -27,4 +27,5 @@ class RegistrationRequest(db.Model):
 
 class RegistrationRequestSerializer(Serializer):
     class Meta:
-        fields = ('id', 'src_url', 'status_description', 'timestamp', 'checksum', 'pid')
+        fields = ('id', 'src_url', 'status_description', 'timestamp',
+                  'checksum', 'pid')

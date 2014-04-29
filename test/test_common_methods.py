@@ -10,15 +10,17 @@ class TestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_ContentType(self):
+    def test_content_type(self):
         json = ContentTypes.json
         json2 = ContentTypes.json
-        cdmiObject = ContentTypes.cdmi_object
+        cdmi_object = ContentTypes.cdmi_object
         assert json == json2
         assert json == json
-        assert json != cdmiObject
+        assert json != cdmi_object
 
-        assert json == "application/json"
-        assert json2 == "application/json"
-        assert cdmiObject == "application/cdmi-object"
+        assert json == 'application/json'
+        assert json2 == 'application/json'
+        assert cdmi_object == 'application/cdmi-object'
 
+if __name__ == '__main__':
+    unittest.main()

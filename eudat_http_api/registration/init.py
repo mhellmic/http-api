@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from flask import Blueprint
 import flask
 from flask import current_app
@@ -84,20 +82,22 @@ def post_request():
     db.session.add(r)
     db.session.commit()
 
-    httpClient = HTTPClient(current_app.config['HANDLE_URI'],
-                            HTTPBasicAuth(current_app.config['HANDLE_USER'],
-                                          current_app.config['HANDLE_PASS']))
+    http_client = HTTPClient(current_app.config['HANDLE_URI'],
+                             HTTPBasicAuth(current_app.config['HANDLE_USER'],
+                                           current_app.config['HANDLE_PASS']))
 
-    cdmiclient = CDMIClient(auth=HTTPBasicAuth(request.authorization.username,
-                                               request.authorization.password))
+    cdmi_client = CDMIClient(HTTPBasicAuth(request.authorization.username,
+                                           request.authorization.password))
 
-    # FIXME: due to the fuckedup blueprints I don't know how to define the destination url, something like:
+    # FIXME: due to the fuckedup blueprints I don't know how to define
+    # the destination url, something like:
     # url_for('http_storage.put_cdmi_obj',objpath='/')
     p = RegistrationWorker(request_id=r.id,
-                           epic_client=EpicClient(httpClient=httpClient),
-                           logger=current_app.logger, cdmi_client=cdmiclient,
+                           epic_client=EpicClient(httpClient=http_client),
+                           logger=current_app.logger, cdmi_client=cdmi_client,
                            base_url='http://localhost:8080/tmp/')
-    #we have to close it explicitly already here otherwise the request object is bound to this session
+    # we have to close it explicitly already here otherwise the request object
+    # is bound to this session
     db.session.close()
     p.start()
 
