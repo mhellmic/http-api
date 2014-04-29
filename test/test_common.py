@@ -7,7 +7,7 @@ import os
 import shutil
 
 from eudat_http_api import create_app
-from eudat_http_api.common import split_path
+from eudat_http_api.http_storage.common import split_path
 
 
 class ByteRange:
