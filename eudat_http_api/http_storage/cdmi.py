@@ -140,16 +140,16 @@ def not_authorized_handler(e):
 def check_cdmi(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if common.request_wants_cdmi():
-            version = request.headers.get('X-CDMI-Specification-Version', '')
-            if version != CDMI_VERSION:
-                abort(400)
+        version = request.headers.get('X-CDMI-Specification-Version', None)
+        if version != CDMI_VERSION:
+            abort(400)
 
         return f(*args, **kwargs)
 
     return decorated
 
 
+@check_cdmi
 def get_file_obj(path):
     """Get a file from storage through CDMI.
 
@@ -385,6 +385,7 @@ def del_cdmi_file_obj(path):
     return empty_response
 
 
+@check_cdmi
 def get_dir_obj(path):
     """Get a directory entry through CDMI.
 
