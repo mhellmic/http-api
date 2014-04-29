@@ -4,6 +4,7 @@ from functools import wraps
 
 from flask import abort
 from flask import Blueprint
+from flask import current_app
 
 from eudat_http_api import common
 from eudat_http_api.http_storage import common as http_common
@@ -19,16 +20,24 @@ http_storage_write = Blueprint('http_storage_write', __name__,
                                template_folder='templates')
 
 
+def choose_access_module():
+    access_module = None
+    if common.request_is_cdmi():
+        if current_app.config.get('ACTIVATE_CDMI', False):
+            access_module = cdmi
+    elif common.request_wants_json():
+        if current_app.config.get('ACTIVATE_JSON', False):
+            access_module = json
+    else:
+        access_module = noncdmi
+
+    return access_module
+
+
 def check_access_type(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        access_module = None
-        if common.request_is_cdmi():
-            access_module = cdmi
-        elif common.request_wants_json():
-            access_module = json
-        else:
-            access_module = noncdmi
+        access_module = choose_access_module()
 
         try:
             return f(access_module, *args, **kwargs)
