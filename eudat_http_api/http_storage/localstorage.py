@@ -239,10 +239,6 @@ def rmdir(path):
         _handle_oserror(path, e)
 
 
-def teardown(exception=None):
-    pass
-
-
 def _open(path, mode):
     return open(path, mode)
 
