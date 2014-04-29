@@ -154,3 +154,110 @@ def get_dir_obj(path):
         dirlist=dir_gen,
         path=path,
         parent_path=common.add_trailing_slash(common.split_path(path)[0]))
+
+
+def put_file_obj(path):
+    """Put a file into storage.
+
+    request.shallow is set to True at the beginning until after
+    the wrapper has been created to make sure that nothing accesses
+    the data beforehand.
+    I do _not_ know the exact meaning of these things.
+    """
+
+    request.shallow = True
+    request.environ['wsgi.input'] = \
+        common.StreamWrapper(request.environ['wsgi.input'])
+    request.shallow = False
+
+    def stream_generator(handle, buffer_size=4194304):
+        while True:
+            data = handle.read(buffer_size)
+            if data == '':
+                break
+            yield data
+
+    value_gen = stream_generator(request.stream)
+
+    bytes_written = 0
+    try:
+        bytes_written = storage.write(path, value_gen)
+    except storage.NotFoundException as e:
+        return e.msg, 404
+    except storage.NotAuthorizedException as e:
+        return e.msg, 403
+    except storage.ConflictException as e:
+        return e.msg, 409
+    except storage.StorageException as e:
+        return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
+
+    return 'Created: %d' % (bytes_written), 201
+
+
+def put_dir_obj(path):
+    """Put a directory entry.
+
+    Create a directory.
+    """
+
+    try:
+        storage.mkdir(path)
+    except storage.NotFoundException as e:
+        return e.msg, 404
+    except storage.NotAuthorizedException as e:
+        return e.msg, 403
+    except storage.ConflictException as e:
+        return e.msg, 409
+    except storage.StorageException as e:
+        return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
+
+    return 'Created', 201
+
+
+def del_file_obj(path):
+    """Delete a file."""
+
+    try:
+        storage.rm(path)
+    except storage.IsDirException as e:
+        params = urlparse(request.url).query
+        return redirect('%s/?%s' % (path, params))
+    except storage.NotFoundException as e:
+        return e.msg, 404
+    except storage.NotAuthorizedException as e:
+        return e.msg, 403
+    except storage.ConflictException as e:
+        return e.msg, 409
+    except storage.StorageException as e:
+        return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
+
+    empty_response = Response(status=204)
+    del empty_response.headers['content-type']
+    return empty_response
+
+
+def del_dir_obj(path):
+    """Delete a directory."""
+
+    try:
+        storage.rmdir(path)
+    except storage.NotFoundException as e:
+        return e.msg, 404
+    except storage.NotAuthorizedException as e:
+        return e.msg, 403
+    except storage.ConflictException as e:
+        return e.msg, 409
+    except storage.StorageException as e:
+        return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
+
+    empty_response = Response(status=204)
+    del empty_response.headers['content-type']
+    return empty_response

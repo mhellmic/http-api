@@ -51,7 +51,7 @@ def check_access_type(f):
 @http_storage_read.route('/<path:objpath>', methods=['GET'])
 @auth.requires_auth
 @check_access_type
-def get_obj(access_module, objpath='/'):
+def get_obj(access_module, objpath):
     absolute_objpath = http_common.make_absolute_path(objpath)
     if absolute_objpath[-1] == '/':
         return access_module.get_dir_obj(absolute_objpath)
@@ -62,25 +62,25 @@ def get_obj(access_module, objpath='/'):
 @http_storage_write.route('/', methods=['PUT'], defaults={'objpath': '/'})
 @http_storage_write.route('/<path:objpath>', methods=['PUT'])
 @auth.requires_auth
-@cdmi.check_cdmi
-def put_cdmi_obj(objpath):
-    absolute_objpath = cdmi.make_absolute_path(objpath)
+@check_access_type
+def put_obj(access_module, objpath):
+    absolute_objpath = http_common.make_absolute_path(objpath)
     if absolute_objpath[-1] == '/':
-        return cdmi.put_cdmi_dir_obj(absolute_objpath)
+        return access_module.put_dir_obj(absolute_objpath)
     else:
-        return cdmi.put_cdmi_file_obj(absolute_objpath)
+        return access_module.put_file_obj(absolute_objpath)
 
 
 @http_storage_write.route('/', methods=['DELETE'], defaults={'objpath': '/'})
 @http_storage_write.route('/<path:objpath>', methods=['DELETE'])
 @auth.requires_auth
-@cdmi.check_cdmi
-def del_cdmi_obj(objpath):
-    absolute_objpath = cdmi.make_absolute_path(objpath)
+@check_access_type
+def del_cdmi_obj(access_module, objpath):
+    absolute_objpath = http_common.make_absolute_path(objpath)
     if absolute_objpath[-1] == '/':
-        return cdmi.del_cdmi_dir_obj(absolute_objpath)
+        return access_module.del_dir_obj(absolute_objpath)
     else:
-        return cdmi.del_cdmi_file_obj(absolute_objpath)
+        return access_module.del_file_obj(absolute_objpath)
 
 
 @http_storage_read.errorhandler(403)

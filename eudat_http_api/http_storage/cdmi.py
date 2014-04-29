@@ -233,7 +233,8 @@ class StreamWrapper(object):
         return rv
 
 
-def put_cdmi_file_obj(path):
+@check_cdmi
+def put_file_obj(path):
     """Put a file into storage through CDMI.
 
     Should also copy CDMI metadata.
@@ -258,21 +259,19 @@ def put_cdmi_file_obj(path):
                 break
             yield data
 
-    if common.request_wants_cdmi():
-        cdmi_json, value_gen = _parse_cdmi_msg_body_fields(request.stream)
-        if 'copy' in cdmi_json:
-            value_uri = '%s' % cdmi_json['copy']
-            user = request.authorization['username']
-            pw = request.authorization['password']
-            auth = requests.auth.HTTPBasicAuth(user, pw)
-            stream = _get_value_stream(value_uri, auth)
-            value_gen = stream_generator(stream)
-    else:
-        value_gen = stream_generator(request.stream)
+    cdmi_json, value_gen = _parse_cdmi_msg_body_fields(request.stream)
+    if 'copy' in cdmi_json:
+        value_uri = '%s' % cdmi_json['copy']
+        user = request.authorization['username']
+        pw = request.authorization['password']
+        auth = requests.auth.HTTPBasicAuth(user, pw)
+        stream = _get_value_stream(value_uri, auth)
+        value_gen = stream_generator(stream)
 
-    bytes_written = 0
+    #bytes_written = 0
     try:
-        bytes_written = storage.write(path, value_gen)
+        #bytes_written = storage.write(path, value_gen)
+        storage.write(path, value_gen)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
@@ -284,33 +283,31 @@ def put_cdmi_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    if common.request_wants_cdmi():
-        response_headers = {
-            'Content-Type': 'application/cdmi-object',
-            'X-CDMI-Specification-Version': CDMI_VERSION,
-        }
-        cdmi_json_gen = _get_cdmi_json_file_generator(path,
-                                                      None,
-                                                      None)
-        cdmi_filters = {
-            'objectType': None,
-            'objectID': None,
-            'objectName': None,
-            'parentURI': None,
-            'parentID': None,
-            'domainURI': None,
-            'capabilitiesURI': None,
-            'completionStatus': None,
-            'mimetype': None,
-            'metadata': True,
-        }
-        filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
-                        if a in cdmi_filters)
+    response_headers = {
+        'Content-Type': 'application/cdmi-object',
+        'X-CDMI-Specification-Version': CDMI_VERSION,
+    }
+    cdmi_json_gen = _get_cdmi_json_file_generator(path,
+                                                  None,
+                                                  None)
+    cdmi_filters = {
+        'objectType': None,
+        'objectID': None,
+        'objectName': None,
+        'parentURI': None,
+        'parentID': None,
+        'domainURI': None,
+        'capabilitiesURI': None,
+        'completionStatus': None,
+        'mimetype': None,
+        'metadata': True,
+    }
+    filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                    if a in cdmi_filters)
 
-        json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
-        return Response(stream_with_context(json_stream_wrapper),
-                        headers=response_headers), 201
-    return 'Created: %d' % (bytes_written), 201
+    json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
+    return Response(stream_with_context(json_stream_wrapper),
+                    headers=response_headers), 201
 
 
 def _parse_cdmi_msg_body_fields(handle, buffer_size=4194304):
@@ -359,7 +356,8 @@ def _get_value_stream(uri, auth):
     return response.raw
 
 
-def del_cdmi_file_obj(path):
+@check_cdmi
+def del_file_obj(path):
     """Delete a file through CDMI."""
 
     try:
@@ -591,7 +589,8 @@ def _wrap_with_buffer(gen, buffer_size=1400):
     yield output
 
 
-def put_cdmi_dir_obj(path):
+@check_cdmi
+def put_dir_obj(path):
     """Put a directory entry through CDMI.
 
     Create a directory.
@@ -610,10 +609,10 @@ def put_cdmi_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    return flask_jsonify(create='Created')
+    return flask_jsonify(create='Created'), 201
 
 
-def del_cdmi_dir_obj(path):
+def del_dir_obj(path):
     """Delete a directory through CDMI."""
 
     try:
