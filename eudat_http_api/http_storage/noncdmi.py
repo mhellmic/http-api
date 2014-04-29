@@ -150,7 +150,7 @@ def get_dir_obj(path):
         return e.msg, 400
 
     return render_template(
-        'dirlisting.html',
+        'html/dirlisting.html',
         dirlist=dir_gen,
         path=path,
         parent_path=common.add_trailing_slash(common.split_path(path)[0]))
@@ -193,7 +193,10 @@ def put_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    return 'Created: %d' % (bytes_written), 201
+    return render_template(
+        'html/fileput.html',
+        uri=path,
+        size=bytes_written), 201
 
 
 def put_dir_obj(path):
@@ -215,7 +218,9 @@ def put_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
-    return 'Created', 201
+    return render_template(
+        'html/dirput.html',
+        uri=path), 201
 
 
 def del_file_obj(path):
