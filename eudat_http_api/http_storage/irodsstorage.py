@@ -14,7 +14,7 @@ from flask import request
 
 from irods import *
 
-from eudat_http_api import common
+from eudat_http_api.http_storage import common
 
 from eudat_http_api.http_storage.storage_common import *
 
