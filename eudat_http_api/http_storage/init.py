@@ -85,5 +85,9 @@ def del_cdmi_obj(access_module, objpath):
 
 @http_storage_read.errorhandler(403)
 @http_storage_write.errorhandler(403)
-def not_authorized_handler(e):
-    return cdmi.not_authorized_handler(e)
+@check_access_type
+def not_authorized_handler(access_module, e):
+    try:
+        return access_module.not_authorized_handler(e)
+    except AttributeError:
+        return e, 403
