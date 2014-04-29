@@ -4,8 +4,10 @@ from __future__ import with_statement
 
 from base64 import b64encode  # , b64decode
 from collections import deque
+from functools import partial
 from functools import wraps
 from inspect import isgenerator
+from itertools import islice
 import re
 import requests
 
@@ -19,9 +21,6 @@ from flask import Response
 from flask import jsonify as flask_jsonify
 from flask import json as flask_json
 from flask import stream_with_context
-
-from functools import partial
-from itertools import islice
 
 from eudat_http_api import metadata
 from eudat_http_api.http_storage import common
