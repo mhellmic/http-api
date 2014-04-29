@@ -1,4 +1,4 @@
-from requests import get, post, put, delete
+from requests import get, post, put
 import json
 
 
@@ -6,11 +6,7 @@ def create_uri(base_uri, prefix, suffix=''):
     return '/'.join([base_uri, prefix, suffix])
 
 
-
-
-
 def log_exceptions(func):
-
     def logger(*args, **kwargs):
         try:
             return func(*args, **kwargs)
@@ -21,7 +17,7 @@ def log_exceptions(func):
     return logger
 
 
-class HttpClient():
+class HTTPClient():
     """http client for the communication"""
 
     def __init__(self, base_uri, credentials):
@@ -81,13 +77,15 @@ class EpicClient():
         if self.accept_format:
             headers = {'Accept': self.accept_format}
 
-        response = self.client.get(prefix=prefix, suffix=suffix, headers=headers)
+        response = self.client.get(prefix=prefix, suffix=suffix,
+                                   headers=headers)
 
         if response is None:
             return None
 
         if response.status_code != 200:
-            self._debug_msg('retrieveHandle', 'Response status: %s' % response.status_code)
+            self._debug_msg('retrieveHandle', 'Response status: %s' %
+                                              response.status_code)
             return None
 
         return response.content
@@ -102,31 +100,36 @@ class EpicClient():
         Returns the URI of the new handle, None if an error occurred.
 
         """
-        #if-none-match is here for "conditional" PUT only if url don't exist yet
+        #if-none-match is here for "conditional" PUT
         headers = {'If-None-Match': '*',
                    'Content-Type': 'application/json'}
 
         new_handle_json = convert_to_handle(location, checksum)
-        response = self.client.put(prefix=prefix, suffix=suffix, headers=headers, data=new_handle_json)
+        response = self.client.put(prefix=prefix, suffix=suffix,
+                                   headers=headers, data=new_handle_json)
 
         if response is None:
             return None
 
         if response.status_code != 201:
-            self._debug_msg('createHandleWithLocation', 'Not Created: Response status: %s' % response.status_code)
+            self._debug_msg('createHandleWithLocation',
+                            'Not Created: Response status: %s' %
+                            response.status_code)
             return None
         return response.headers['Location']
 
     def create_new(self, prefix, location, checksum):
         headers = {'Content-Type': 'application/json'}
         new_handle_json = convert_to_handle(location, checksum)
-        response = self.client.post(prefix=prefix, headers=headers, data=new_handle_json)
+        response = self.client.post(prefix=prefix, headers=headers,
+                                    data=new_handle_json)
 
         if response is None:
             return None
 
         if response.status_code != 201:
-            self._debug_msg('createNew', 'Not Created: Response status %s' % response.status_coce)
+            self._debug_msg('createNew', 'Not Created: Response status %s' %
+                            response.status_coce)
             return None
 
         return response.headers['Location']
