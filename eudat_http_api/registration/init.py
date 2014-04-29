@@ -6,10 +6,10 @@ from flask import current_app
 from flask import request
 from flask import json
 from flask import abort, url_for
-import eudat_http_api
+
 from eudat_http_api.common import request_wants, ContentTypes
 from eudat_http_api.epicclient import EpicClient
-from eudat_http_api.epicclient import HttpClient
+from eudat_http_api.epicclient import HTTPClient
 from eudat_http_api.cdmiclient import CDMIClient
 
 from eudat_http_api.registration.models import db
@@ -18,7 +18,6 @@ from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import RegistrationWorker
 
 from models import RegistrationRequest, RegistrationRequestSerializer
-from config import REQUESTS_PER_PAGE
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
@@ -31,9 +30,11 @@ def get_hal_links(reg_requests, page):
     navi = dict()
     navi['self'] = {'href': url_for('get_requests', page=page)}
     if reg_requests.has_next:
-        navi['next'] = {'href': url_for('get_requests', page=reg_requests.next_num)}
+        navi['next'] = {
+            'href': url_for('get_requests', page=reg_requests.next_num)}
     if reg_requests.has_prev:
-        navi['prev'] = {'href': url_for('get_requests', page=reg_requests.prev_num)}
+        navi['prev'] = {
+            'href': url_for('get_requests', page=reg_requests.prev_num)}
 
     return navi
 
@@ -43,13 +44,16 @@ def get_hal_links(reg_requests, page):
 def get_requests():
     """Get a requests list."""
     page = int(request.args.get('page', '1'))
-    reg_requests = RegistrationRequest.query.order_by(RegistrationRequest.timestamp.desc()).paginate(page,
-                                                                                                     REQUESTS_PER_PAGE,
-                                                                                                     False)
+    reg_requests = RegistrationRequest.query.order_by(
+        RegistrationRequest.timestamp.desc()).paginate(page,
+                                                       current_app.config[
+                                                           'REQUESTS_PER_PAGE'],
+                                                       False)
 
     if request_wants(ContentTypes.json):
         return flask.jsonify(
-            {"requests": RegistrationRequestSerializer(reg_requests.items, many=True).data,
+            {"requests": RegistrationRequestSerializer(reg_requests.items,
+                                                       many=True).data,
              "_links": get_hal_links(reg_requests, page)})
 
     return flask.render_template('requests.html', requests=reg_requests)
@@ -74,20 +78,25 @@ def post_request():
     else:
         req_body = flask.request.form
 
-    r = RegistrationRequest(src_url=req_body['src_url'], status_description='Registration request created',
+    r = RegistrationRequest(src_url=req_body['src_url'],
+                            status_description='Registration request created',
                             timestamp=datetime.utcnow())
     db.session.add(r)
     db.session.commit()
 
-    httpClient = HttpClient(current_app.config['HANDLE_URI'], HTTPBasicAuth(current_app.config['HANDLE_USER'],
-                                                                            current_app.config['HANDLE_PASS']))
+    httpClient = HTTPClient(current_app.config['HANDLE_URI'],
+                            HTTPBasicAuth(current_app.config['HANDLE_USER'],
+                                          current_app.config['HANDLE_PASS']))
 
-    cdmiclient = CDMIClient(auth=HTTPBasicAuth(request.authorization.username, request.authorization.password))
+    cdmiclient = CDMIClient(auth=HTTPBasicAuth(request.authorization.username,
+                                               request.authorization.password))
 
     # FIXME: due to the fuckedup blueprints I don't know how to define the destination url, something like:
     # url_for('http_storage.put_cdmi_obj',objpath='/')
-    p = RegistrationWorker(request_id=r.id, epic_client=EpicClient(httpClient=httpClient),
-                           logger=current_app.logger, cdmi_client=cdmiclient, base_url='http://localhost:8080/tmp/')
+    p = RegistrationWorker(request_id=r.id,
+                           epic_client=EpicClient(httpClient=httpClient),
+                           logger=current_app.logger, cdmi_client=cdmiclient,
+                           base_url='http://localhost:8080/tmp/')
     #we have to close it explicitly already here otherwise the request object is bound to this session
     db.session.close()
     p.start()
@@ -109,9 +118,11 @@ def get_request(request_id):
         return abort(404)
 
     if request_wants(ContentTypes.json):
-        return flask.jsonify({'request': RegistrationRequestSerializer(r).data})
+        return flask.jsonify(
+            {'request': RegistrationRequestSerializer(r).data})
 
     return flask.render_template('singleRequest.html', r=r)
+
 
 #### /registered container ####
 #jj: this is a separate component?
