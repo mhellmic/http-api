@@ -28,6 +28,10 @@ def create_app(config_name):
             from eudat_http_api.http_storage.init import http_storage_write
             app.register_blueprint(http_storage_write)
 
+        if app.config.get('ACTIVATE_CDMI'):
+            from eudat_http_api.http_storage.cdmi import cdmi_uris
+            app.register_blueprint(cdmi_uris)
+
         if app.config.get('ACTIVATE_REGISTRATION', False):
             from eudat_http_api.registration.init import registration
             app.register_blueprint(registration)

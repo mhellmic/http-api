@@ -14,6 +14,7 @@ import requests
 from urlparse import urlparse
 
 from flask import abort
+from flask import Blueprint
 from flask import current_app
 from flask import redirect
 from flask import request
@@ -22,6 +23,7 @@ from flask import jsonify as flask_jsonify
 from flask import json as flask_json
 from flask import stream_with_context
 
+from eudat_http_api import auth
 from eudat_http_api import metadata
 from eudat_http_api.common import create_path_links
 from eudat_http_api.http_storage import common
@@ -29,6 +31,138 @@ from eudat_http_api.http_storage import storage
 
 
 CDMI_VERSION = '1.0.2'
+
+
+cdmi_uris = Blueprint('cdmi_uris', __name__,
+                      template_folder='templates')
+
+
+def check_cdmi(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        version = request.headers.get('X-CDMI-Specification-Version', None)
+        if version != CDMI_VERSION:
+            abort(400)
+
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+@cdmi_uris.route('/cdmi_capabilities/', methods=['GET'])
+@auth.requires_auth
+@check_cdmi
+def get_system_capabilities():
+    cdmi_system_capabilities = {
+        'cdmi_domains': False,
+        'cdmi_queues': False,
+        'cdmi_dataobjects': True,
+        'cdmi_export_webdav': False,
+        #'cdmi_metadata_maxitems': 1024,
+        #'cdmi_metadata_maxsize': 4096,
+        #'cdmi_metadata_maxtotalsize': 2048,
+        'cdmi_security_access_control': False,
+        'cdmi_serialization_json': False,
+        'cdmi_snapshots': False,
+        'cdmi_references': False,
+        'cdmi_object_copy_from_local': True,
+        'cdmi_object_copy_from_remote': True,
+        'cdmi_object_access_by_ID': False,
+        }
+
+    cdmi_capabilities_envelope = {
+        'objectType': 'application/cdmi-capability',
+        'objectID': None,
+        'objectName': 'cdmi_capabilities/',
+        'parentURI': '/',
+        'parentID': None,
+        'capabilities': cdmi_system_capabilities,
+        'childrenrange': '0-1',
+        'children': ['container/', 'dataobject/'],
+        }
+
+    return flask_jsonify(cdmi_capabilities_envelope)
+
+
+@cdmi_uris.route('/cdmi_capabilities/container/', methods=['GET'])
+@auth.requires_auth
+@check_cdmi
+def get_container_capabilities():
+    cdmi_container_capabilities = {
+        'cdmi_list_children': True,
+        'cdmi_list_children_range': True,
+        'cdmi_read_metadata': True,
+        'cdmi_modify_metadata': False,
+        'cdmi_create_dataobject': True,
+        'cdmi_post_dataobject': False,
+        'cdmi_create_container': True,
+        'cdmi_create_reference': False,
+        'cdmi_export_container_webdav': False,
+        'cdmi_delete_container': True,
+        'cdmi_move_container': False,
+        'cdmi_copy_container': False,
+        'cdmi_move_dataobject': False,
+        'cdmi_copy_dataobject': True,
+        }
+
+    cdmi_storage_capabilities = {
+        'cdmi_size': False,
+        }
+
+    cdmi_container_capabilities.update(cdmi_storage_capabilities)
+
+    cdmi_capabilities_envelope = {
+        'objectType': 'application/cdmi-capability',
+        'objectID': None,
+        'objectName': 'container/',
+        'parentURI': '/cdmi_capabilities/',
+        'parentID': None,
+        'capabilities': cdmi_container_capabilities,
+        'childrenrange': '0-0',
+        'children': [],
+        }
+
+    return flask_jsonify(cdmi_capabilities_envelope)
+
+
+@cdmi_uris.route('/cdmi_capabilities/dataobject/', methods=['GET'])
+@auth.requires_auth
+@check_cdmi
+def get_dataobject_capabilities():
+    cdmi_dataobject_capabilities = {
+        'cdmi_read_value': True,
+        'cdmi_read_value_range': True,
+        'cdmi_read_metadata': True,
+        'cdmi_modify_value': False,
+        'cdmi_modify_value_range': False,
+        'cdmi_modify_metadata': False,
+        'cdmi_delete_dataobject': True,
+        }
+
+    cdmi_storage_capabilities = {
+        'cdmi_size': False,
+        }
+
+    cdmi_dataobject_capabilities.update(cdmi_storage_capabilities)
+
+    cdmi_capabilities_envelope = {
+        'objectType': 'application/cdmi-capability',
+        'objectID': None,
+        'objectName': 'dataobject/',
+        'parentURI': '/cdmi_capabilities/',
+        'parentID': None,
+        'capabilities': cdmi_dataobject_capabilities,
+        'childrenrange': '0-0',
+        'children': [],
+        }
+
+    return flask_jsonify(cdmi_capabilities_envelope)
+
+
+@cdmi_uris.route('/cdmi_domains/<domain>')
+@auth.requires_auth
+def get_domain(domain):
+    return flask_jsonify('We dont support domains just yet')
 
 
 class CdmiException(Exception):
@@ -95,7 +229,7 @@ cdmi_body_fields = set([
 
 cdmi_container_envelope = {
     'objectType': 'application/cdmi-container',
-    'objectId': '%s',
+    'objectID': '%s',
     'objectName': '%s',
     'parentURI': '%s',
     'parentID': '%s',
@@ -113,7 +247,7 @@ cdmi_container_envelope = {
 
 cdmi_data_envelope = {
     'objectType': 'application/cdmi-container',
-    'objectId': '%s',
+    'objectID': '%s',
     'objectName': '%s',
     'parentURI': '%s',
     'parentID': '%s',
@@ -129,24 +263,24 @@ cdmi_data_envelope = {
     }
 
 
+cdmi_capabilities_envelope = {
+    'objectType': 'application/cdmi-capability',
+    'objectID': '%s',
+    'objectName': '%s',
+    'parentURI': '%s',
+    'parentID': '%s',
+    'capabilities': {},
+    'childrenrange': '%s',
+    'children': [],  # child container objects end with '/'
+    }
+
+
 def get_config_parameter(param_name, default_value):
     return current_app.config.get(param_name, default_value)
 
 
 def not_authorized_handler(e):
     return e, 403
-
-
-def check_cdmi(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        version = request.headers.get('X-CDMI-Specification-Version', None)
-        if version != CDMI_VERSION:
-            abort(400)
-
-        return f(*args, **kwargs)
-
-    return decorated
 
 
 @check_cdmi
