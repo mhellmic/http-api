@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-
 import requests
+
 
 class CDMIClient:
     def __init__(self, auth):
@@ -30,4 +29,4 @@ class CDMIClient:
             'X-CDMI-Specification-Version': '1.0.2',
         }
 
-        return requests.put(url, data=data, auth=self.auth)
+        return requests.put(url, headers=headers, data=data, auth=self.auth)

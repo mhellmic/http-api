@@ -1,87 +1,120 @@
-from __future__ import with_statement
+from Queue import Queue
 
 import threading
 import hashlib
+from requests import get
+import requests
+from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import db, RegistrationRequest
-
-#jj: we probably want to move back to such a way of defining workflow
-workflow = ['check_source', 'upload', 'crate_handle']
+from eudat_http_api.epicclient import EpicClient, HTTPClient
 
 
-class RegistrationWorker(threading.Thread):
-    def __init__(self, request_id, epic_client, logger, cdmi_client, base_url):
-        threading.Thread.__init__(self)
-        self.logger = logger
-        self.request = RegistrationRequest.query.get(request_id)
-        self.epic_client = epic_client
-        self.cdmi_client = cdmi_client
-        self.base_url = base_url
-        self.destination = ''
+def executor():
+    while True:
+        context = q.get()
+        for step in workflow:
+            print('Request id = %s advanced to = %s' %
+                  (context.request_id, step.__name__))
+            success = step(context)
+            if not success:
+                break
+        q.task_done()
 
-    def update_status(self, status):
-        self.request.status_description = status
-        db.session.add(self.request)
-        db.session.commit()
 
-    def run(self):
-        self.logger.debug('starting to process request with id = %s'
-                          % self.request.id)
-        self.continue_request(self.check_src)
+q = Queue()
 
-    def check_src(self):
-        self.update_status('Checking source')
-        # check existence and correct permissions on source
-        response = self.cdmi_client.cdmi_head('%s' % self.request.src_url)
-        if response.status_code > 299:
-            self.abort_request(
-                'Source is not available: %d' % response.status_code)
-            return
-        else:
-            self.logger.debug('Source exist')
 
-        # metadata check can become a separate workflow step
-        response = self.cdmi_client.cdmi_get(
-            '%s?%s' % (self.request.src_url, 'metadata'))
-        metadata_json = response.json()
-        self.logger.debug('metadata exist? %s' % metadata_json)
+def add_task(context):
+    q.put(context)
 
-        self.continue_request(self.copy_data_object)
 
-    def copy_data_object(self):
-        self.update_status('Copying data object to new location')
-        destination = self.get_destination(self.request.src_url)
-        response = self.cdmi_client.cdmi_get(self.request.src_url)
-        self.logger.debug(
-            'Moving %s to %s' % (self.request.src_url, destination))
-        upload = self.cdmi_client.cdmi_put(destination,
-                                           data=response.json()['value'])
-        if upload.status_code != 201:
-            self.abort_request('Unable to move the data to register space')
-            return
+def start_workers(num_worker_thread):
+    for i in range(num_worker_thread):
+        t = threading.Thread(target=executor)
+        t.daemon = True
+        t.start()
 
-        self.destination = destination
-        self.continue_request(self.get_handle)
 
-    def get_handle(self):
-        self.update_status('Creating handle')
+def update_status(context, status):
+    r = RegistrationRequest.query.get(context.request_id)
+    r.status_description = status
+    db.session.add(r)
+    db.session.commit()
+    context.status = status
 
-        handle = dict()
-        handle['url'] = self.destination
-        handle['checksum'] = 0
-        handle['location'] = None
 
-        self.logger.debug('Request %d finished' % self.request.id)
-        self.update_status('Request finished check %s' % self.destination)
+def check_src(context):
+    update_status(context, 'Checking source')
+    return check_url(context.src_url, context.auth)
 
-    def abort_request(self, reason_string):
-        self.logger.error('Aborting request id = %s reason= %s' % (
-            self.request.id, reason_string))
 
-    def continue_request(self, next_step):
-        self.logger.debug('Request id = %s advanced to = %s' % (
-            self.request.id, next_step.__name__))
-        next_step()
+def check_metadata(context):
+    update_status(context, 'Checking metadata')
+    return check_url(context.md_url, context.auth)
 
-    def get_destination(self, source_url):
-        return '%s%s' % (self.base_url, hashlib.sha256(source_url).hexdigest())
+
+def check_url(url, auth):
+    response = requests.head(url, auth=auth)
+    if response.status_code != requests.codes.ok:
+        return False
+
+    return True
+
+
+def copy_data_object(context):
+    update_status(context, 'Copying data object to new location')
+    destination = get_destination(context)
+    print('Moving %s to %s' % (context.src_url, destination))
+
+    context.destination = destination
+    context.checksum = get_checksum(destination)
+    return True
+
+
+EPIC_URI = 'http://www'
+EPIC_USER = 'user'
+EPIC_PASS = 'pass'
+EPIC_PREFIX = '666'
+
+
+def get_epic_client():
+    http_client = HTTPClient(EPIC_URI, HTTPBasicAuth(EPIC_USER, EPIC_PASS))
+    return EpicClient(httpClient=http_client)
+
+
+def get_handle(context):
+    update_status(context, 'Creating handle')
+
+    epic_client = get_epic_client()
+    pid = epic_client.create_new(EPIC_PREFIX, context.location, context
+                                 .checksum)
+    context.pid = pid
+    return True
+
+
+def start_replication(context):
+    update_status(context, 'Starting replication')
+    return True
+
+
+def get_checksum(destination):
+    return 667
+
+
+def download_to_file(url, destination):
+    r = get(url, stream=True)
+    with open(destination, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:
+                f.write(chunk)
+                f.flush()
+    return True
+
+
+def get_destination(self, source_url):
+    return '%s%s' % (self.base_url, hashlib.sha256(source_url).hexdigest())
+
+
+workflow = [check_src, check_metadata, copy_data_object, get_handle,
+            start_replication]

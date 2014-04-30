@@ -6,14 +6,11 @@ from flask import json
 from flask import abort, url_for
 
 from eudat_http_api.common import request_wants, ContentTypes
-from eudat_http_api.epicclient import EpicClient
-from eudat_http_api.epicclient import HTTPClient
-from eudat_http_api.cdmiclient import CDMIClient
 
 from eudat_http_api.registration.models import db
-from eudat_http_api import invenioclient
 from eudat_http_api import auth
-from eudat_http_api.registration.registration_worker import RegistrationWorker
+from eudat_http_api.registration.registration_worker import add_task, \
+    start_workers
 
 from models import RegistrationRequest, RegistrationRequestSerializer
 from datetime import datetime
@@ -21,6 +18,10 @@ from requests.auth import HTTPBasicAuth
 
 registration = Blueprint('registration', __name__,
                          template_folder='templates')
+
+
+class Context():
+    pass
 
 
 def get_hal_links(reg_requests, page):
@@ -57,6 +58,20 @@ def get_requests():
     return flask.render_template('requests.html', requests=reg_requests)
 
 
+def extract_auth_creds():
+    return HTTPBasicAuth(request.authorization.username, request.authorization
+                         .password)
+
+
+def extract_url(url):
+    #FIXME: generalize beyond cdmi
+    return url+"?value", url+"?metadata"
+
+
+@registration.before_app_first_request
+def initialize():
+    start_workers(5)
+
 @registration.route('/request/', methods=['POST'])
 @auth.requires_auth
 def post_request():
@@ -81,25 +96,14 @@ def post_request():
                             timestamp=datetime.utcnow())
     db.session.add(r)
     db.session.commit()
-
-    http_client = HTTPClient(current_app.config['HANDLE_URI'],
-                             HTTPBasicAuth(current_app.config['HANDLE_USER'],
-                                           current_app.config['HANDLE_PASS']))
-
-    cdmi_client = CDMIClient(HTTPBasicAuth(request.authorization.username,
-                                           request.authorization.password))
-
-    # FIXME: due to the fuckedup blueprints I don't know how to define
-    # the destination url, something like:
-    # url_for('http_storage.put_cdmi_obj',objpath='/')
-    p = RegistrationWorker(request_id=r.id,
-                           epic_client=EpicClient(httpClient=http_client),
-                           logger=current_app.logger, cdmi_client=cdmi_client,
-                           base_url='http://localhost:8080/tmp/')
-    # we have to close it explicitly already here otherwise the request object
-    # is bound to this session
     db.session.close()
-    p.start()
+
+    c = Context()
+    c.request_id = r.id
+    c.auth = extract_auth_creds()
+    c.src_url, c.md_url = extract_url(req_body['src_url'])
+
+    add_task(c)
 
     if request_wants(ContentTypes.json):
         return flask.jsonify(request_id=r.id), 201
@@ -143,9 +147,6 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
     pid = pid_prefix + '/' + pid_suffix
 
-    #FIXIT: invenio should not be exposed we need an abstraction
-    if 'metadata' in flask.request.args:
-        invenioclient.get_metadata(pid)
 
     # resolve PID
 
