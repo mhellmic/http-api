@@ -58,11 +58,6 @@ def get_requests():
     return flask.render_template('requests.html', requests=reg_requests)
 
 
-def extract_auth_creds():
-    return HTTPBasicAuth(request.authorization.username, request.authorization
-                         .password)
-
-
 def extract_urls(url):
     #FIXME: generalize beyond cdmi
     return url+'?value', url+'?metadata'
@@ -100,7 +95,7 @@ def post_request():
 
     c = Context()
     c.request_id = r.id
-    c.auth = extract_auth_creds()
+    c.auth = request.authorization
     c.src_url, c.md_url = extract_urls(req_body['src_url'])
 
     current_app.logger.debug('Adding task %s ' % c)

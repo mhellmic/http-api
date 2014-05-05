@@ -8,6 +8,7 @@ from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import db, RegistrationRequest
 from eudat_http_api.epicclient import EpicClient, HTTPClient
+from irods import *
 
 
 def check_url(url, auth):
@@ -33,13 +34,37 @@ def get_epic_client():
     return EpicClient(http_client=http_client)
 
 
-def download_to_file(url, destination):
-    r = get(url, stream=True)
-    with open(destination, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:
-                f.write(chunk)
-                f.flush()
+IRODS_HOST = 'localhost'
+IRODS_PORT = 1247
+IRODS_ZONE = 'tempZone'
+
+
+def connect_to_irods(host, port, username, password, zone):
+    conn, err = rcConnect(host, port, username, zone)
+    if err.status != 0:
+        print 'ERROR: Unable to connect to irods'
+        return None
+
+    if conn is None:
+        return False
+
+    err = clientLoginWithPassword(conn, password)
+    if err != 0:
+        return False
+
+    return conn
+
+
+def get_irods_file_handle(connection, filename):
+    fh = irodsOpen(connection, filename, mode='w')
+    return fh
+
+
+def stream_download(source, file_handle, chunk_size=4194304):
+    for chunk in source.iter_content(chunk_size=chunk_size):
+        if chunk:
+            file_handle.write(chunk)
+            file_handle.flush()
     return True
 
 
@@ -51,8 +76,12 @@ def check_url(url, auth):
     return True
 
 
+IRODS_SAFE_STORAGE = '/tempZone/safe/'
+
+
 def get_destination(context):
-    return '%s' % (hashlib.sha256(context.src_url).hexdigest())
+    return '%s/%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
+                      .hexdigest())
 
 
 def update_status(context, status):
@@ -72,7 +101,11 @@ def executor():
                   (context.request_id, step.__name__))
             success = step(context)
             if not success:
+                update_status(context, 'Failed during %s' % step.__name__)
                 break
+
+        if success:
+            update_status(context, 'Request finished pid = %s ' % context.pid)
         q.task_done()
 
 
@@ -100,12 +133,26 @@ def check_metadata(context):
     return check_url(context.md_url, context.auth)
 
 
+def extract_credentials(auth):
+    #works only with basic auth so far but at least we have a placeholder
+    return auth.username, auth.password
+
+
 def copy_data_object(context):
     update_status(context, 'Copying data object to new location')
     destination = get_destination(context)
+    username, password = extract_credentials(context.auth)
+    conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
+                            IRODS_ZONE)
+    fh = get_irods_file_handle(connection=conn, filename=destination)
+    r = get(context.src_url, auth=context.auth, stream=True)
+    stream_download(r, fh)
+    fh.close()
+    conn.disconnect()
 
     context.destination = destination
     context.checksum = get_checksum(destination)
+
     return True
 
 

@@ -7,7 +7,7 @@ SECRET_KEY = 'longkeyinthefuture'
 USERNAME = 'httpapi'
 PASSWORD = 'allbutdefault'
 
-DB_FD, DB_FILENAME = tempfile.mkstemp()
+DB_FILENAME = tempfile.mktemp()
 SQLALCHEMY_DATABASE_URI = 'sqlite:///'+DB_FILENAME
 REQUESTS_PER_PAGE = 5
 

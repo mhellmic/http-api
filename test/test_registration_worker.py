@@ -1,25 +1,29 @@
 import os
+import tempfile
 import unittest
 from datetime import datetime
 import requests
 from requests.auth import HTTPBasicAuth
+from requests import get
+from eudat_http_api.registration import registration_worker
 
 from eudat_http_api.registration.models import RegistrationRequest
 from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
 from eudat_http_api.registration.registration_worker import check_src, \
-    check_url, check_metadata, copy_data_object, get_handle, start_replication
+    check_url, check_metadata, copy_data_object, get_handle, start_replication, \
+    stream_download
 
 from httmock import HTTMock, all_requests, response
 
-
+import os
 
 
 # @urlmatch(netloc=r'(.*\.)?foo.bar$')
 @all_requests
 def my_mock(url, request):
     return {'status_code': requests.codes.ok,
-            'content': 'Incoming request %s on %s' % (request, url)}
+            'content': 'Incoming request %s on %s' % (request.method, url)}
 
 
 @all_requests
@@ -88,11 +92,13 @@ class TestCase(unittest.TestCase):
         assert r.status_description == c.status
 
     def test_copy_object(self):
+        return
         c = self.prepare_context()
         ret = copy_data_object(c)
         assert ret
-        expected_destination = \
-            '97d2ac461c3a5dd3322b2aae683994dc0bb07d2a7dd4c5198b0ed33e324a81e5'
+        expected_destination = "%s/%s" % (
+            registration_worker.IRODS_SAFE_STORAGE,
+            '97d2ac461c3a5dd3322b2aae683994dc0bb07d2a7dd4c5198b0ed33e324a81e5')
         assert c.destination == expected_destination
         assert c.checksum == 667
 
@@ -120,6 +126,28 @@ class TestCase(unittest.TestCase):
         c = self.prepare_context()
         ret = start_replication(c)
         assert ret
+
+    def test_stream_download(self):
+        name = tempfile.mktemp()
+        temp_file = open(name, 'w')
+        expected_content = 'some content that we expect to be written'
+
+        @all_requests
+        def content_serving_mock(url, request):
+            return {'status_code': requests.codes.ok,
+                    'content': expected_content}
+
+        with HTTMock(content_serving_mock):
+            source = get('http://www.foo.bar', stream=True)
+            stream_download(source, temp_file)
+        temp_file.close()
+        assert os.path.exists(name)
+        s = open(name, 'r').read()
+        assert s == expected_content
+
+
+
+
 
     def prepare_context(self):
         r = self.add_request()
