@@ -129,7 +129,7 @@ class EpicClient():
 
         if response.status_code != 201:
             self._debug_msg('createNew', 'Not Created: Response status %s' %
-                            response.status_coce)
+                            response.status_code)
             return None
 
         return response.headers['Location']

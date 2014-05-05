@@ -23,7 +23,7 @@ def get_checksum(destination):
     return 667
 
 
-EPIC_URI = 'http://www'
+EPIC_URI = 'http://localhost:5000'
 EPIC_USER = 'user'
 EPIC_PASS = 'pass'
 EPIC_PREFIX = '666'
@@ -52,6 +52,7 @@ def connect_to_irods(host, port, username, password, zone):
     if err != 0:
         return False
 
+    print 'Connection successful'
     return conn
 
 
@@ -80,8 +81,12 @@ IRODS_SAFE_STORAGE = '/tempZone/safe/'
 
 
 def get_destination(context):
-    return '%s/%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
-                      .hexdigest())
+    return '%s%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
+                     .hexdigest())
+
+
+def create_url(destination):
+    return 'irods:/'+destination
 
 
 def update_status(context, status):
@@ -145,6 +150,7 @@ def copy_data_object(context):
     conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
                             IRODS_ZONE)
     fh = get_irods_file_handle(connection=conn, filename=destination)
+    print 'Handle obtained '
     r = get(context.src_url, auth=context.auth, stream=True)
     stream_download(r, fh)
     fh.close()
@@ -155,13 +161,16 @@ def copy_data_object(context):
 
     return True
 
-
 def get_handle(context):
     update_status(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(EPIC_PREFIX, context.destination, context
+    pid = epic_client.create_new(EPIC_PREFIX, create_url(context
+                                                         .destination), context
                                  .checksum)
+    if pid is None:
+        return False
+
     context.pid = pid
     return True
 

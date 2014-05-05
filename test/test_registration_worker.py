@@ -12,7 +12,7 @@ from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
 from eudat_http_api.registration.registration_worker import check_src, \
     check_url, check_metadata, copy_data_object, get_handle, start_replication, \
-    stream_download
+    stream_download, get_destination, create_url
 
 from httmock import HTTMock, all_requests, response
 
@@ -110,7 +110,7 @@ class TestCase(unittest.TestCase):
 
         @all_requests
         def posting_mock(url, request):
-            print '\tIncoming request %s %s' % (request.method, url.path)
+            print '\t>>Incoming request %s %s' % (request.method, url.path)
             headers = {'content-type': 'application/json',
                        'Location': expected_location}
             content = {'some content'}
@@ -130,7 +130,7 @@ class TestCase(unittest.TestCase):
     def test_stream_download(self):
         name = tempfile.mktemp()
         temp_file = open(name, 'w')
-        expected_content = 'some content that we expect to be written'
+        expected_content = 20*'some content that we expect to be written'
 
         @all_requests
         def content_serving_mock(url, request):
@@ -139,15 +139,19 @@ class TestCase(unittest.TestCase):
 
         with HTTMock(content_serving_mock):
             source = get('http://www.foo.bar', stream=True)
-            stream_download(source, temp_file)
+            stream_download(source, temp_file, 20)
         temp_file.close()
         assert os.path.exists(name)
         s = open(name, 'r').read()
         assert s == expected_content
 
-
-
-
+    def test_create_url(self):
+        c = self.prepare_context()
+        c.src_url = 'foo.bar'
+        destination = get_destination(c)
+        url = create_url(destination)
+        assert url is not None
+        assert url.startswith('irods://')
 
     def prepare_context(self):
         r = self.add_request()

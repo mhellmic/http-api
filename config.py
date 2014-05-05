@@ -17,7 +17,7 @@ USERS = {
 }
 
 # irods storage settings
-#STORAGE = 'irods'
+STORAGE = 'irods'
 RODSHOST = 'localhost'
 RODSPORT = 1247
 RODSZONE = 'tempZone'

@@ -95,7 +95,8 @@ def post_request():
 
     c = Context()
     c.request_id = r.id
-    c.auth = request.authorization
+    c.auth = HTTPBasicAuth(request.authorization.username, request
+                           .authorization.password)
     c.src_url, c.md_url = extract_urls(req_body['src_url'])
 
     current_app.logger.debug('Adding task %s ' % c)
