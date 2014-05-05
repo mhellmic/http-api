@@ -2,22 +2,20 @@ import os
 import unittest
 from datetime import datetime
 import requests
+from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import RegistrationRequest
 from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
+from eudat_http_api.registration.registration_worker import check_src, \
+    check_url, check_metadata, copy_data_object, get_handle, start_replication
 
 from httmock import HTTMock, all_requests, response
-from requests.auth import HTTPBasicAuth
 
 
 
 
 # @urlmatch(netloc=r'(.*\.)?foo.bar$')
-from eudat_http_api.registration.registration_worker import check_src, \
-    check_url, check_metadata, copy_data_object, get_handle
-
-
 @all_requests
 def my_mock(url, request):
     return {'status_code': requests.codes.ok,
@@ -101,12 +99,12 @@ class TestCase(unittest.TestCase):
     def test_get_handle(self):
         c = self.prepare_context()
         expected_location = 'http://www.foo.bar/667/111'
-        c.location = '/some/random/location'
+        c.destination = '/some/random/location'
         c.checksum = 667
 
         @all_requests
         def posting_mock(url, request):
-            print 'Incoming request %s %s' % (url, request)
+            print '\tIncoming request %s %s' % (request.method, url.path)
             headers = {'content-type': 'application/json',
                        'Location': expected_location}
             content = {'some content'}
@@ -116,13 +114,12 @@ class TestCase(unittest.TestCase):
             ret = get_handle(c)
 
         assert ret
-        print c.pid
         assert c.pid == expected_location
 
-
-
     def test_start_replication(self):
-        pass
+        c = self.prepare_context()
+        ret = start_replication(c)
+        assert ret
 
     def prepare_context(self):
         r = self.add_request()

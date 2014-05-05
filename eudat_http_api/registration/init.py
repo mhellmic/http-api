@@ -97,7 +97,6 @@ def post_request():
                             timestamp=datetime.utcnow())
     db.session.add(r)
     db.session.commit()
-    db.session.close()
 
     c = Context()
     c.request_id = r.id
@@ -105,6 +104,7 @@ def post_request():
     c.src_url, c.md_url = extract_urls(req_body['src_url'])
 
     current_app.logger.debug('Adding task %s ' % c)
+    db.session.close()
     add_task(c)
 
     if request_wants(ContentTypes.json):

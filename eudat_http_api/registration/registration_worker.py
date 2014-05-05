@@ -22,6 +22,17 @@ def get_checksum(destination):
     return 667
 
 
+EPIC_URI = 'http://www'
+EPIC_USER = 'user'
+EPIC_PASS = 'pass'
+EPIC_PREFIX = '666'
+
+
+def get_epic_client():
+    http_client = HTTPClient(EPIC_URI, HTTPBasicAuth(EPIC_USER, EPIC_PASS))
+    return EpicClient(http_client=http_client)
+
+
 def download_to_file(url, destination):
     r = get(url, stream=True)
     with open(destination, 'wb') as f:
@@ -47,6 +58,7 @@ def get_destination(context):
 def update_status(context, status):
     r = RegistrationRequest.query.get(context.request_id)
     r.status_description = status
+    print 'Request %d advanced to %s' % (r.id, status)
     db.session.add(r)
     db.session.commit()
     context.status = status
@@ -97,22 +109,11 @@ def copy_data_object(context):
     return True
 
 
-EPIC_URI = 'http://www'
-EPIC_USER = 'user'
-EPIC_PASS = 'pass'
-EPIC_PREFIX = '666'
-
-
-def get_epic_client():
-    http_client = HTTPClient(EPIC_URI, HTTPBasicAuth(EPIC_USER, EPIC_PASS))
-    return EpicClient(http_client=http_client)
-
-
 def get_handle(context):
     update_status(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(EPIC_PREFIX, context.location, context
+    pid = epic_client.create_new(EPIC_PREFIX, context.destination, context
                                  .checksum)
     context.pid = pid
     return True
@@ -122,5 +123,9 @@ def start_replication(context):
     update_status(context, 'Starting replication')
     return True
 
+
 workflow = [check_src, check_metadata, copy_data_object, get_handle,
             start_replication]
+
+
+
