@@ -63,13 +63,14 @@ def extract_auth_creds():
                          .password)
 
 
-def extract_url(url):
+def extract_urls(url):
     #FIXME: generalize beyond cdmi
-    return url+"?value", url+"?metadata"
+    return url+'?value', url+'?metadata'
 
 
 @registration.before_app_first_request
 def initialize():
+    current_app.logger.debug('Starting workers')
     start_workers(5)
 
 @registration.route('/request/', methods=['POST'])
@@ -101,8 +102,9 @@ def post_request():
     c = Context()
     c.request_id = r.id
     c.auth = extract_auth_creds()
-    c.src_url, c.md_url = extract_url(req_body['src_url'])
+    c.src_url, c.md_url = extract_urls(req_body['src_url'])
 
+    current_app.logger.debug('Adding task %s ' % c)
     add_task(c)
 
     if request_wants(ContentTypes.json):
@@ -145,8 +147,6 @@ def get_pids_by_prefix():
 @auth.requires_auth
 def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
-    pid = pid_prefix + '/' + pid_suffix
-
 
     # resolve PID
 

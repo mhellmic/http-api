@@ -10,6 +10,48 @@ from eudat_http_api.registration.models import db, RegistrationRequest
 from eudat_http_api.epicclient import EpicClient, HTTPClient
 
 
+def check_url(url, auth):
+    response = requests.head(url, auth=auth)
+    if response.status_code != requests.codes.ok:
+        return False
+
+    return True
+
+
+def get_checksum(destination):
+    return 667
+
+
+def download_to_file(url, destination):
+    r = get(url, stream=True)
+    with open(destination, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:
+                f.write(chunk)
+                f.flush()
+    return True
+
+
+def check_url(url, auth):
+    response = requests.head(url, auth=auth)
+    if response.status_code != requests.codes.ok:
+        return False
+
+    return True
+
+
+def get_destination(context):
+    return '%s' % (hashlib.sha256(context.src_url).hexdigest())
+
+
+def update_status(context, status):
+    r = RegistrationRequest.query.get(context.request_id)
+    r.status_description = status
+    db.session.add(r)
+    db.session.commit()
+    context.status = status
+
+
 def executor():
     while True:
         context = q.get()
@@ -36,14 +78,6 @@ def start_workers(num_worker_thread):
         t.start()
 
 
-def update_status(context, status):
-    r = RegistrationRequest.query.get(context.request_id)
-    r.status_description = status
-    db.session.add(r)
-    db.session.commit()
-    context.status = status
-
-
 def check_src(context):
     update_status(context, 'Checking source')
     return check_url(context.src_url, context.auth)
@@ -54,18 +88,9 @@ def check_metadata(context):
     return check_url(context.md_url, context.auth)
 
 
-def check_url(url, auth):
-    response = requests.head(url, auth=auth)
-    if response.status_code != requests.codes.ok:
-        return False
-
-    return True
-
-
 def copy_data_object(context):
     update_status(context, 'Copying data object to new location')
     destination = get_destination(context)
-    print('Moving %s to %s' % (context.src_url, destination))
 
     context.destination = destination
     context.checksum = get_checksum(destination)
@@ -96,25 +121,6 @@ def get_handle(context):
 def start_replication(context):
     update_status(context, 'Starting replication')
     return True
-
-
-def get_checksum(destination):
-    return 667
-
-
-def download_to_file(url, destination):
-    r = get(url, stream=True)
-    with open(destination, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:
-                f.write(chunk)
-                f.flush()
-    return True
-
-
-def get_destination(self, source_url):
-    return '%s%s' % (self.base_url, hashlib.sha256(source_url).hexdigest())
-
 
 workflow = [check_src, check_metadata, copy_data_object, get_handle,
             start_replication]
