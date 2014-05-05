@@ -35,8 +35,8 @@ class HTTPClient():
         return put(url=uri, auth=self.credentials, **kwargs)
 
     @log_exceptions
-    def post(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(self.base_uri, prefix=prefix, suffix=suffix)
+    def post(self, prefix, **kwargs):
+        uri = create_uri(self.base_uri, prefix=prefix, suffix='')
         return post(url=uri, auth=self.credentials, **kwargs)
 
 

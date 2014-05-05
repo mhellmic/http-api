@@ -7,7 +7,7 @@ from eudat_http_api.registration.models import RegistrationRequest
 from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
 
-from httmock import HTTMock, all_requests
+from httmock import HTTMock, all_requests, response
 from requests.auth import HTTPBasicAuth
 
 
@@ -15,7 +15,7 @@ from requests.auth import HTTPBasicAuth
 
 # @urlmatch(netloc=r'(.*\.)?foo.bar$')
 from eudat_http_api.registration.registration_worker import check_src, \
-    check_url, check_metadata, copy_data_object
+    check_url, check_metadata, copy_data_object, get_handle
 
 
 @all_requests
@@ -99,7 +99,27 @@ class TestCase(unittest.TestCase):
         assert c.checksum == 667
 
     def test_get_handle(self):
-        pass
+        c = self.prepare_context()
+        expected_location = 'http://www.foo.bar/667/111'
+        c.location = '/some/random/location'
+        c.checksum = 667
+
+        @all_requests
+        def posting_mock(url, request):
+            print 'Incoming request %s %s' % (url, request)
+            headers = {'content-type': 'application/json',
+                       'Location': expected_location}
+            content = {'some content'}
+            return response(201, content, headers, None, 5, request)
+
+        with HTTMock(posting_mock):
+            ret = get_handle(c)
+
+        assert ret
+        print c.pid
+        assert c.pid == expected_location
+
+
 
     def test_start_replication(self):
         pass

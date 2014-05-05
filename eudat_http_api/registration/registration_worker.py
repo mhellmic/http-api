@@ -105,7 +105,7 @@ EPIC_PREFIX = '666'
 
 def get_epic_client():
     http_client = HTTPClient(EPIC_URI, HTTPBasicAuth(EPIC_USER, EPIC_PASS))
-    return EpicClient(httpClient=http_client)
+    return EpicClient(http_client=http_client)
 
 
 def get_handle(context):
