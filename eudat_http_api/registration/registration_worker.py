@@ -30,15 +30,19 @@ IRODS_HOST = 'localhost'
 IRODS_PORT = 1247
 IRODS_ZONE = 'tempZone'
 # final destination of the files (local safe storage)
-IRODS_SAFE_STORAGE = '/tempZone/safe/'
+IRODS_SAFE_STORAGE = '/%s/safe/' % IRODS_ZONE
 # where the replication commands are written
-IRODS_SHARED_SPACE = IRODS_ZONE+'/shared/'
+IRODS_SHARED_SPACE = '/%s/replicate/' % IRODS_ZONE
+# in the process of replication you have to define the destination where the
+#  data will be stored (for test local zone is ok). HTTP does not write to
+# this location this is done by replication rules.
+IRODS_REPLICATION_DESTINATION = '/%s/replicated/' % IRODS_ZONE
 
 
 def connect_to_irods(host, port, username, password, zone):
     conn, err = rcConnect(host, port, username, zone)
     if err.status != 0:
-        print 'ERROR: Unable to connect to irods'
+        print 'ERROR: Unable to connect to iRODS@%s' % IRODS_HOST
         return None
 
     if conn is None:
@@ -53,8 +57,7 @@ def connect_to_irods(host, port, username, password, zone):
 
 
 def get_irods_file_handle(connection, filename):
-    fh = irodsOpen(connection, filename, mode='w')
-    return fh
+    return irodsOpen(connection, filename, mode='w')
 
 
 def stream_download(source, file_handle, chunk_size=4194304):
@@ -76,6 +79,21 @@ def check_url(url, auth):
 def get_destination(context):
     return '%s%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
                      .hexdigest())
+
+
+def get_replication_destination(context):
+    return '%s%s' % (IRODS_REPLICATION_DESTINATION,
+                     hashlib.sha256(context.src_url).hexdigest())
+
+
+def get_replication_filename(context):
+    return '%s%s.replicate' % (IRODS_SHARED_SPACE, context.pid.split('/')[-1])
+
+
+def get_replication_command(context):
+    # Format: '*pid;*source;*destination'
+    return '%s;%s;%s' % (context.pid, context.destination, context
+                         .replication_destination)
 
 
 def create_url(destination):
@@ -102,12 +120,23 @@ def check_metadata(context):
 
 
 def extract_credentials(auth):
-    #works only with basic auth so far but at least we have a placeholder
+    """Extract irods credentials from request authentication object
+
+    Only a place-holder currently.
+
+    Works only with basic authentication so far. In the future I expect a
+    change here. We will extract the target identity from the provided
+    short-lived certificate and use irods.chmode after the data object
+    creation
+
+    @param auth:
+    @return: username, password that can be used in irods.
+    """
     return auth.username, auth.password
 
 
 def copy_data_object(context):
-    update_status(context, 'Copying data object to new location')
+    update_status(context, 'Copying data object to the new location')
     destination = get_destination(context)
     username, password = extract_credentials(context.auth)
     conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
@@ -139,6 +168,20 @@ def get_handle(context):
 
 def start_replication(context):
     update_status(context, 'Starting replication')
+    context.replication_destination = get_replication_destination(context)
+
+    username, password = extract_credentials(context.auth)
+    conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
+                            IRODS_ZONE)
+    target = get_irods_file_handle(
+        connection=conn,
+        filename=get_replication_filename(context))
+
+    replication_command = get_replication_command(context)
+
+    target.write(replication_command)
+    target.close()
+    conn.close()
 
     return True
 

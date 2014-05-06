@@ -12,7 +12,9 @@ from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
 from eudat_http_api.registration.registration_worker import check_src, \
     check_url, check_metadata, copy_data_object, get_handle, start_replication, \
-    stream_download, get_destination, create_url
+    stream_download, get_destination, create_url, get_replication_filename, \
+    extract_credentials, get_checksum, get_replication_destination, \
+    get_replication_command, add_task, q
 
 from httmock import HTTMock, all_requests, response
 
@@ -124,8 +126,8 @@ class TestCase(unittest.TestCase):
 
     def test_start_replication(self):
         c = self.prepare_context()
-        ret = start_replication(c)
-        assert ret
+        # ret = start_replication(c)
+        # assert ret
 
     def test_stream_download(self):
         name = tempfile.mktemp()
@@ -152,6 +154,49 @@ class TestCase(unittest.TestCase):
         url = create_url(destination)
         assert url is not None
         assert url.startswith('irods://')
+
+    def test_replication_file_name(self):
+        c = self.prepare_context()
+        c.pid = 'http://localhost:5000/666/b9f71920-d4f1-11e3-81d9-f0def1d0c536'
+        file_name = get_replication_filename(c)
+        assert file_name == '/tempZone/replicate/b9f71920-d4f1-11e3-81d9-f0def1d0c536.replicate'
+
+    def test_extract_credentials(self):
+        username, password = extract_credentials(HTTPBasicAuth('user',
+                                                               'pass'))
+        assert username == 'user'
+        assert password == 'pass'
+
+    def test_get_checksum(self):
+        dst = 'destination'
+        checksum = get_checksum(dst)
+        assert checksum == 667
+
+    def test_get_replication_dst(self):
+        c = self.prepare_context()
+        expected_result = '/tempZone/replicated/97d2ac461c3a5dd3322b2aae683994dc0bb07d2a7dd4c5198b0ed33e324a81e5'
+        result = get_replication_destination(c)
+        assert result == expected_result
+
+    def test_get_replication_command(self):
+        c = self.prepare_context()
+        c.pid = 'http://localhost:5000/666/b9f71920-d4f1-11e3-81d9-f0def1d0c536'
+        c.destination = '/some/random/location'
+        c.replication_destination = '/tempZone/replicated/foo.bar'
+        command = get_replication_command(c)
+        assert command.count(';') == 2
+        pid, dst, rpl = command.split(';')
+        assert pid == c.pid
+        assert dst == c.destination
+        assert rpl == c.replication_destination
+
+    def test_add_task(self):
+        c = self.prepare_context()
+        add_task(c)
+        context = q.get()
+        assert c.md_url == context.md_url
+        assert c.src_url == context.src_url
+        assert c.request_id == context.request_id
 
     def prepare_context(self):
         r = self.add_request()
