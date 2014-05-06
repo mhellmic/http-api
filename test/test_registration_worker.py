@@ -11,8 +11,9 @@ from eudat_http_api.registration.models import RegistrationRequest
 from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
 from eudat_http_api.registration.registration_worker import check_src, \
-    check_url, check_metadata, copy_data_object, get_handle, start_replication, \
-    stream_download, get_destination, create_storage_url, get_replication_filename, \
+    check_url, check_metadata, copy_data_object, get_handle, \
+    stream_download, get_destination, create_storage_url, \
+    get_replication_filename, \
     extract_credentials, get_checksum, get_replication_destination, \
     get_replication_command, add_task, q
 
@@ -132,7 +133,7 @@ class TestCase(unittest.TestCase):
     def test_stream_download(self):
         name = tempfile.mktemp()
         temp_file = open(name, 'w')
-        expected_content = 20*'some content that we expect to be written'
+        expected_content = 20 * 'some content that we expect to be written'
 
         @all_requests
         def content_serving_mock(url, request):

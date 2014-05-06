@@ -7,7 +7,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import db, RegistrationRequest
-from eudat_http_api.epicclient import EpicClient, HTTPClient
+from eudat_http_api.epicclient import EpicClient
 from irods import rcConnect, clientLoginWithPassword, irodsOpen
 
 
@@ -22,8 +22,8 @@ EPIC_PREFIX = '666'
 
 
 def get_epic_client():
-    http_client = HTTPClient(EPIC_URI, HTTPBasicAuth(EPIC_USER, EPIC_PASS))
-    return EpicClient(http_client=http_client)
+    return EpicClient(base_uri=EPIC_URI, credentials=HTTPBasicAuth(
+        EPIC_USER, EPIC_PASS), debug=False)
 
 
 IRODS_HOST = 'localhost'

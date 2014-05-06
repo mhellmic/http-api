@@ -101,7 +101,7 @@ class TestCase(unittest.TestCase):
             assert json_handle[1]['type'] == 'CHECKSUM'
             assert json_handle[1]['parsed_data'] == 667
 
-    def test_retrieve_none_xisting(self):
+    def test_retrieve_none_existing(self):
         with HTTMock(my_mock):
             handle = self.epic_client.retrieve_handle(prefix='foo',
                                                       suffix='barr')
