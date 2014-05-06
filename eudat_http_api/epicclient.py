@@ -1,13 +1,26 @@
-from requests import get, post, put
+from requests import get, post
 import json
 import requests
 
 
 def create_uri(base_uri, prefix, suffix=''):
+    """creates handle uri from provided parameters
+
+    @param base_uri: base epic service uri
+    @param prefix: handle prefix
+    @param suffix: handle suffix
+    @return: proper http url
+    """
     return '/'.join([base_uri, prefix, suffix])
 
 
 def convert_to_handle(location, checksum=0):
+    """creates handle record in json format
+
+    @param location: URL value of the handle record
+    @param checksum: checksum value of the handle record
+    @return: handle record in json format (ready to submit)
+    """
     handle_content = [{'type': 'URL', 'parsed_data': location}]
 
     if checksum:
@@ -16,13 +29,12 @@ def convert_to_handle(location, checksum=0):
     return json.dumps(handle_content)
 
 
-class EpicClient():
-    """Class implementing an EPIC client."""
+class EpicClient(object):
+    """Client for communication with epic pid service."""
 
     def __init__(self, base_uri, credentials, debug=False):
 
         """Initialize object with connection parameters."""
-        # assert isinstance(self.client.get, )?
         self.accept_format = 'application/json'
         self.debug = debug
         self.credentials = credentials
@@ -55,8 +67,8 @@ class EpicClient():
             return None
 
         if response.status_code != requests.codes.ok:
-            self._debug_msg('retrieveHandle', 'Response status: %s' %
-                                              response.status_code)
+            self._debug_msg('retrieveHandle',
+                            'Response status: %s' % response.status_code)
             return None
 
         return response.content
@@ -83,8 +95,9 @@ class EpicClient():
             return None
 
         if response.status_code != requests.codes.created:
-            self._debug_msg('createNew', 'Not Created: Response status %s' %
-                                         response.status_code)
+            self._debug_msg('createNew',
+                            'Not Created: Response status %s' %
+                            response.status_code)
             return None
 
         return response.headers['Location']
