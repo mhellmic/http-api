@@ -181,7 +181,7 @@ def start_replication(context):
 
     target.write(replication_command)
     target.close()
-    conn.close()
+    conn.disconnect()
 
     return True
 
