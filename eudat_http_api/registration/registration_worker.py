@@ -8,15 +8,7 @@ from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import db, RegistrationRequest
 from eudat_http_api.epicclient import EpicClient, HTTPClient
-from irods import *
-
-
-def check_url(url, auth):
-    response = requests.head(url, auth=auth)
-    if response.status_code != requests.codes.ok:
-        return False
-
-    return True
+from irods import rcConnect, clientLoginWithPassword, irodsOpen
 
 
 def get_checksum(destination):
@@ -37,6 +29,10 @@ def get_epic_client():
 IRODS_HOST = 'localhost'
 IRODS_PORT = 1247
 IRODS_ZONE = 'tempZone'
+# final destination of the files (local safe storage)
+IRODS_SAFE_STORAGE = '/tempZone/safe/'
+# where the replication commands are written
+IRODS_SHARED_SPACE = IRODS_ZONE+'/shared/'
 
 
 def connect_to_irods(host, port, username, password, zone):
@@ -46,11 +42,11 @@ def connect_to_irods(host, port, username, password, zone):
         return None
 
     if conn is None:
-        return False
+        return conn
 
     err = clientLoginWithPassword(conn, password)
     if err != 0:
-        return False
+        return conn
 
     print 'Connection successful'
     return conn
@@ -77,9 +73,6 @@ def check_url(url, auth):
     return True
 
 
-IRODS_SAFE_STORAGE = '/tempZone/safe/'
-
-
 def get_destination(context):
     return '%s%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
                      .hexdigest())
@@ -96,36 +89,6 @@ def update_status(context, status):
     db.session.add(r)
     db.session.commit()
     context.status = status
-
-
-def executor():
-    while True:
-        context = q.get()
-        for step in workflow:
-            print('Request id = %s advanced to = %s' %
-                  (context.request_id, step.__name__))
-            success = step(context)
-            if not success:
-                update_status(context, 'Failed during %s' % step.__name__)
-                break
-
-        if success:
-            update_status(context, 'Request finished pid = %s ' % context.pid)
-        q.task_done()
-
-
-q = Queue()
-
-
-def add_task(context):
-    q.put(context)
-
-
-def start_workers(num_worker_thread):
-    for i in range(num_worker_thread):
-        t = threading.Thread(target=executor)
-        t.daemon = True
-        t.start()
 
 
 def check_src(context):
@@ -149,11 +112,10 @@ def copy_data_object(context):
     username, password = extract_credentials(context.auth)
     conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
                             IRODS_ZONE)
-    fh = get_irods_file_handle(connection=conn, filename=destination)
-    print 'Handle obtained '
-    r = get(context.src_url, auth=context.auth, stream=True)
-    stream_download(r, fh)
-    fh.close()
+    target = get_irods_file_handle(connection=conn, filename=destination)
+    source = get(url=context.src_url, auth=context.auth, stream=True)
+    stream_download(source, target)
+    target.close()
     conn.disconnect()
 
     context.destination = destination
@@ -161,13 +123,13 @@ def copy_data_object(context):
 
     return True
 
+
 def get_handle(context):
     update_status(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(EPIC_PREFIX, create_url(context
-                                                         .destination), context
-                                 .checksum)
+    pid = epic_client.create_new(EPIC_PREFIX, create_url(context.destination),
+                                 context.checksum)
     if pid is None:
         return False
 
@@ -177,11 +139,43 @@ def get_handle(context):
 
 def start_replication(context):
     update_status(context, 'Starting replication')
+
     return True
+
+#execution-related stuff: workers, task queue & workflow definition
 
 
 workflow = [check_src, check_metadata, copy_data_object, get_handle,
             start_replication]
+
+q = Queue()
+
+
+def add_task(context):
+    q.put(context)
+
+
+def executor():
+    while True:
+        context = q.get()
+        for step in workflow:
+            print('Request id = %s advanced to = %s' %
+                  (context.request_id, step.__name__))
+            success = step(context)
+            if not success:
+                update_status(context, 'Failed during %s' % step.__name__)
+                break
+
+        if success:
+            update_status(context, 'Request finished pid = %s ' % context.pid)
+        q.task_done()
+
+
+def start_workers(num_worker_thread):
+    for i in range(num_worker_thread):
+        t = threading.Thread(target=executor)
+        t.daemon = True
+        t.start()
 
 
 

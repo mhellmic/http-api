@@ -7,12 +7,11 @@ from flask import abort, url_for
 
 from eudat_http_api.common import request_wants, ContentTypes
 
-from eudat_http_api.registration.models import db
+from eudat_http_api.registration.models import db, RegistrationRequest, \
+    RegistrationRequestSerializer
 from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import add_task, \
     start_workers
-
-from models import RegistrationRequest, RegistrationRequestSerializer
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
@@ -59,14 +58,19 @@ def get_requests():
 
 
 def extract_urls(url):
-    #FIXME: generalize beyond cdmi
-    return url+'?value', url+'?metadata'
+    """Extract data and metadata urls from cdmi url
+
+    @param url:
+    @return:
+    """
+    return url + '?value', url + '?metadata'
 
 
 @registration.before_app_first_request
 def initialize():
     current_app.logger.debug('Starting workers')
     start_workers(5)
+
 
 @registration.route('/request/', methods=['POST'])
 @auth.requires_auth
@@ -87,26 +91,28 @@ def post_request():
     else:
         req_body = flask.request.form
 
-    r = RegistrationRequest(src_url=req_body['src_url'],
+    registration_request = \
+        RegistrationRequest(src_url=req_body['src_url'],
                             status_description='Registration request created',
                             timestamp=datetime.utcnow())
-    db.session.add(r)
+    db.session.add(registration_request)
     db.session.commit()
 
-    c = Context()
-    c.request_id = r.id
-    c.auth = HTTPBasicAuth(request.authorization.username, request
-                           .authorization.password)
-    c.src_url, c.md_url = extract_urls(req_body['src_url'])
+    context = Context()
+    context.request_id = registration_request.id
+    context.auth = HTTPBasicAuth(request.authorization.username, request
+                                 .authorization.password)
+    context.src_url, context.md_url = extract_urls(req_body['src_url'])
 
-    current_app.logger.debug('Adding task %s ' % c)
+    current_app.logger.debug('Adding task %s ' % context)
     db.session.close()
-    add_task(c)
+    add_task(context)
 
     if request_wants(ContentTypes.json):
-        return flask.jsonify(request_id=r.id), 201
+        return flask.jsonify(request_id=registration_request.id), 201
     else:
-        return flask.render_template('requestcreated.html', reg=r), 201
+        return flask.render_template('requestcreated.html',
+                                     reg=registration_request), 201
 
 
 @registration.route('/request/<request_id>', methods=['GET'])
@@ -132,10 +138,16 @@ def get_request(request_id):
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
 @auth.requires_auth
 def get_pids_by_prefix():
-    # search PIDs with this prefix on handle.net
+    """search PIDs with this prefix on handle.net
 
-    # return list of PIDs
-    # (with links to /registered/<full_pid>) to download
+    return list of PIDs
+    (with links to /registered/<full_pid>) to download
+    This will not work with handle.net because it does not allow to retrieve
+    all handles from given prefix. EPIC api is not an option either since
+    the pids are distributed among different endpoints (so none of the will
+    be able to provide full list of all prefixes used in EUDAT)
+
+    """
     pass
 
 
@@ -145,6 +157,8 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
 
     # resolve PID
+    handle_url = 'http://hdl.handle.net/'+pid_prefix+'/'+pid_suffix\
+                 +'?noredirect'
 
     # extract link to data object
 

@@ -1,6 +1,5 @@
-#from eudat_http_api import db
-from flask.ext.sqlalchemy import SQLAlchemy
-from marshmallow import Serializer, fields
+from flask_sqlalchemy import SQLAlchemy
+from marshmallow import Serializer
 
 db = SQLAlchemy()
 
@@ -18,7 +17,7 @@ class RegistrationRequest(db.Model):
         return {
             'id': self.id,
             'src_url': self.src_url,
-            'status': 'A'
+            'status': self.status_description
         }
 
     def __repr__(self):
