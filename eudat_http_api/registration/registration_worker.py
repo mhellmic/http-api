@@ -76,6 +76,22 @@ def check_url(url, auth):
     return True
 
 
+def extract_credentials(auth):
+    """Extract irods credentials from request authentication object
+
+    Only a place-holder currently.
+
+    Works only with basic authentication so far. In the future I expect a
+    change here. We will extract the target identity from the provided
+    short-lived certificate and use irods.chmode after the data object
+    creation
+
+    @param auth:
+    @return: username, password that can be used in irods.
+    """
+    return auth.username, auth.password
+
+
 def get_destination(context):
     return '%s%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
                      .hexdigest())
@@ -96,17 +112,8 @@ def get_replication_command(context):
                          .replication_destination)
 
 
-def create_url(destination):
-    return 'irods:/'+destination
-
-
-def update_status(context, status):
-    r = RegistrationRequest.query.get(context.request_id)
-    r.status_description = status
-    print 'Request %d advanced to %s' % (r.id, status)
-    db.session.add(r)
-    db.session.commit()
-    context.status = status
+def create_storage_url(destination):
+    return 'irods:/' + destination
 
 
 def check_src(context):
@@ -117,22 +124,6 @@ def check_src(context):
 def check_metadata(context):
     update_status(context, 'Checking metadata')
     return check_url(context.md_url, context.auth)
-
-
-def extract_credentials(auth):
-    """Extract irods credentials from request authentication object
-
-    Only a place-holder currently.
-
-    Works only with basic authentication so far. In the future I expect a
-    change here. We will extract the target identity from the provided
-    short-lived certificate and use irods.chmode after the data object
-    creation
-
-    @param auth:
-    @return: username, password that can be used in irods.
-    """
-    return auth.username, auth.password
 
 
 def copy_data_object(context):
@@ -157,7 +148,8 @@ def get_handle(context):
     update_status(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(EPIC_PREFIX, create_url(context.destination),
+    pid = epic_client.create_new(EPIC_PREFIX,
+                                 create_storage_url(context.destination),
                                  context.checksum)
     if pid is None:
         return False
@@ -188,6 +180,15 @@ def start_replication(context):
 #execution-related stuff: workers, task queue & workflow definition
 
 
+def update_status(context, status):
+    r = RegistrationRequest.query.get(context.request_id)
+    r.status_description = status
+    print 'Request %d advanced to %s' % (r.id, status)
+    db.session.add(r)
+    db.session.commit()
+    context.status = status
+
+
 workflow = [check_src, check_metadata, copy_data_object, get_handle,
             start_replication]
 
@@ -201,6 +202,7 @@ def add_task(context):
 def executor():
     while True:
         context = q.get()
+        success = False
         for step in workflow:
             print('Request id = %s advanced to = %s' %
                   (context.request_id, step.__name__))

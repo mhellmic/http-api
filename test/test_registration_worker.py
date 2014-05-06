@@ -12,7 +12,7 @@ from eudat_http_api import create_app
 from eudat_http_api.registration.models import db
 from eudat_http_api.registration.registration_worker import check_src, \
     check_url, check_metadata, copy_data_object, get_handle, start_replication, \
-    stream_download, get_destination, create_url, get_replication_filename, \
+    stream_download, get_destination, create_storage_url, get_replication_filename, \
     extract_credentials, get_checksum, get_replication_destination, \
     get_replication_command, add_task, q
 
@@ -151,7 +151,7 @@ class TestCase(unittest.TestCase):
         c = self.prepare_context()
         c.src_url = 'foo.bar'
         destination = get_destination(c)
-        url = create_url(destination)
+        url = create_storage_url(destination)
         assert url is not None
         assert url.startswith('irods://')
 

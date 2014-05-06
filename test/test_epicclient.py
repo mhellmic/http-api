@@ -1,9 +1,11 @@
 import unittest
 import uuid
+from httmock import all_requests, response, HTTMock
+import requests
+from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.epicclient import EpicClient, convert_to_handle, \
-    log_exceptions
-from eudat_http_api.epicclient import create_uri
+    create_uri
 import json
 
 
@@ -14,79 +16,46 @@ def extract_prefix_suffix(handle, baseuri):
     return array[-2], array[-1]
 
 
-class FakedHttpClient():
-    def __init__(self):
-        self.handles = dict()
-        self.base_uri = ''
+handles = dict()
 
-    def get(self, prefix, suffix, *args, **kwargs):
-        uri = create_uri(base_uri=self.base_uri, prefix=prefix, suffix=suffix)
-        print 'Getting %s/%s' % (prefix, suffix)
 
-        class Response():
-            pass
-
-        r = Response()
-        if self.handles.has_key(uri):
-            r.content = self.handles[uri]
-            r.status_code = 200
+@all_requests
+def my_mock(url, request):
+    print '\t>>Incoming %s on %s' % (request.method, url.path)
+    if request.method == 'GET':
+        if handles.has_key(url.path):
+            return {'status_code': requests.codes.ok,
+                    'content': handles[url.path]}
         else:
-            r.content = None
-            r.status_code = 404
+            return {'status_code': requests.codes.not_found,
+                    'content': ''}
 
-        return r
-
-    def post(self, prefix, headers, data):
-        print 'Posting to %s' % prefix
+    if request.method == 'POST':
         suffix = str(uuid.uuid1())
-        self.add_handle(prefix=prefix, suffix=suffix, value=data)
+        handles[url.path + suffix] = request.body
+        headers = {'content-type': 'application/json',
+                   'Location': url.path + suffix}
+        content = {''}
+        return response(201, content, headers, None, 5, request)
 
-        class Response():
-            pass
-
-        r = Response()
-        r.status_code = 201
-        r.headers = {'Location': create_uri(base_uri=self.base_uri,
-                                            prefix=prefix, suffix=suffix)}
-        return r
-
-    def put(self, prefix, suffix, headers, data):
-        print 'Putting to %s/%s' % (prefix, suffix)
-        self.add_handle(prefix=prefix, suffix=suffix, value=data)
-
-        class Response():
-            pass
-
-        r = Response()
-        r.status_code = 201
-        r.headers = {'Location': create_uri(base_uri=self.base_uri,
-                                            prefix=prefix, suffix=suffix)}
-        return r
-
-    def add_handle(self, prefix, suffix, value):
-        self.handles[create_uri(base_uri=self.base_uri, prefix=prefix,
-                                suffix=suffix)] = value
-        print self.handles
+    print '\t>>Unknown method!'
+    return {'status_code': requests.codes.bad_request,
+            'content': 'This method is not supported'}
 
 
 class TestCase(unittest.TestCase):
     def setUp(self):
-        self.http_client = FakedHttpClient()
+        self.prefix = '11858'
+        self.suffix = '00-ZZZZ-0000-0000-000C-7'
+        self.base_uri = 'http://www.foo.bar'
+        handles[create_uri(base_uri='', prefix=self.prefix,
+                           suffix=self.suffix)] = \
+            convert_to_handle('irods://tempZone/home/foo/bar', checksum=667)
 
-        self.http_client.add_handle(prefix='11858',
-                                    suffix='00-ZZZZ-0000-0000-000C-7',
-                                    value='{ "handle": "11858/00-ZZZZ-0000-0000-000C-7", '
-                                          '"responseCode": 1, '
-                                          '"values": [ { "data": "0", "index": 2, '
-                                          '"timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "FILESIZE" }, '
-                                          '{ "data": "GWDG", "index": 5, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "TITLE" }, '
-                                          '{ "data": "demo2", "index": 8, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "CREATOR" }, '
-                                          '{ "data": { "format": "admin", "value": { "handle": "0.NA/11858", "index": 200, "permissions": "010001110000" } }, '
-                                          '"index": 100, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "HS_ADMIN" }, '
-                                          '{ "data": "http://www.gwdg.de/aktuell/index4.html", "index": 1, "timestamp": "1970-01-01T00:00:00Z", "ttl": 86400, "type": "URL" } '
-                                          '] }'
-        )
-        self.epic_client = EpicClient(http_client=self.http_client, debug=True)
+        self.epic_client = EpicClient(base_uri=self.base_uri,
+                                      credentials=HTTPBasicAuth('user',
+                                                                'pass'),
+                                      debug=True)
 
     def tearDown(self):
         pass
@@ -118,67 +87,48 @@ class TestCase(unittest.TestCase):
         assert json_array[1]['parsed_data'] == 666
 
     def test_retrieve(self):
-        response = self.epic_client.retrieve_handle(prefix='11858',
-                                                    suffix='00-ZZZZ-0000-0000-000C-7')
-        assert response is not None
-        # jj: not sure if we should return string or json?
-        response = json.loads(response)
-        assert response['values'][0]['type'] == 'FILESIZE'
-        assert response['values'][1]['type'] == 'TITLE'
+        with HTTMock(my_mock):
+            handle = self.epic_client.retrieve_handle(
+                prefix=self.prefix,
+                suffix=self.suffix)
+            assert handle is not None
+            # jj: not sure if we should return string or json?
+            json_handle = json.loads(handle)
+            print json_handle
+            assert json_handle[0]['type'] == 'URL'
+            assert json_handle[0][
+                       'parsed_data'] == 'irods://tempZone/home/foo/bar'
+            assert json_handle[1]['type'] == 'CHECKSUM'
+            assert json_handle[1]['parsed_data'] == 667
+
 
     def test_nonexisting(self):
-        response = self.epic_client.retrieve_handle(prefix='foo', suffix='barr')
-        assert response is None
+        with HTTMock(my_mock):
+            handle = self.epic_client.retrieve_handle(prefix='foo',
+                                                      suffix='barr')
+            assert handle is None
 
     def test_create(self):
-        response = self.epic_client.create_new(prefix='666',
-                                               location='http://foo.bar/',
-                                               checksum=667)
-        assert response is not None
-        assert response.count('666') > 0
-        prefix, suffix = extract_prefix_suffix(response, '')
+        with HTTMock(my_mock):
+            handle = self.epic_client.create_new(prefix='666',
+                                                 location='http://foo.bar/',
+                                                 checksum=667)
+            assert handle is not None
+            assert handle.count('666') > 0
+            prefix, suffix = extract_prefix_suffix(handle, self.base_uri)
+            print prefix, suffix
+            handle_r = self.epic_client.retrieve_handle(prefix=prefix,
+                                                        suffix=suffix)
+            assert handle_r is not None
+            json_handle = json.loads(handle_r)
+            print json_handle
 
-        handle = self.epic_client.retrieve_handle(prefix=prefix, suffix=suffix)
-        assert response is not None
-        response = json.loads(handle)
-        print response
+            assert len(json_handle) == 2
+            assert json_handle[0]['type'] == 'URL'
+            assert json_handle[0]['parsed_data'] == 'http://foo.bar/'
 
-        assert len(response) == 2
-        assert response[0]['type'] == 'URL'
-        assert response[0]['parsed_data'] == 'http://foo.bar/'
-
-        assert response[1]['type'] == 'CHECKSUM'
-        assert response[1]['parsed_data'] == 667
-
-    def test_create_with_suffix(self):
-        response = self.epic_client.create_handle(prefix='666', suffix='777',
-                                                  location='http://foo.bar/',
-                                                  checksum=667)
-        assert response is not None
-        prefix, suffix = extract_prefix_suffix(response, '')
-        assert prefix == '666'
-        assert suffix == '777'
-
-        handle = self.epic_client.retrieve_handle(prefix=prefix, suffix=suffix)
-        assert response is not None
-        response = json.loads(handle)
-        print response
-
-        assert len(response) == 2
-        assert response[0]['type'] == 'URL'
-        assert response[0]['parsed_data'] == 'http://foo.bar/'
-
-        assert response[1]['type'] == 'CHECKSUM'
-        assert response[1]['parsed_data'] == 667
-
-
-    def test_exception_logger(self):
-        def exceptional_function():
-            raise Exception
-
-        wrapped = log_exceptions(exceptional_function)
-        value = wrapped()
-        assert value is None
+            assert json_handle[1]['type'] == 'CHECKSUM'
+            assert json_handle[1]['parsed_data'] == 667
 
 
 if __name__ == '__main__':
