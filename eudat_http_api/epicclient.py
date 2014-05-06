@@ -4,7 +4,7 @@ import requests
 
 
 def create_uri(base_uri, prefix, suffix=''):
-    """creates handle uri from provided parameters
+    """Creates handle uri from provided parameters
 
     @param base_uri: base epic service uri
     @param prefix: handle prefix
@@ -15,7 +15,7 @@ def create_uri(base_uri, prefix, suffix=''):
 
 
 def convert_to_handle(location, checksum=0):
-    """creates handle record in json format
+    """Creates handle record in json format
 
     @param location: URL value of the handle record
     @param checksum: checksum value of the handle record
@@ -33,7 +33,6 @@ class EpicClient(object):
     """Client for communication with epic pid service."""
 
     def __init__(self, base_uri, credentials, debug=False):
-
         """Initialize object with connection parameters."""
         self.accept_format = 'application/json'
         self.debug = debug
@@ -49,6 +48,7 @@ class EpicClient(object):
 
     def retrieve_handle(self, prefix, suffix=''):
         """Retrieve a handle from the PID service.
+
         Parameters:
         prefix: URI to the resource, or the prefix if suffix is not ''.
         suffix: The suffix of the handle. Default: ''.
@@ -74,7 +74,7 @@ class EpicClient(object):
         return response.content
 
     def create_new(self, prefix, location, checksum):
-        """create new handle
+        """Create new handle
 
         utilizes automatic pid generation function of the epic api
 

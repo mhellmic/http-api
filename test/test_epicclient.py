@@ -101,12 +101,22 @@ class TestCase(unittest.TestCase):
             assert json_handle[1]['type'] == 'CHECKSUM'
             assert json_handle[1]['parsed_data'] == 667
 
-
-    def test_nonexisting(self):
+    def test_retrieve_none_xisting(self):
         with HTTMock(my_mock):
             handle = self.epic_client.retrieve_handle(prefix='foo',
                                                       suffix='barr')
             assert handle is None
+
+    def test_failed_create(self):
+        @all_requests
+        def failing_mock(url, request):
+            return {'status_code': requests.codes.bad_request, 'content': ''}
+        with HTTMock(failing_mock):
+            handle = self.epic_client.create_new(prefix='666',
+                                                 location='http://foo.bar/',
+                                                 checksum=667)
+            assert handle is None
+
 
     def test_create(self):
         with HTTMock(my_mock):
