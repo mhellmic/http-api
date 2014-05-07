@@ -155,6 +155,9 @@ class TestCase(unittest.TestCase):
         url = create_storage_url(destination)
         assert url is not None
         assert url.startswith('irods://')
+        assert url == 'irods://localhost:1247/tempZone/safe/' \
+               '2595d08ad22c733f7a1ce713e767563e13a8dfa35baa74919c28e0f586cb424b'
+
 
     def test_replication_file_name(self):
         c = self.prepare_context()

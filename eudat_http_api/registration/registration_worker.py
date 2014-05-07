@@ -112,8 +112,13 @@ def get_replication_command(context):
                          .replication_destination)
 
 
-def create_storage_url(destination):
-    return 'irods:/' + destination
+def create_storage_url(path):
+    # example of URL (11113/dda2224c-16ca-11e3-bec5-005056be76d0)
+    #irods://ed-res-01.csc.fi:1247/ed-csc/rc/enes/cmip5/output1/MPI-M/MPI
+    # -ESM-LR/rcp45/mon/ocean/Omon/r1i1p1/v20120110/hfsithermds/
+    # hfsithermds_Omon_MPI-ESM-LR_rcp45_r1i1p1_229001-230012.nc
+    return 'irods://%s:%d%s' % (IRODS_HOST, IRODS_PORT,
+                                path)
 
 
 def check_src(context):
