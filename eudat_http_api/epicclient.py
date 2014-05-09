@@ -92,12 +92,23 @@ class HandleRecord(object):
 
 
     @staticmethod
-    def from_epic_json_array(json_array):
+    def from_json(json_entity):
+        json_array = json_entity
+        data_field_name = HandleRecord.DATA_STR
+        if isinstance(json_entity, dict) and json_entity.has_key('values'):
+            json_array = json_entity['values']
+        else:
+            data_field_name = HandleRecord.EPIC_DATA_STR
+
         h = HandleRecord()
         for entry in json_array:
-            h.add_value(entry[h.TYPE_STR], entry[h.EPIC_DATA_STR])
+            h.add_value(entry[h.TYPE_STR], entry[data_field_name])
 
         return h
+
+
+
+
 
     @staticmethod
     def get_handle_with_values(url, checksum=0):
@@ -107,6 +118,9 @@ class HandleRecord(object):
             h.add_checksum(checksum)
 
         return h
+
+
+
 
 
 class EpicClient(object):
