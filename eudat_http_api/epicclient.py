@@ -29,6 +29,11 @@ def convert_to_handle(location, checksum=0):
     return json.dumps(handle_content)
 
 
+def rename_key_in_dictionary(dictionary, old_name, new_name):
+    if dictionary.has_key(old_name):
+        dictionary[new_name] = dictionary.pop(old_name)
+
+
 class HandleRecord(object):
     """Handle record
 
@@ -38,9 +43,9 @@ class HandleRecord(object):
 
     TYPE_STR = 'type'
     DATA_STR = 'data'
+    EPIC_DATA_STR = 'parsed_data'
     URL_TYPE_NAME = 'URL'
     CHECKSUM_TYPE_NAME = 'CHECKSUM'
-
 
     def __init__(self):
         self.content = list()
@@ -60,7 +65,7 @@ class HandleRecord(object):
 
     def get_data_with_property_value(self, property_name, value):
         res = self.get_entries_with_property_value(property_name, value)
-        if len(res) == 0:
+        if not res:
             return None
         return res[0][self.DATA_STR]
 
@@ -71,6 +76,28 @@ class HandleRecord(object):
     def get_checksum_value(self):
         return self.get_data_with_property_value(self.TYPE_STR,
                                                  self.CHECKSUM_TYPE_NAME)
+
+    def to_epic_json_array(self):
+        cpy = list(self.content)
+        for entry in cpy:
+            rename_key_in_dictionary(entry, self.DATA_STR,
+                                     self.EPIC_DATA_STR)
+        return json.dumps(cpy)
+
+    def __str__(self):
+        ret = '%s[' % self.__class__.__name__
+        for k in self.content:
+            ret += '%s ' % k
+        return ret + ']'
+
+
+    @staticmethod
+    def from_epic_json_array(json_array):
+        h = HandleRecord()
+        for entry in json_array:
+            h.add_value(entry[h.TYPE_STR], entry[h.EPIC_DATA_STR])
+
+        return h
 
     @staticmethod
     def get_handle_with_values(url, checksum=0):
