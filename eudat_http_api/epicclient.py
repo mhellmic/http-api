@@ -29,6 +29,59 @@ def convert_to_handle(location, checksum=0):
     return json.dumps(handle_content)
 
 
+class HandleRecord(object):
+    """Handle record
+
+    Internal representation of handle records is a list, with
+    dictionaries as entries
+    """
+
+    TYPE_STR = 'type'
+    DATA_STR = 'data'
+    URL_TYPE_NAME = 'URL'
+    CHECKSUM_TYPE_NAME = 'CHECKSUM'
+
+
+    def __init__(self):
+        self.content = list()
+
+    def add_value(self, entry_type, data):
+        self.content.append({self.TYPE_STR: entry_type,
+                             self.DATA_STR: data})
+
+    def add_url(self, url):
+        self.add_value(entry_type=self.URL_TYPE_NAME, data=url)
+
+    def add_checksum(self, checksum):
+        self.add_value(entry_type=self.CHECKSUM_TYPE_NAME, data=checksum)
+
+    def get_entries_with_property_value(self, property_name, value):
+        return [k for k in self.content if k[property_name] == value]
+
+    def get_data_with_property_value(self, property_name, value):
+        res = self.get_entries_with_property_value(property_name, value)
+        if len(res) == 0:
+            return None
+        return res[0][self.DATA_STR]
+
+    def get_url_value(self):
+        return self.get_data_with_property_value(self.TYPE_STR,
+                                                 self.URL_TYPE_NAME)
+
+    def get_checksum_value(self):
+        return self.get_data_with_property_value(self.TYPE_STR,
+                                                 self.CHECKSUM_TYPE_NAME)
+
+    @staticmethod
+    def get_handle_with_values(url, checksum=0):
+        h = HandleRecord()
+        h.add_url(url)
+        if checksum != 0:
+            h.add_checksum(checksum)
+
+        return h
+
+
 class EpicClient(object):
     """Client for communication with epic pid service."""
 
@@ -37,7 +90,10 @@ class EpicClient(object):
         self.accept_format = 'application/json'
         self.debug = debug
         self.credentials = credentials
-        self.base_uri = base_uri
+        if base_uri[-1] == '/':
+            self.base_uri = base_uri[:-1]
+        else:
+            self.base_uri = base_uri
 
 
     def _debug_msg(self, method, msg):
