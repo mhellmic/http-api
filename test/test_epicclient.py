@@ -4,10 +4,7 @@ from httmock import all_requests, response, HTTMock
 import requests
 from requests.auth import HTTPBasicAuth
 
-from eudat_http_api.epicclient import EpicClient, convert_to_handle, \
-    create_uri
-import json
-
+from eudat_http_api.epicclient import EpicClient, create_uri, HandleRecord
 
 def extract_prefix_suffix(handle, baseuri):
     myurl = handle
@@ -48,9 +45,13 @@ class TestCase(unittest.TestCase):
         self.prefix = '11858'
         self.suffix = '00-ZZZZ-0000-0000-000C-7'
         self.base_uri = 'http://www.foo.bar'
+        self.record = HandleRecord.get_handle_with_values(
+            'irods://tempZone/home/foo/bar',
+            checksum=667)
+
         handles[create_uri(base_uri='', prefix=self.prefix,
                            suffix=self.suffix)] = \
-            convert_to_handle('irods://tempZone/home/foo/bar', checksum=667)
+            self.record.as_epic_json_array()
 
         self.epic_client = EpicClient(base_uri=self.base_uri,
                                       credentials=HTTPBasicAuth('user',
@@ -67,39 +68,16 @@ class TestCase(unittest.TestCase):
                          prefix='9093', suffix='666')
         assert uri == 'http://foo.bar/9093/666'
 
-    def test_create_handle_wo_checksum(self):
-        a = convert_to_handle('http://foo.bar/')
-        assert a is not None
-        json_array = json.loads(a)
-        assert len(json_array) == 1
-        assert json_array[0]['type'] == 'URL'
-        assert json_array[0]['parsed_data'] == 'http://foo.bar/'
-
-    def test_create_handle_w_checksum(self):
-        a = convert_to_handle('http://foo.bar/', 666)
-        assert a is not None
-        json_array = json.loads(a)
-        assert len(json_array) == 2
-        assert json_array[0]['type'] == 'URL'
-        assert json_array[0]['parsed_data'] == 'http://foo.bar/'
-
-        assert json_array[1]['type'] == 'CHECKSUM'
-        assert json_array[1]['parsed_data'] == 666
-
     def test_retrieve(self):
         with HTTMock(my_mock):
             handle = self.epic_client.retrieve_handle(
                 prefix=self.prefix,
                 suffix=self.suffix)
             assert handle is not None
-            # jj: not sure if we should return string or json?
-            json_handle = json.loads(handle)
-            print json_handle
-            assert json_handle[0]['type'] == 'URL'
-            assert json_handle[0][
-                       'parsed_data'] == 'irods://tempZone/home/foo/bar'
-            assert json_handle[1]['type'] == 'CHECKSUM'
-            assert json_handle[1]['parsed_data'] == 667
+
+            print handle
+            assert handle.get_url_value() == 'irods://tempZone/home/foo/bar'
+            assert handle.get_checksum_value() == 667
 
     def test_retrieve_none_existing(self):
         with HTTMock(my_mock):
@@ -111,18 +89,18 @@ class TestCase(unittest.TestCase):
         @all_requests
         def failing_mock(url, request):
             return {'status_code': requests.codes.bad_request, 'content': ''}
+
         with HTTMock(failing_mock):
             handle = self.epic_client.create_new(prefix='666',
-                                                 location='http://foo.bar/',
-                                                 checksum=667)
+                                                 handle_record=self.record)
             assert handle is None
 
 
     def test_create(self):
         with HTTMock(my_mock):
-            handle = self.epic_client.create_new(prefix='666',
-                                                 location='http://foo.bar/',
-                                                 checksum=667)
+            h = HandleRecord.get_handle_with_values('http://foo.bar/', 667)
+            handle = self.epic_client.create_new(prefix='666', handle_record=h)
+
             assert handle is not None
             assert handle.count('666') > 0
             prefix, suffix = extract_prefix_suffix(handle, self.base_uri)
@@ -130,15 +108,10 @@ class TestCase(unittest.TestCase):
             handle_r = self.epic_client.retrieve_handle(prefix=prefix,
                                                         suffix=suffix)
             assert handle_r is not None
-            json_handle = json.loads(handle_r)
-            print json_handle
+            print handle_r
 
-            assert len(json_handle) == 2
-            assert json_handle[0]['type'] == 'URL'
-            assert json_handle[0]['parsed_data'] == 'http://foo.bar/'
-
-            assert json_handle[1]['type'] == 'CHECKSUM'
-            assert json_handle[1]['parsed_data'] == 667
+            assert handle_r.get_url_value() == 'http://foo.bar/'
+            assert handle_r.get_checksum_value() == 667
 
 
 if __name__ == '__main__':

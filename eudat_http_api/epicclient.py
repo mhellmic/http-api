@@ -14,21 +14,6 @@ def create_uri(base_uri, prefix, suffix=''):
     return '/'.join([base_uri, prefix, suffix])
 
 
-def convert_to_handle(location, checksum=0):
-    """Creates handle record in json format
-
-    @param location: URL value of the handle record
-    @param checksum: checksum value of the handle record
-    @return: handle record in json format (ready to submit)
-    """
-    handle_content = [{'type': 'URL', 'parsed_data': location}]
-
-    if checksum:
-        handle_content.append({'type': 'CHECKSUM', 'parsed_data': checksum})
-
-    return json.dumps(handle_content)
-
-
 def rename_key_in_dictionary(dictionary, old_name, new_name):
     if dictionary.has_key(old_name):
         dictionary[new_name] = dictionary.pop(old_name)
@@ -77,7 +62,7 @@ class HandleRecord(object):
         return self.get_data_with_property_value(self.TYPE_STR,
                                                  self.CHECKSUM_TYPE_NAME)
 
-    def to_epic_json_array(self):
+    def as_epic_json_array(self):
         cpy = list(self.content)
         for entry in cpy:
             rename_key_in_dictionary(entry, self.DATA_STR,
@@ -107,9 +92,6 @@ class HandleRecord(object):
         return h
 
 
-
-
-
     @staticmethod
     def get_handle_with_values(url, checksum=0):
         h = HandleRecord()
@@ -120,11 +102,8 @@ class HandleRecord(object):
         return h
 
 
-
-
-
 class EpicClient(object):
-    """Client for communication with epic pid service."""
+    """Client for communication with epic and handle pid service."""
 
     def __init__(self, base_uri, credentials, debug=False):
         """Initialize object with connection parameters."""
@@ -146,10 +125,12 @@ class EpicClient(object):
     def retrieve_handle(self, prefix, suffix=''):
         """Retrieve a handle from the PID service.
 
+        This method should work equally good with epic and handle endpoints.
+
         Parameters:
         prefix: URI to the resource, or the prefix if suffix is not ''.
         suffix: The suffix of the handle. Default: ''.
-        Returns the content of the handle in JSON, None on error.
+        Returns handle record
 
         """
         headers = {'Accept': self.accept_format}
@@ -168,24 +149,26 @@ class EpicClient(object):
                             'Response status: %s' % response.status_code)
             return None
 
-        return response.content
+        return HandleRecord.from_json(response.json())
 
-    def create_new(self, prefix, location, checksum):
+    def create_new(self, prefix, handle_record):
         """Create new handle
 
         utilizes automatic pid generation function of the epic api
+        Here we presume (without validating) that the target server is epic
+        and not handle. This makes sense since handle does not support
+        creation. Nevertheless a more sophisticated verification could be
+        sensible here.
 
         @param prefix: prefix in which the new handle should be placed
-        @param location: will be included in handle record as URL
-        @param checksum: checksum of the data object created
+        @param handle_record: handle record object
         @return: location of the handle
         """
         headers = {'Content-Type': 'application/json'}
-        new_handle_json = convert_to_handle(location, checksum)
         response = post(url=create_uri(base_uri=self.base_uri,
                                        prefix=prefix, suffix=''),
                         headers=headers,
-                        data=new_handle_json,
+                        data=handle_record.as_epic_json_array(),
                         auth=self.credentials)
 
         if response is None:

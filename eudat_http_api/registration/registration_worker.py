@@ -7,7 +7,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import db, RegistrationRequest
-from eudat_http_api.epicclient import EpicClient
+from eudat_http_api.epicclient import EpicClient, HandleRecord
 from irods import rcConnect, clientLoginWithPassword, irodsOpen
 
 
@@ -154,8 +154,9 @@ def get_handle(context):
 
     epic_client = get_epic_client()
     pid = epic_client.create_new(EPIC_PREFIX,
+                                 HandleRecord.get_handle_with_values(
                                  create_storage_url(context.destination),
-                                 context.checksum)
+                                 context.checksum))
     if pid is None:
         return False
 

@@ -62,7 +62,7 @@ class TestCase(unittest.TestCase):
 
     def test_to_json_array(self):
         h = HandleRecord.get_handle_with_values('http://www.foo.bar', 634)
-        json_str = h.to_epic_json_array()
+        json_str = h.as_epic_json_array()
         assert json_str is not None
         assert json_str.count('http://www.foo.bar') == 1
         array = json.loads(json_str)
