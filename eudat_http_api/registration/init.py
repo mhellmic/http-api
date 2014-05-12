@@ -1,3 +1,4 @@
+from urlparse import urlparse
 from flask import Blueprint
 import flask
 from flask import current_app
@@ -5,7 +6,8 @@ from flask import request
 from flask import json
 from flask import abort, url_for
 
-from eudat_http_api.common import request_wants, ContentTypes
+from eudat_http_api.common import request_wants, ContentTypes, is_local
+from eudat_http_api.epicclient import EpicClient
 
 from eudat_http_api.registration.models import db, RegistrationRequest, \
     RegistrationRequestSerializer
@@ -151,18 +153,27 @@ def get_pids_by_prefix():
     pass
 
 
+
+
 @registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
 @auth.requires_auth
 def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
 
     # resolve PID
-    handle_url = 'http://hdl.handle.net/'+pid_prefix+'/'+pid_suffix\
-                 +'?noredirect'
-
+    handle_client = EpicClient(base_uri=current_app.config['HANDLE_BASE_URI'],
+                               credentials=None)
     # extract link to data object
+    handle_record = handle_client.retrieve_handle(prefix=pid_prefix,
+                                                  suffix=pid_suffix)
+    if handle_record is None:
+        abort(404)
 
-    # choose link to data object
+    storage_url = handle_record.get_url_value()
+    if is_local(storage_url, current_app.config['RODSHOST'], current_app
+            .config['RODSPORT'], current_app['RODSZONE']):
+        return 'Content'
 
-    # return data object
-    return 'nothing there, baeh!'
+    #remote location use-case: comes later
+    return 'Requested content is currently not available\n', \
+           request.codes.no_content, {}

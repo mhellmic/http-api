@@ -1,4 +1,6 @@
 import os
+from eudat_http_api.epicclient import EpicClient
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 SECRET_KEY = 'longkeyinthefuture'
@@ -28,3 +30,5 @@ PORT = 8080
 HANDLE_URI = ''
 HANDLE_USER = ''
 HANDLE_PASS = ''
+
+HANDLE_BASE_URI=EpicClient.HANDLE_BASE_URI

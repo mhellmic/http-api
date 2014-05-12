@@ -105,6 +105,9 @@ class HandleRecord(object):
 class EpicClient(object):
     """Client for communication with epic and handle pid service."""
 
+    SARA_BASE_URI = 'https://epic.sara.nl/v2/handles/'
+    HANDLE_BASE_URI = 'http://hdl.handle.net/api/handles/'
+
     def __init__(self, base_uri, credentials, debug=False):
         """Initialize object with connection parameters."""
         self.accept_format = 'application/json'

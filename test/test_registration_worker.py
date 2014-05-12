@@ -6,6 +6,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from requests import get
 from eudat_http_api.registration import registration_worker
+from eudat_http_api.registration.init import is_local
 
 from eudat_http_api.registration.models import RegistrationRequest
 from eudat_http_api import create_app
@@ -157,7 +158,6 @@ class TestCase(unittest.TestCase):
         assert url.startswith('irods://')
         assert url == 'irods://localhost:1247/tempZone/safe/' \
                '2595d08ad22c733f7a1ce713e767563e13a8dfa35baa74919c28e0f586cb424b'
-
 
     def test_replication_file_name(self):
         c = self.prepare_context()
