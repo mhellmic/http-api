@@ -1,7 +1,7 @@
 from requests import get, post
 import json
 import requests
-
+from BeautifulSoup import BeautifulStoneSoup
 
 def create_uri(base_uri, prefix, suffix=''):
     """Creates handle uri from provided parameters
@@ -31,8 +31,10 @@ class HandleRecord(object):
     EPIC_DATA_STR = 'parsed_data'
     URL_TYPE_NAME = 'URL'
     CHECKSUM_TYPE_NAME = 'CHECKSUM'
+    LOC = '10320/LOC'
 
     def __init__(self):
+
         self.content = list()
 
     def add_value(self, entry_type, data):
@@ -61,6 +63,23 @@ class HandleRecord(object):
     def get_checksum_value(self):
         return self.get_data_with_property_value(self.TYPE_STR,
                                                  self.CHECKSUM_TYPE_NAME)
+
+    def get_all_locations(self):
+        """Returns list of all locations found in Handle record
+
+        Locations can be found at two places URL and 10320/LOC field. The
+        later field has to be parsed.
+
+        """
+        locations = [self.get_url_value()]
+
+        loc = self.get_data_with_property_value(self.TYPE_STR, self.LOC)
+        soup = BeautifulStoneSoup(loc)
+        for l in soup.findAll('location'):
+            locations.append(l['href'])
+        return locations
+
+
 
     def as_epic_json_array(self):
         cpy = list(self.content)

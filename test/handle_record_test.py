@@ -77,7 +77,6 @@ class TestCase(unittest.TestCase):
                                    '.de:1247/vzRZGE/eudat/clarin/archive/qfs1/media-archive/lac_data/Ozyurek//20100203172555.imdi'
         assert h.get_checksum_value() == '409b793ccab2c3b7113da1c8f8c1e5e5'
 
-
     def test_from_handle_json_array(self):
         h = HandleRecord.from_json(json.loads(self.handle_str))
         assert h is not None
@@ -87,6 +86,17 @@ class TestCase(unittest.TestCase):
     def test_to_string(self):
         h = HandleRecord.get_handle_with_values('http://www.foo.bar', 772)
         print h
+
+    def test_retrieve_all_locations(self):
+        h = HandleRecord.from_json(json.loads(self.handle_str))
+        assert h is not None
+        locations = h.get_all_locations()
+        assert locations
+        print locations
+        assert len(locations) == 2
+        assert locations[0] == h.get_url_value()
+
+
 
 if __name__ == '__main__':
     unittest.main()
