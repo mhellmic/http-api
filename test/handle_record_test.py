@@ -96,6 +96,15 @@ class TestCase(unittest.TestCase):
         assert len(locations) == 2
         assert locations[0] == h.get_url_value()
 
+    def test_retrieve_all_locations_with_url(self):
+        h = HandleRecord.get_handle_with_values('http://www.foo.bar')
+        assert h is not None
+        locations = h.get_all_locations()
+        assert locations
+        print locations
+        assert len(locations) == 1
+        assert locations[0] == h.get_url_value()
+
 
 
 if __name__ == '__main__':

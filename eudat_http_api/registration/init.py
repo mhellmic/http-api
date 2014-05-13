@@ -154,6 +154,28 @@ def get_pids_by_prefix():
     pass
 
 
+def select_location(location_list):
+    """Selects optimal location from a given list
+
+    This is just a place-holder for a more sophisticated functionality.
+    Currently it only returns location if they are local.
+
+    More sophisticated solutions e.g. redirection to remote based on client
+    ip, could be implemented in the future.
+
+    @param location_list: list of the possible locations
+    @return: URL for redirection, or False if nothing found
+    """
+    for l in location_list:
+        loc = is_local(l, current_app.config['RODSHOST'],
+                       current_app.config['RODSPORT'],
+                       current_app.config['RODSZONE'])
+        if loc:
+            return url_for('http_storage.get_cdmi_obj', objpath=loc)
+
+    return False
+
+
 @registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
 @auth.requires_auth
 def get_pid_by_handle(pid_prefix, pid_suffix):
@@ -168,13 +190,9 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
     if handle_record is None:
         abort(404)
 
-    storage_url = handle_record.get_url_value()
-    location = is_local(storage_url, current_app.config['RODSHOST'],
-                        current_app.config['RODSPORT'],
-                        current_app.config['RODSZONE'])
+    location = select_location(handle_record.get_all_locations())
     if location:
-        return redirect(url_for('http_storage.get_cdmi_obj',
-                                objpath=location))
+        return redirect(location)
 
     #remote location use-case: comes later
     return 'Requested content is currently not available\n', \

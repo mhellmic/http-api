@@ -74,12 +74,13 @@ class HandleRecord(object):
         locations = [self.get_url_value()]
 
         loc = self.get_data_with_property_value(self.TYPE_STR, self.LOC)
+        if not loc:
+            return locations
+
         soup = BeautifulStoneSoup(loc)
         for l in soup.findAll('location'):
             locations.append(l['href'])
         return locations
-
-
 
     def as_epic_json_array(self):
         cpy = list(self.content)
