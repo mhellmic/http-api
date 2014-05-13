@@ -5,6 +5,7 @@ from flask import current_app
 from flask import request
 from flask import json
 from flask import abort, url_for
+from werkzeug.utils import redirect
 
 from eudat_http_api.common import request_wants, ContentTypes, is_local
 from eudat_http_api.epicclient import EpicClient
@@ -153,8 +154,6 @@ def get_pids_by_prefix():
     pass
 
 
-
-
 @registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
 @auth.requires_auth
 def get_pid_by_handle(pid_prefix, pid_suffix):
@@ -170,10 +169,13 @@ def get_pid_by_handle(pid_prefix, pid_suffix):
         abort(404)
 
     storage_url = handle_record.get_url_value()
-    if is_local(storage_url, current_app.config['RODSHOST'], current_app
-            .config['RODSPORT'], current_app['RODSZONE']):
-        return 'Content'
+    location = is_local(storage_url, current_app.config['RODSHOST'],
+                        current_app.config['RODSPORT'],
+                        current_app.config['RODSZONE'])
+    if location:
+        return redirect(url_for('http_storage.get_cdmi_obj',
+                                objpath=location))
 
     #remote location use-case: comes later
     return 'Requested content is currently not available\n', \
-           request.codes.no_content, {}
+           204, {}

@@ -54,4 +54,4 @@ def is_local(storage_url, local_host, local_port, local_zone):
     if local_zone != parsed.path.split('/')[1]:
         return False
 
-    return True
+    return parsed.path
