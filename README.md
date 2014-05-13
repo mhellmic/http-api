@@ -10,11 +10,13 @@ Required python packages:
 - requests
 - Flask-SQLAlchemy
 - marshmallow
+- BeautifulSoup
 
 Testing:
 
 - mock
 - nose
+- httmock
 
 
 Instructions:

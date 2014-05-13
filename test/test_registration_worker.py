@@ -1,4 +1,3 @@
-import os
 import tempfile
 import unittest
 from datetime import datetime
@@ -6,7 +5,6 @@ import requests
 from requests.auth import HTTPBasicAuth
 from requests import get
 from eudat_http_api.registration import registration_worker
-from eudat_http_api.registration.init import is_local
 
 from eudat_http_api.registration.models import RegistrationRequest
 from eudat_http_api import create_app
