@@ -4,14 +4,8 @@ from httmock import all_requests, response, HTTMock
 import requests
 from requests.auth import HTTPBasicAuth
 
-from eudat_http_api.epicclient import EpicClient, create_uri, HandleRecord
-
-def extract_prefix_suffix(handle, baseuri):
-    myurl = handle
-    myurl.replace(baseuri, '')
-    array = myurl.split('/')
-    return array[-2], array[-1]
-
+from eudat_http_api.epicclient import EpicClient, create_uri, HandleRecord, \
+    extract_prefix_suffix
 
 handles = dict()
 
@@ -95,7 +89,6 @@ class TestCase(unittest.TestCase):
                                                  handle_record=self.record)
             assert handle is None
 
-
     def test_create(self):
         with HTTMock(my_mock):
             h = HandleRecord.get_handle_with_values('http://foo.bar/', 667)
@@ -103,7 +96,7 @@ class TestCase(unittest.TestCase):
 
             assert handle is not None
             assert handle.count('666') > 0
-            prefix, suffix = extract_prefix_suffix(handle, self.base_uri)
+            prefix, suffix = extract_prefix_suffix(handle)
             print prefix, suffix
             handle_r = self.epic_client.retrieve_handle(prefix=prefix,
                                                         suffix=suffix)
@@ -112,6 +105,12 @@ class TestCase(unittest.TestCase):
 
             assert handle_r.get_url_value() == 'http://foo.bar/'
             assert handle_r.get_checksum_value() == 667
+
+    def test_extract_prefix_suffix(self):
+        url = 'https://epic.sara.nl/v2/handles/11096/01ea78d6-3ca8-11e3-8dbd-00163ef6845e'
+        prefix, suffix = extract_prefix_suffix(url)
+        assert prefix == '11096'
+        assert suffix == '01ea78d6-3ca8-11e3-8dbd-00163ef6845e'
 
 
 if __name__ == '__main__':

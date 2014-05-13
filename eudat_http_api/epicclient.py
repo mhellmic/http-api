@@ -1,7 +1,9 @@
 from requests import get, post
 import json
 import requests
+from urlparse import urlparse
 from BeautifulSoup import BeautifulStoneSoup
+
 
 def create_uri(base_uri, prefix, suffix=''):
     """Creates handle uri from provided parameters
@@ -12,6 +14,12 @@ def create_uri(base_uri, prefix, suffix=''):
     @return: proper http url
     """
     return '/'.join([base_uri, prefix, suffix])
+
+
+def extract_prefix_suffix(url):
+    parsed = urlparse(url)
+    tokenized = parsed.path.split('/')
+    return tokenized[-2], tokenized[-1]
 
 
 def rename_key_in_dictionary(dictionary, old_name, new_name):

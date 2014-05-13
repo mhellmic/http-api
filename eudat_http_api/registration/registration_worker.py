@@ -7,7 +7,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from eudat_http_api.registration.models import db, RegistrationRequest
-from eudat_http_api.epicclient import EpicClient, HandleRecord
+from eudat_http_api.epicclient import EpicClient, HandleRecord, \
+    extract_prefix_suffix
 from irods import rcConnect, clientLoginWithPassword, irodsOpen
 
 
@@ -122,17 +123,17 @@ def create_storage_url(path):
 
 
 def check_src(context):
-    update_status(context, 'Checking source')
+    update_request(context, 'Checking source')
     return check_url(context.src_url, context.auth)
 
 
 def check_metadata(context):
-    update_status(context, 'Checking metadata')
+    update_request(context, 'Checking metadata')
     return check_url(context.md_url, context.auth)
 
 
 def copy_data_object(context):
-    update_status(context, 'Copying data object to the new location')
+    update_request(context, 'Copying data object to the new location')
     destination = get_destination(context)
     username, password = extract_credentials(context.auth)
     conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
@@ -150,7 +151,7 @@ def copy_data_object(context):
 
 
 def get_handle(context):
-    update_status(context, 'Creating handle')
+    update_request(context, 'Creating handle')
 
     epic_client = get_epic_client()
     pid = epic_client.create_new(EPIC_PREFIX,
@@ -160,12 +161,12 @@ def get_handle(context):
     if pid is None:
         return False
 
-    context.pid = pid
+    context.pid = '/'.join(extract_prefix_suffix(pid))
     return True
 
 
 def start_replication(context):
-    update_status(context, 'Starting replication')
+    update_request(context, 'Starting replication')
     context.replication_destination = get_replication_destination(context)
 
     username, password = extract_credentials(context.auth)
@@ -186,10 +187,14 @@ def start_replication(context):
 #execution-related stuff: workers, task queue & workflow definition
 
 
-def update_status(context, status):
+def update_request(context, status):
     r = RegistrationRequest.query.get(context.request_id)
     r.status_description = status
     print 'Request %d advanced to %s' % (r.id, status)
+    #we could also add other properties from context to request (dst?)
+    if hasattr(context, 'pid'):
+        r.pid = context.pid
+
     db.session.add(r)
     db.session.commit()
     context.status = status
@@ -214,11 +219,11 @@ def executor():
                   (context.request_id, step.__name__))
             success = step(context)
             if not success:
-                update_status(context, 'Failed during %s' % step.__name__)
+                update_request(context, 'Failed during %s' % step.__name__)
                 break
 
         if success:
-            update_status(context, 'Request finished pid = %s ' % context.pid)
+            update_request(context, 'Request finished pid = %s ' % context.pid)
         q.task_done()
 
 

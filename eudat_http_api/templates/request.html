@@ -4,4 +4,9 @@
        <tr><td>Source</td><td>{{ r.src_url }}</td></tr>
        <tr><td>Created</td><td>{{ r.timestamp }}</td></tr>
        <tr><td>Status</td><td>{{ r.status_description }}</td></tr>
+       {% if r.pid %}
+       <tr><td>PID</td><td><a
+               href="{{ url_for('registration.get_pid_by_handle', pid_prefix=r.pid.split('/')[-2], pid_suffix=r.pid.split('/')[-1] )}}">{{
+           r.pid }}</a></td></tr>
+       {% endif %}
    </table>
