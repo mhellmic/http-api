@@ -1,3 +1,4 @@
+import ConfigParser
 from Queue import Queue
 
 import threading
@@ -16,34 +17,27 @@ def get_checksum(destination):
     return 667
 
 
-EPIC_URI = 'http://localhost:5000'
-EPIC_USER = 'user'
-EPIC_PASS = 'pass'
-EPIC_PREFIX = '666'
+config = dict()
+
+
+def set_config(new_config):
+    global config
+    for k in new_config:
+        config[k] = new_config[k]
 
 
 def get_epic_client():
-    return EpicClient(base_uri=EPIC_URI, credentials=HTTPBasicAuth(
-        EPIC_USER, EPIC_PASS), debug=False)
+    return EpicClient(base_uri=config['EPIC_URI'], credentials=HTTPBasicAuth(
+        config['EPIC_USER'], config['EPIC_PASS']), debug=False)
 
 
-IRODS_HOST = 'localhost'
-IRODS_PORT = 1247
-IRODS_ZONE = 'tempZone'
-# final destination of the files (local safe storage)
-IRODS_SAFE_STORAGE = '/%s/safe/' % IRODS_ZONE
-# where the replication commands are written
-IRODS_SHARED_SPACE = '/%s/replicate/' % IRODS_ZONE
-# in the process of replication you have to define the destination where the
-#  data will be stored (for test local zone is ok). HTTP does not write to
-# this location this is done by replication rules.
-IRODS_REPLICATION_DESTINATION = '/%s/replicated/' % IRODS_ZONE
+
 
 
 def connect_to_irods(host, port, username, password, zone):
     conn, err = rcConnect(host, port, username, zone)
     if err.status != 0:
-        print 'ERROR: Unable to connect to iRODS@%s' % IRODS_HOST
+        print 'ERROR: Unable to connect to iRODS@%s' % config['RODSHOST']
         return None
 
     if conn is None:
@@ -94,17 +88,19 @@ def extract_credentials(auth):
 
 
 def get_destination(context):
-    return '%s%s' % (IRODS_SAFE_STORAGE, hashlib.sha256(context.src_url)
+    return '%s%s' % (config['IRODS_SAFE_STORAGE'], hashlib.sha256(context
+                                                                  .src_url)
                      .hexdigest())
 
 
 def get_replication_destination(context):
-    return '%s%s' % (IRODS_REPLICATION_DESTINATION,
+    return '%s%s' % (config['IRODS_REPLICATION_DESTINATION'],
                      hashlib.sha256(context.src_url).hexdigest())
 
 
 def get_replication_filename(context):
-    return '%s%s.replicate' % (IRODS_SHARED_SPACE, context.pid.split('/')[-1])
+    return '%s%s.replicate' % (config['IRODS_SHARED_SPACE'], context.pid
+                               .split('/')[-1])
 
 
 def get_replication_command(context):
@@ -114,11 +110,7 @@ def get_replication_command(context):
 
 
 def create_storage_url(path):
-    # example of URL (11113/dda2224c-16ca-11e3-bec5-005056be76d0)
-    #irods://ed-res-01.csc.fi:1247/ed-csc/rc/enes/cmip5/output1/MPI-M/MPI
-    # -ESM-LR/rcp45/mon/ocean/Omon/r1i1p1/v20120110/hfsithermds/
-    # hfsithermds_Omon_MPI-ESM-LR_rcp45_r1i1p1_229001-230012.nc
-    return 'irods://%s:%d%s' % (IRODS_HOST, IRODS_PORT,
+    return 'irods://%s:%d%s' % (config['RODSHOST'], config['RODSPORT'],
                                 path)
 
 
@@ -136,8 +128,10 @@ def copy_data_object(context):
     update_request(context, 'Copying data object to the new location')
     destination = get_destination(context)
     username, password = extract_credentials(context.auth)
-    conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
-                            IRODS_ZONE)
+    conn = connect_to_irods(config['RODSHOST'], config['RODSPORT'],
+                            username,
+                            password,
+                            config['RODSZONE'])
     target = get_irods_file_handle(connection=conn, filename=destination)
     source = get(url=context.src_url, auth=context.auth, stream=True)
     stream_download(source, target)
@@ -154,10 +148,10 @@ def get_handle(context):
     update_request(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(EPIC_PREFIX,
+    pid = epic_client.create_new(config['EPIC_PREFIX'],
                                  HandleRecord.get_handle_with_values(
-                                 create_storage_url(context.destination),
-                                 context.checksum))
+                                     create_storage_url(context.destination),
+                                     context.checksum))
     if pid is None:
         return False
 
@@ -170,8 +164,10 @@ def start_replication(context):
     context.replication_destination = get_replication_destination(context)
 
     username, password = extract_credentials(context.auth)
-    conn = connect_to_irods(IRODS_HOST, IRODS_PORT, username, password,
-                            IRODS_ZONE)
+    conn = connect_to_irods(config['RODSHOST'], config['RODSPORT'],
+                            username,
+                            password,
+                            config['RODSZONE'])
     target = get_irods_file_handle(
         connection=conn,
         filename=get_replication_filename(context))
@@ -183,6 +179,7 @@ def start_replication(context):
     conn.disconnect()
 
     return True
+
 
 #execution-related stuff: workers, task queue & workflow definition
 

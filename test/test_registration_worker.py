@@ -43,6 +43,7 @@ class TestCase(unittest.TestCase):
         self.app = app
         self.client = app.test_client()
         db.create_all()
+        registration_worker.set_config(app.config)
 
     def tearDown(self):
         db.drop_all()
@@ -106,7 +107,7 @@ class TestCase(unittest.TestCase):
 
     def test_get_handle(self):
         c = self.prepare_context()
-        expected_location = 'http://www.foo.bar/667/111'
+        expected_location = 'http://www.foo.bar/666/111'
         c.destination = '/some/random/location'
         c.checksum = 667
 
@@ -122,7 +123,7 @@ class TestCase(unittest.TestCase):
             ret = get_handle(c)
 
         assert ret
-        assert c.pid == expected_location
+        assert c.pid == '666/111'
 
     def test_start_replication(self):
         c = self.prepare_context()

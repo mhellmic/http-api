@@ -14,7 +14,8 @@ from eudat_http_api.registration.models import db, RegistrationRequest, \
     RegistrationRequestSerializer
 from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import add_task, \
-    start_workers
+    start_workers, set_config
+
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
@@ -71,6 +72,8 @@ def extract_urls(url):
 
 @registration.before_app_first_request
 def initialize():
+    current_app.logger.debug('Setting worker config')
+    set_config(current_app.config)
     current_app.logger.debug('Starting workers')
     start_workers(5)
 
@@ -141,7 +144,7 @@ def get_request(request_id):
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
 @auth.requires_auth
 def get_pids_by_prefix():
-    """search PIDs with this prefix on handle.net
+    """Search PIDs with this prefix on handle.net
 
     return list of PIDs
     (with links to /registered/<full_pid>) to download
@@ -152,6 +155,28 @@ def get_pids_by_prefix():
 
     """
     pass
+
+
+
+@registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
+@auth.requires_auth
+def get_pid_by_handle(pid_prefix, pid_suffix):
+    """Retrieves a data object by PID."""
+
+    handle_client = EpicClient(base_uri=current_app.config['HANDLE_BASE_URI'],
+                               credentials=None)
+    handle_record = handle_client.retrieve_handle(prefix=pid_prefix,
+                                                  suffix=pid_suffix)
+    if handle_record is None:
+        abort(404)
+
+    location = select_location(handle_record.get_all_locations())
+    if location:
+        return redirect(location)
+
+    #remote location use-case: comes later
+    return 'Requested content is currently not available\n', \
+           204, {}
 
 
 def select_location(location_list):
@@ -174,26 +199,3 @@ def select_location(location_list):
             return url_for('http_storage.get_cdmi_obj', objpath=loc)
 
     return False
-
-
-@registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
-@auth.requires_auth
-def get_pid_by_handle(pid_prefix, pid_suffix):
-    """Retrieves a data object by PID."""
-
-    # resolve PID
-    handle_client = EpicClient(base_uri=current_app.config['HANDLE_BASE_URI'],
-                               credentials=None)
-    # extract link to data object
-    handle_record = handle_client.retrieve_handle(prefix=pid_prefix,
-                                                  suffix=pid_suffix)
-    if handle_record is None:
-        abort(404)
-
-    location = select_location(handle_record.get_all_locations())
-    if location:
-        return redirect(location)
-
-    #remote location use-case: comes later
-    return 'Requested content is currently not available\n', \
-           204, {}
