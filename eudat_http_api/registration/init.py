@@ -1,4 +1,3 @@
-from urlparse import urlparse
 from flask import Blueprint
 import flask
 from flask import current_app
@@ -30,13 +29,13 @@ class Context():
 def get_hal_links(reg_requests, page):
     """returns links in json hal format"""
     navi = dict()
-    navi['self'] = {'href': url_for('get_requests', page=page)}
+    navi['self'] = {'href': url_for('.get_requests', page=page)}
     if reg_requests.has_next:
         navi['next'] = {
-            'href': url_for('get_requests', page=reg_requests.next_num)}
+            'href': url_for('.get_requests', page=reg_requests.next_num)}
     if reg_requests.has_prev:
         navi['prev'] = {
-            'href': url_for('get_requests', page=reg_requests.prev_num)}
+            'href': url_for('.get_requests', page=reg_requests.prev_num)}
 
     return navi
 
@@ -143,7 +142,7 @@ def get_request(request_id):
 
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
 @auth.requires_auth
-def get_pids_by_prefix():
+def get_pids_by_prefix(pid_prefix):
     """Search PIDs with this prefix on handle.net
 
     return list of PIDs
@@ -154,7 +153,7 @@ def get_pids_by_prefix():
     be able to provide full list of all prefixes used in EUDAT)
 
     """
-    pass
+    return flask.render_template('pids.html')
 
 
 

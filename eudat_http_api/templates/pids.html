@@ -1,5 +1,5 @@
 {% extends "bootstrap/base.html" %}
-{% block title %} Listing {{ path }} {% endblock %}
+{% block title %} PID Resolver {% endblock %}
 
 {% block navbar %}
 <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
@@ -15,10 +15,11 @@
         </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Scratch</a></li>
-            <li><a href="{{ url_for('registration.get_requests') }}">Registration
-                Requests</a></li>
             <li><a
+                    href="{{ url_for('http_storage.get_cdmi_obj', path='/')}}">Scratch</a></li>
+            <li><a
+                    href="{{ url_for('registration.get_requests') }}">Registration Requests</a></li>
+            <li class="active"><a
                     href="{{ url_for('registration.get_pids_by_prefix', pid_prefix='666') }}"
                     >Registered</a></li>
           </ul>
@@ -28,18 +29,16 @@
 
 {% endblock %}
 
+
 {% block content %}
 <div class="container">
   <div class="jumbotron">
-   <h1>Listing of {{ path }}</h1>
-   <ul>
-        <li><a href="{{ path }}">[l]</a>.</li>
-        <li><a href="{{ parent_path }}">[l]</a>..</li>
-        {% for item in dirlist %}
-        <li><a href="{{ path }}{{ item.name }}">[l]</a>
-        {% if item.objtype == 'dir' %}(dir) {% endif %}{{ item.name }}</li>
-        {% endfor %}
-    </ul>
-    </div>
+    <h2>Resolve PID</h2>
+        <form action="" method="post">
+            PID <input name="src_url" type="text"/>
+            <input type="submit" name="resolve"/>
+        </form>
+
+ </div>
 </div>
 {% endblock %}
