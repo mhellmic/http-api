@@ -10,5 +10,10 @@
            href="{{ url_for('registration.get_pid_by_handle', pid_prefix=r.pid.split('/')[-2], pid_suffix=r.pid.split('/')[-1] )}}">{{
        r.pid }}</a></td></tr>
    {% endif %}
+
+   {% if r.status_description.lower().find('failed')!=-1 %}
+   <tr class="danger"><td>Status</td><td>{{ r.status_description }}</td></tr>
+   {% else %}
    <tr class="info"><td>Status</td><td>{{ r.status_description }}</td></tr>
+   {% endif %}
 </table>
