@@ -31,13 +31,22 @@
 {% block content %}
 <div class="container">
   <div class="jumbotron">
-   <h1>Listing of {{ path }}</h1>
-   <ul>
-        <li><a href="{{ path }}">[l]</a>.</li>
-        <li><a href="{{ parent_path }}">[l]</a>..</li>
+   <h3>Scratch space</h3>
+      <ol class="breadcrumb">
+          <li><a href="#">{{ path }}</a></li>
+      </ol>
+   <ul style="list-style-type: none">
+        <li><a href="{{ parent_path }}"><span class="glyphicon glyphicon-circle-arrow-up"></span></a></li>
         {% for item in dirlist %}
-        <li><a href="{{ path }}{{ item.name }}">[l]</a>
-        {% if item.objtype == 'dir' %}(dir) {% endif %}{{ item.name }}</li>
+        <li><a href="{{ path }}{{ item.name }}">
+        {% if item.objtype == 'dir' %}
+            <span class="glyphicon glyphicon-folder-open"></span>
+        {% else %}
+            <span class="glyphicon glyphicon-file"></span>
+        {% endif %}
+                    {{ item.name}}
+        </a>
+        </li>
         {% endfor %}
     </ul>
     </div>

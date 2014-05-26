@@ -51,16 +51,16 @@
 
     <ul class="pager">
     {% if requests.has_prev %}
-       <li class="previous"><a href="{{ url_for('.get_requests', page = requests.prev_num) }}">Newer requests</a></li>
+       <li class="previous"><a href="{{ url_for('.get_requests', page = requests.prev_num) }}">&larr; Newer requests</a></li>
        {% else %}
-       <li class="previous disabled"><a href="#">Newer requests</a></li>
+       <li class="previous disabled"><a href="#">&larr; Newer requests</a></li>
     {% endif %}
 
     {% if requests.has_next %}
         <li class="next"><a
-            href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests</a></li>
+            href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests &rarr;</a></li>
         {% else %}
-        <li class="next disabled">Older requests</li>
+        <li class="next disabled">&larr; Older requests &rarr;</li>
     {% endif %}
     <ul class="pager">
 

@@ -2,9 +2,9 @@
     }}</a></h3>
 
 <table class="table table-bordered table-condensed">
-    <tr><td>Submitted</td><td>{{ r.timestamp.strftime('%H:%m (%d %h %y)')
+    <tr><td  width="80px">Submitted</td><td>{{ r.timestamp.strftime('%H:%m (%d %h %y)')
        }}</td></tr>
-   <tr><td width="80px">Source</td><td>{{ r.src_url }}</td></tr>
+   <tr><td>Source</td><td>{{ r.src_url }}</td></tr>
    {% if r.pid %}
    <tr><td>PID</td><td><a
            href="{{ url_for('registration.get_pid_by_handle', pid_prefix=r.pid.split('/')[-2], pid_suffix=r.pid.split('/')[-1] )}}">{{
