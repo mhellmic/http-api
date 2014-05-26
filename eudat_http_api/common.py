@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-
 from __future__ import with_statement
+from collections import OrderedDict
 
 import os
 from urlparse import urlparse
@@ -12,6 +11,17 @@ def split_path(path):
         return os.path.split(path[:-1])
     else:
         return os.path.split(path)
+
+
+def create_path_links(path):
+    split = path.split('/')
+    ret = OrderedDict()
+    for i in split[:-1]:
+        index = split.index(i)
+        if i == '':
+            i = '/'
+        ret[i] = '/'.join(split[:index + 1]) + '/'
+    return ret
 
 
 def add_trailing_slash(path):
@@ -26,7 +36,7 @@ def add_trailing_slash(path):
         return path
 
 
-class ContentTypes:
+class ContentTypes(object):
     json, cdmi_object = ('application/json', 'application/cdmi-object')
 
 

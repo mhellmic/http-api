@@ -33,7 +33,16 @@
   <div class="jumbotron">
    <h3>Scratch space</h3>
       <ol class="breadcrumb">
-          <li><a href="#">{{ path }}</a></li>
+          {% for path_item in path_links %}
+          <li><a href="{{ path_links[path_item] }}">
+            {% if path_item == '/' %}
+                <span class="glyphicon glyphicon-home"></span>
+                </a></li>
+            {% else  %}
+                {{ path_item }}
+            {% endif %}
+          </a></li>
+          {% endfor %}
       </ol>
    <ul style="list-style-type: none">
         <li><a href="{{ parent_path }}"><span class="glyphicon glyphicon-circle-arrow-up"></span></a></li>

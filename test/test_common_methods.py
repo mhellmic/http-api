@@ -1,5 +1,5 @@
 import unittest
-from eudat_http_api.common import ContentTypes, is_local
+from eudat_http_api.common import ContentTypes, is_local, create_path_links
 
 
 class TestCase(unittest.TestCase):
@@ -41,6 +41,20 @@ class TestCase(unittest.TestCase):
 
         res = is_local(url, 'localhost', 1221, 'tempZone')
         assert not res
+
+    def test_link_creator(self):
+        ret = create_path_links('/tempZone/path/to/directory/')
+        assert ret['/'] == '/'
+        assert ret.keys().index('/') == 0
+        assert ret['tempZone'] == '/tempZone/'
+        assert ret.keys().index('tempZone') == 1
+        assert ret['path'] == '/tempZone/path/'
+        assert ret.keys().index('path') == 2
+        assert ret['to'] == '/tempZone/path/to/'
+        assert ret.keys().index('to') == 3
+        assert ret['directory'] == '/tempZone/path/to/directory/'
+        assert ret.keys().index('directory') == 4
+
 
 if __name__ == '__main__':
     unittest.main()

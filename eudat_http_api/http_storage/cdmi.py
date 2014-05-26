@@ -22,7 +22,7 @@ from itertools import imap, chain, islice
 
 from eudat_http_api import common
 from eudat_http_api import metadata
-from eudat_http_api.common import ContentTypes
+from eudat_http_api.common import ContentTypes, create_path_links
 from eudat_http_api.http_storage import storage
 
 from eudat_http_api.common import request_wants
@@ -386,6 +386,7 @@ def get_cdmi_dir_obj(path):
         return render_template('dirlisting.html',
                                dirlist=dir_gen,
                                path=path,
+                               path_links=create_path_links(path),
                                parent_path=common.split_path(path)[0])
 
 
