@@ -34,20 +34,36 @@
 <div class="container">
   <div class="jumbotron">
     <h2>Create request</h2>
-        <form action="" method="post">
-            Source: <input name="src_url" type="text"/>
-            <input type="submit" name="register"/>
+        <form class="form-inline" role="form" action="" method="post">
+            <div class="form-group">
+            <label class="control-label" for="src_url">Source: </label>
+                <input class="form-control" name="src_url" type="text" placeholder=""/>
+            </div>
+            <input class="btn btn-primary" type="submit" value="register"
+                   name="register"/>
         </form>
 
-<h2>List of registration requests</h2>
-    <ul>
-        {% for r in requests.items %}
-          {% include 'request.html' %}
-        {% endfor %}
 
-        {% if requests.has_prev %}<a href="{{ url_for('.get_requests', page = requests.prev_num) }}"><< Newer requests</a>{% else %}<< Newer requests{% endif %} |
-        {% if requests.has_next %}<a href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests >></a>{% else %}Older requests >>{% endif %}
-    </ul>
+<h2>List of registration requests</h2>
+    {% for r in requests.items %}
+      {% include 'request.html' %}
+    {% endfor %}
+
+    <ul class="pager">
+    {% if requests.has_prev %}
+       <li class="previous"><a href="{{ url_for('.get_requests', page = requests.prev_num) }}">Newer requests</a></li>
+       {% else %}
+       <li class="previous disabled"><a href="#">Newer requests</a></li>
+    {% endif %}
+
+    {% if requests.has_next %}
+        <li class="next"><a
+            href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests</a></li>
+        {% else %}
+        <li class="next disabled">Older requests</li>
+    {% endif %}
+    <ul class="pager">
+
  </div>
 </div>
 {% endblock %}
