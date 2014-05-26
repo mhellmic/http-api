@@ -2,15 +2,9 @@
 {% block title %} Registration requests {% endblock %}
 
 {% block navbar %}
-<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+<div class="navbar navbar-inverse" role="navigation">
       <div class="container">
         <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
           <a class="navbar-brand" href="#">EUDAT</a>
         </div>
         <div class="collapse navbar-collapse">
@@ -33,7 +27,9 @@
 {% block content %}
 <div class="container">
   <div class="jumbotron">
-    <h2>Create request</h2>
+    <h2>Registration requests</h2>
+
+    <h3>Create request</h3>
         <form class="form-inline" role="form" action="" method="post">
             <div class="form-group">
             <label class="control-label" for="src_url">Source: </label>
@@ -44,26 +40,25 @@
         </form>
 
 
-<h2>List of registration requests</h2>
-    {% for r in requests.items %}
-      {% include 'request.html' %}
-    {% endfor %}
+    <h3>List of registration requests</h3>
+        {% for r in requests.items %}
+          {% include 'request.html' %}
+        {% endfor %}
 
-    <ul class="pager">
-    {% if requests.has_prev %}
-       <li class="previous"><a href="{{ url_for('.get_requests', page = requests.prev_num) }}">&larr; Newer requests</a></li>
-       {% else %}
-       <li class="previous disabled"><a href="#">&larr; Newer requests</a></li>
-    {% endif %}
+        <ul class="pager">
+        {% if requests.has_prev %}
+           <li class="previous"><a href="{{ url_for('.get_requests', page = requests.prev_num) }}">&larr; Newer requests</a></li>
+           {% else %}
+           <li class="previous disabled"><a href="#">&larr; Newer requests</a></li>
+        {% endif %}
 
-    {% if requests.has_next %}
-        <li class="next"><a
-            href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests &rarr;</a></li>
-        {% else %}
-        <li class="next disabled">&larr; Older requests &rarr;</li>
-    {% endif %}
-    <ul class="pager">
-
- </div>
+        {% if requests.has_next %}
+            <li class="next"><a
+                href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests &rarr;</a></li>
+            {% else %}
+            <li class="next disabled">&larr; Older requests &rarr;</li>
+        {% endif %}
+        </ul>
+     </div>
 </div>
 {% endblock %}

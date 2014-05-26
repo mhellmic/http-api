@@ -1,14 +1,35 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Request {{ r.id }}</title>
-</head>
-<body>
-  <h1>Request {{ r.id }} </h1>
+{% extends "bootstrap/base.html" %}
+{% block title %} Request {{ r.id }} {% endblock %}
 
+{% block navbar %}
+<div class="navbar navbar-inverse" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">EUDAT</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li><a
+                    href="{{ url_for('http_storage.get_cdmi_obj')}}">Scratch</a></li>
+            <li class="active"><a
+                    href="{{ url_for('registration.get_requests') }}">Registration Requests</a></li>
+            <li><a
+                    href="{{ url_for('registration.get_pids_by_prefix', pid_prefix='666') }}"
+                    >Registered</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+
+{% endblock %}
+
+
+{% block content %}
+<div class="container">
+  <div class="jumbotron">
+  <h2>Request details</h2>
    {% include 'request.html' %}
-
    <a href="{{ url_for('.get_requests') }}">All requests</a>
-
-</body>
-</html>
+</div>
+</div>
+{% endblock %}

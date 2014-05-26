@@ -1,18 +1,39 @@
-<!doctype html>
-<html>
-<head>
-    <title> Your Request</title>
-</head>
+{% extends "bootstrap/base.html" %}
+{% block title %} Registration request submitted {% endblock %}
 
-<body>
-<h1>Registration request created</h1>
+{% block navbar %}
+<div class="navbar navbar-inverse" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">EUDAT</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li><a
+                    href="{{ url_for('http_storage.get_cdmi_obj')}}">Scratch</a></li>
+            <li class="active"><a
+                    href="{{ url_for('registration.get_requests') }}">Registration Requests</a></li>
+            <li><a
+                    href="{{ url_for('registration.get_pids_by_prefix', pid_prefix='666') }}"
+                    >Registered</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
-<p>
-  Your request ID is <a href="{{ url_for('.get_request',request_id=reg.id) }}">{{ reg.id }}</a>.
-  Follow the link to see the progress.
+{% endblock %}
 
-  <a href="{{ url_for('.get_requests') }}">Back to request list</a>
-</p>
-</body>
-</html>
+
+{% block content %}
+<div class="container">
+  <div class="jumbotron">
+    <h2>Registration request created</h2>
+    <p>Your request ID is <a href="{{ url_for('.get_request',request_id=reg.id) }}">{{ reg.id }}</a>.
+       Follow the link to see the progress.
+
+    <a href="{{ url_for('.get_requests') }}">Back to request list</a>
+    </p>
+</div>
+</div>
+{% endblock %}
 
