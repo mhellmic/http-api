@@ -79,7 +79,7 @@ def put_obj(access_module, objpath):
 @http_storage_write.route('/<path:objpath>', methods=['DELETE'])
 @auth.requires_auth
 @check_access_type
-def del_cdmi_obj(access_module, objpath):
+def del_obj(access_module, objpath):
     absolute_objpath = http_common.make_absolute_path(objpath)
     if absolute_objpath[-1] == '/':
         return access_module.del_dir_obj(absolute_objpath)
