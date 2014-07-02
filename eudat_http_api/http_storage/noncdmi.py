@@ -12,6 +12,7 @@ from flask import request
 from flask import Response
 from flask import stream_with_context
 
+from eudat_http_api.common import create_path_links
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
 
@@ -153,6 +154,7 @@ def get_dir_obj(path):
         'html/dirlisting.html',
         dirlist=dir_gen,
         path=path,
+        path_links=create_path_links(path),
         parent_path=common.add_trailing_slash(common.split_path(path)[0]))
 
 
