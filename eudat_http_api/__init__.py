@@ -37,6 +37,7 @@ def create_app(config_name):
             app.register_blueprint(registration)
 
             from eudat_http_api.registration import models
+            models.db.app = app
             models.db.init_app(app)
 
     return app
