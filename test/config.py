@@ -8,6 +8,8 @@ class Config(object):
     HOST = '127.0.0.1'
     PORT = 5000
 
+    CDMI_DOMAIN = 'cern.ch'
+
     DB_FD, DB_FILENAME = tempfile.mkstemp()
     SQLALCHEMY_DATABASE_URI = '%s%s' % ('sqlite:///', DB_FILENAME)
     REQUESTS_PER_PAGE = 5
