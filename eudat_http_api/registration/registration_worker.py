@@ -64,7 +64,7 @@ def stream_download(source, file_handle, chunk_size=4194304):
 
 
 def check_url(url, auth):
-    response = requests.head(url, auth=auth)
+    response = requests.head(url, auth=auth, allow_redirects=True)
     if response.status_code != requests.codes.ok:
         return False
 
