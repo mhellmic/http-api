@@ -25,9 +25,13 @@ def choose_access_module():
     if common.request_is_cdmi():
         if current_app.config.get('ACTIVATE_CDMI', False):
             access_module = cdmi
+        else:
+            abort(400)
     elif common.request_wants_json():
         if current_app.config.get('ACTIVATE_JSON', False):
             access_module = json
+        else:
+            abort(400)
     else:
         access_module = noncdmi
 
