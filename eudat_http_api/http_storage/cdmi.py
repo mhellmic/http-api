@@ -551,19 +551,17 @@ def get_dir_obj(path):
         filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
                         if a in cdmi_filters)
     else:
-<<<<<<< HEAD
-        return render_template('dirlisting.html',
-                               dirlist=dir_gen,
-                               path=path,
-                               path_links=create_path_links(path),
-                               parent_path=common.split_path(path)[0])
-=======
+        # this doesn't fit in at the moment ...
+        #return render_template('dirlisting.html',
+        #                       dirlist=dir_gen,
+        #                       path=path,
+        #                       path_links=create_path_links(path),
+        #                       parent_path=common.split_path(path)[0])
         filtered_gen = ((a, b()) for a, b in cdmi_json_gen)
 
     json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
     return Response(stream_with_context(json_stream_wrapper),
                     headers=response_headers)
->>>>>>> split get_obj functions into different modules per accept-type
 
 
 def _get_cdmi_filters(args_dict):

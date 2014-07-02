@@ -4,6 +4,17 @@ from collections import OrderedDict
 from flask import request
 
 
+def create_path_links(path):
+    split = path.split('/')
+    ret = OrderedDict()
+    for i in split[:-1]:
+        index = split.index(i)
+        if i == '':
+            i = '/'
+        ret[i] = '/'.join(split[:index + 1]) + '/'
+    return ret
+
+
 class ContentTypes:
     json = 'application/json'
     cdmi = ('application/cdmi-object', 'application/cdmi-container')
