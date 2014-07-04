@@ -57,7 +57,10 @@ def get_requests():
                                                        many=True).data,
              "_links": get_hal_links(reg_requests, page)})
 
-    return flask.render_template('requests.html', requests=reg_requests)
+    return flask.render_template(
+        'requests.html',
+        scratch=current_app.config.get('SCRATCH_SPACE', None),
+        requests=reg_requests)
 
 
 def extract_urls(url):
@@ -116,8 +119,10 @@ def post_request():
     if request_wants(ContentTypes.json):
         return flask.jsonify(request_id=registration_request.id), 201
     else:
-        return flask.render_template('requestcreated.html',
-                                     reg=registration_request), 201
+        return flask.render_template(
+            'requestcreated.html',
+            scratch=current_app.config.get('SCRATCH_SPACE', None),
+            reg=registration_request), 201
 
 
 @registration.route('/request/<request_id>', methods=['GET'])
@@ -134,7 +139,10 @@ def get_request(request_id):
         return flask.jsonify(
             {'request': RegistrationRequestSerializer(r).data})
 
-    return flask.render_template('singleRequest.html', r=r)
+    return flask.render_template(
+        'singleRequest.html',
+        scratch=current_app.config.get('SCRATCH_SPACE', None),
+        r=r)
 
 
 #### /registered container ####
@@ -153,8 +161,9 @@ def get_pids_by_prefix(pid_prefix):
     be able to provide full list of all prefixes used in EUDAT)
 
     """
-    return flask.render_template('pids.html')
-
+    return flask.render_template(
+        'pids.html',
+        scratch=current_app.config.get('SCRATCH_SPACE', None))
 
 
 @registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
