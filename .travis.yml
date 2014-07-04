@@ -1,0 +1,18 @@
+language: python
+addons:
+  postgresql: "9.3"
+python:
+  - "2.7"
+before_install:
+ - "chmod +x ./install_irods.sh"
+ - ./install_irods.sh
+ - "chmod +x ./install_pyrods.sh"
+ - ./install_pyrods.sh
+install: "pip install -r requirements.txt"
+script:
+ - "TEST_CONFIG=test.config.LocalConfig nosetests test.storage_interface_tests"
+ - "TEST_CONFIG=test.config.IrodsConfig nosetests test.storage_interface_tests"
+ - "TEST_CONFIG=test.config.LocalConfig nosetests test.storage_integration_tests"
+ - "TEST_CONFIG=test.config.IrodsConfig nosetests test.storage_integration_tests"
+ - "TEST_CONFIG=test.config.LocalConfig nosetests test.register_integration_tests"
+ - "TEST_CONFIG=test.config.IrodsConfig nosetests test.register_integration_tests"
