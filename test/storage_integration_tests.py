@@ -71,13 +71,9 @@ class TestHttpApi(TestApi):
         else:
             assert rv.status_code == 200
             self.assert_html_response(rv)
-            # check that there is a list with only list items
-            assert re.search('<ul>\s*(<li>.*</li>\s*)*</ul>',
+            # check that there is a list
+            assert re.search('<ul.*>.*(<li>.*</li>.*)*.*</ul>',
                              rv.data, re.DOTALL) is not None
-            # check that there are at least two items ('.' and '..')
-            assert re.search(
-                '<ul>\s*<li>.*\..*</li>\s*<li>.*\.\..*</li>.*</ul>',
-                rv.data, re.DOTALL) is not None
 
     def check_html_folder_get_404(self, resource, userinfo):
         url = resource.path
