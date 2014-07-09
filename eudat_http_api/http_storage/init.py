@@ -4,7 +4,6 @@ from functools import wraps
 
 from flask import abort
 from flask import Blueprint
-from flask import current_app
 
 from eudat_http_api import auth
 from eudat_http_api import common
@@ -12,6 +11,7 @@ from eudat_http_api.http_storage import common as http_common
 from eudat_http_api.http_storage import cdmi
 from eudat_http_api.http_storage import noncdmi
 from eudat_http_api.http_storage import json
+from eudat_http_api.http_storage.common import get_config_parameter
 
 http_storage_read = Blueprint('http_storage_read', __name__,
                               template_folder='templates')
@@ -23,12 +23,12 @@ http_storage_write = Blueprint('http_storage_write', __name__,
 def choose_access_module():
     access_module = None
     if common.request_is_cdmi():
-        if current_app.config.get('ACTIVATE_CDMI', False):
+        if get_config_parameter('ACTIVATE_CDMI', False):
             access_module = cdmi
         else:
             abort(400)
     elif common.request_wants_json():
-        if current_app.config.get('ACTIVATE_JSON', False):
+        if get_config_parameter('ACTIVATE_JSON', False):
             access_module = json
         else:
             abort(400)

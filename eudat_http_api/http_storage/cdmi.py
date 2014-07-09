@@ -15,7 +15,6 @@ from urlparse import urlparse
 
 from flask import abort
 from flask import Blueprint
-from flask import current_app
 from flask import redirect
 from flask import request
 from flask import Response
@@ -27,6 +26,7 @@ from eudat_http_api import auth
 from eudat_http_api import metadata
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
+from eudat_http_api.http_storage.common import get_config_parameter
 
 
 CDMI_VERSION = '1.0.2'
@@ -272,10 +272,6 @@ cdmi_capabilities_envelope = {
     'childrenrange': '%s',
     'children': [],  # child container objects end with '/'
     }
-
-
-def get_config_parameter(param_name, default_value):
-    return current_app.config.get(param_name, default_value)
 
 
 def not_authorized_handler(e):

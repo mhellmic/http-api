@@ -10,6 +10,7 @@ import stat as sys_stat
 from flask import current_app
 from flask import request
 
+from eudat_http_api.http_storage.common import get_config_parameter
 from eudat_http_api.http_storage.storage_common import *
 
 
@@ -24,7 +25,7 @@ def check_path_with_exported(path):
         raise MalformedPathException('Malformed path')
 
     if any(map(lambda p: path.startswith(p),
-               current_app.config['EXPORTEDPATHS'])):
+               get_config_parameter('EXPORTEDPATHS'))):
         return
     else:
         raise NotFoundException('No such file or directory')
@@ -63,9 +64,9 @@ def authenticate(username, password):
     valid accounts and passwords.
     Otherwise it allows everyone.
     """
-    if 'USERS' in current_app.config:
-        return (username in current_app.config['USERS'] and
-                current_app.config['USERS'][username] == password)
+    if get_config_parameter('USERS') is not None:
+        return (username in get_config_parameter('USERS') and
+                get_config_parameter('USERS')[username] == password)
     else:
         return True
 

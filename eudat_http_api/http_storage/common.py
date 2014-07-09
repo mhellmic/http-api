@@ -5,6 +5,12 @@ from __future__ import with_statement
 from collections import OrderedDict
 import os
 
+from flask import current_app
+
+
+def get_config_parameter(param_name, default_value=None):
+    return current_app.config.get(param_name, default_value)
+
 
 def split_path(path):
     if path[-1] == '/':

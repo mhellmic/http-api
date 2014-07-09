@@ -15,6 +15,7 @@ from flask import request
 from irods import *
 
 from eudat_http_api.http_storage import common
+from eudat_http_api.http_storage.common import get_config_parameter
 
 from eudat_http_api.http_storage.storage_common import *
 
@@ -194,9 +195,9 @@ class ConnectionPool(object):
     def __create_connection(self, username, password):
         rodsUserName = username
 
-        rodsHost = current_app.config['RODSHOST']
-        rodsPort = current_app.config['RODSPORT']
-        rodsZone = current_app.config['RODSZONE']
+        rodsHost = get_config_parameter('RODSHOST')
+        rodsPort = get_config_parameter('RODSPORT')
+        rodsZone = get_config_parameter('RODSZONE')
 
         conn, err = rcConnect(rodsHost,
                               rodsPort,
