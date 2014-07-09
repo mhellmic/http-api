@@ -3,13 +3,17 @@
 from __future__ import with_statement
 
 from base64 import b64encode  # , b64decode
+import binascii
 from collections import deque
+import crcmod
 from functools import partial
 from functools import wraps
 from inspect import isgenerator
 from itertools import islice
+import random
 import re
 import requests
+import struct
 
 from urlparse import urlparse
 
@@ -414,6 +418,10 @@ def put_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
+    # store the CDMI Object ID
+    obj_id = create_object_id()
+    storage.set_user_metadata(path, {'objectID': obj_id})
+
     response_headers = {
         'Content-Type': 'application/cdmi-object',
         'X-CDMI-Specification-Version': CDMI_VERSION,
@@ -613,7 +621,12 @@ def _get_cdmi_json_dir_generator(path, list_gen):
 
 def _get_cdmi_json_generator(path, obj_type, **data):
     base_uri, obj_name = common.split_path(path)
-    meta = metadata.stat(path, user_metadata=None)
+    meta = metadata.stat(path, user_metadata=['objectID'])
+    parent_uri = common.add_trailing_slash(base_uri)
+    try:
+        parent_meta = metadata.stat(base_uri, user_metadata=['objectID'])
+    except storage.NotFoundException:
+        parent_meta = {}
 
     def get_range(range_max, range_tuple=(0, None)):
         if range_tuple is None:
@@ -645,13 +658,19 @@ def _get_cdmi_json_generator(path, obj_type, **data):
                 yield '  "%s"' % func(el)
         yield '\n  ]'
 
+    def get_hex_object_id_or_none(meta):
+        user_meta = meta.get('user_metadata', None)
+        if user_meta is not None:
+            obj_id = user_meta.get('objectID', None)
+            if obj_id is not None:
+                return binascii.b2a_hex(obj_id)
+        return None
+
     yield ('objectType', lambda x=None: 'application/cdmi-%s' % obj_type)
-    yield ('objectID', lambda x=None: meta.get('objectID', None))
+    yield ('objectID', lambda x=None: get_hex_object_id_or_none(meta))
     yield ('objectName', lambda x=None: obj_name)
-    yield ('parentURI',
-           lambda x=None: common.add_trailing_slash(
-               base_uri))
-    yield ('parentID', lambda x=None: meta.get('parentID', None))
+    yield ('parentURI', lambda x=None: parent_uri)
+    yield ('parentID', lambda x=None: get_hex_object_id_or_none(parent_meta))
     yield ('domainURI', lambda x=None: '/cdmi_domains/%s/'
            % get_config_parameter('CDMI_DOMAIN', None))
     yield ('capabilitiesURI', lambda x=None: '/cdmi_capabilities/%s/'
@@ -740,6 +759,10 @@ def put_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
+    # store the CDMI Object ID
+    obj_id = create_object_id()
+    storage.set_user_metadata(path, {'objectID': obj_id})
+
     return flask_jsonify(create='Created'), 201
 
 
@@ -762,3 +785,44 @@ def del_dir_obj(path):
     empty_response = Response(status=204)
     del empty_response.headers['content-type']
     return empty_response
+
+
+def create_object_id(local_id_length=8):
+    # I agree that the following is ugly and quite probably not as fast
+    # as I would like it. Goal is to create a random string with a length
+    # of exactly local_id_length.
+    local_id_format = '%0' + str(local_id_length) + 'x'
+    local_obj_id = local_id_format % random.randrange(16**local_id_length)
+
+    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
+    crc_val = 0
+    id_length = str(unichr(8 + len(local_obj_id)))
+    # the poly given in the CDMI 1.0.2 spec ()x8005) is wrong,
+    # CRC-16 is specified as below
+    crc_func = crcmod.mkCrcFun(0x18005, initCrc=0x0000,
+                               xorOut=0x0000)
+
+    struct_id = struct.Struct('!cxhccH%ds' % local_id_length)
+    packed_id_no_crc = struct_id.pack('\0',
+                                      enterprise_number,
+                                      '\0',
+                                      id_length,
+                                      0,
+                                      local_obj_id)
+
+    crc_val = crc_func(packed_id_no_crc)
+
+    packed_id = struct_id.pack('\0',
+                               enterprise_number,
+                               '\0',
+                               id_length,
+                               crc_val,
+                               local_obj_id)
+
+    return packed_id
+
+
+def unpack_object_id(obj_id):
+    local_id_length = len(obj_id - 8)
+    parts = struct.unpack('!cxhccH%ds' % local_id_length, obj_id)
+    return parts
