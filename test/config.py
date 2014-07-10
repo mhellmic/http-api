@@ -23,6 +23,7 @@ class LocalConfig(Config):
     ACTIVATE_STORAGE_READ = True
     ACTIVATE_STORAGE_WRITE = True
     ACTIVATE_REGISTRATION = True
+    ACTIVATE_CDMI = True
 
     STORAGE = 'local'
     EXPORTEDPATHS = ['/tmp/']
@@ -35,6 +36,7 @@ class IrodsConfig(Config):
     ACTIVATE_STORAGE_READ = True
     ACTIVATE_STORAGE_WRITE = True
     ACTIVATE_REGISTRATION = True
+    ACTIVATE_CDMI = True
 
     STORAGE = 'irods'
     RODSHOST = 'localhost'

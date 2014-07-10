@@ -1,3 +1,4 @@
+from base64 import b64encode  # , b64decode
 import re
 import tempfile
 
@@ -16,7 +17,7 @@ STORAGE = 'local'
 
 def string_is_valid_json(value):
     try:
-        json.loads(value)
+        json.dumps(value)
         return True
     except ValueError:
         return False
@@ -28,14 +29,14 @@ class TestCdmiApi(TestApi):
 
     cdmi_mandatory_list = [
         ('objectType', lambda r, v: r.content_type == v),
-        ('objectID', lambda r, v: re.match('^0\d*0\d+$', v)),
+        ('objectID', lambda r, v: re.match('^.*$', v)),
         ('objectName', lambda r, v: r.name == v),
         ('parentURI', lambda r, v: r.parent_url == v),
-        ('parentID', lambda r, v: re.match('^0\d*0\d+$', v)),
+        ('parentID', lambda r, v: re.match('^.*$', v)),
         ('domainURI', lambda r, v: re.match('^/cdmi_domains/.*$', v)),
         ('capabilitiesURI',
             lambda r, v: re.match('^/cdmi_capabilities/.*$', v)),
-        ('completionStatus', lambda r, v: re.match('Complete')),
+        ('completionStatus', lambda r, v: re.match('Complete', v)),
         #'percentComplete',
         ('metadata', lambda r, v: string_is_valid_json(v)),
         #'exports',
@@ -48,7 +49,7 @@ class TestCdmiApi(TestApi):
     ]
 
     cdmi_object_mandatory_list = cdmi_mandatory_list + [
-        ('value', lambda r, v: r.content == v),
+        ('value', lambda r, v: b64encode(r.objinfo['content']) == v),
         ('valuetransferencoding', lambda r, v: 'base64' == v),
         ('valuerange', lambda r, v: re.match('\d+-\d+', v)),
     ]
@@ -71,9 +72,9 @@ class TestCdmiApi(TestApi):
                 yield (func, param_dict)
 
     def assert_cdmi_response_header(self, rv, resource):
-        assert (rv.content_type == resource.content_type,
-                'resource content type "%s" does not match "%s"'
-                % (resource.content_type, rv.content_type))
+        assert rv.content_type == resource.content_type, \
+            'resource content type "%s" does not match "%s"' \
+            % (resource.content_type, rv.content_type)
         assert rv.headers.get('X-CDMI-Specification-Version')
 
     def assert_cdmi_response_body(self, json_data, resource):
@@ -83,13 +84,16 @@ class TestCdmiApi(TestApi):
         elif resource.content_type == 'application/cdmi-container':
             cdmi_mandatory_fields = self.cdmi_container_mandatory_list
 
+        print resource
         for field_name, check_func in cdmi_mandatory_fields:
+            print field_name, type(json_data.get(field_name))
             assert json_data.get(field_name, None) is not None, \
                 '%s does not exist' % field_name
             assert check_func(resource, json_data[field_name]), \
-                ('%s has wrong value: %s, or type: %s'
+                ('%s has wrong value: %s, or type: %s, expected: %s'
                  % (field_name, json_data[field_name],
-                    type(json_data[field_name])))
+                    type(json_data[field_name]),
+                    resource.parent_url))
 
     def test_cdmi_get(self):
         for t in self.check_cdmi_resource(self.check_cdmi_get):

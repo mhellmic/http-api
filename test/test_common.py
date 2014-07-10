@@ -8,6 +8,7 @@ import shutil
 
 from eudat_http_api import create_app
 from eudat_http_api.http_storage.common import split_path
+from eudat_http_api.http_storage.common import add_trailing_slash
 
 
 class ByteRange:
@@ -48,6 +49,13 @@ class RestResource:
         self.parent_exists = parent_exists
         self.path = self.url
         self.parent_url, self.name = split_path(self.url)
+        self.parent_url = add_trailing_slash(self.parent_url)
+
+    def add_prefix(self, prefix):
+        self.url = '%s%s' % (prefix, self.url)
+        self.path = self.url
+        self.parent_url, self.name = split_path(self.url)
+        self.parent_url = add_trailing_slash(self.parent_url)
 
     def is_dir(self):
         return self.objtype == self.ContainerType
@@ -103,7 +111,7 @@ def get_url_list():
                      False, True),
         RestResource('/testfolder/nonfolder', RestResource.ContainerType, {},
                      False, True),
-        RestResource('/nonofile', RestResource.FileType, {
+        RestResource('/nonfile', RestResource.FileType, {
             'size': 10,
             'content': '1234567890',
         }, False, True),
@@ -128,7 +136,7 @@ def get_url_list():
 def get_local_url_list():
     l = []
     for o in get_url_list():
-        o.path = '/tmp/new%s' % o.path
+        o.add_prefix('/tmp/new')
         l.append(o)
 
     return l
@@ -138,7 +146,7 @@ def get_irods_url_list(rodszone):
     l = []
     for user in [u for u in get_user_list() if u.valid]:
         for o in get_url_list():
-            o.path = '/%s/home/%s%s' % (rodszone, user.name, o.path)
+            o.add_prefix('/%s/home/%s' % (rodszone, user.name))
             l.append(o)
 
     return l
