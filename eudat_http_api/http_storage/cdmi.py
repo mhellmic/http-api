@@ -791,7 +791,7 @@ def create_object_id(local_id_length=8):
     # I agree that the following is ugly and quite probably not as fast
     # as I would like it. Goal is to create a random string with a length
     # of exactly local_id_length.
-    local_id_format = '%0' + str(local_id_length) + 'x'
+    local_id_format = ''.join(['%0', str(local_id_length), 'x'])
     local_obj_id = local_id_format % random.randrange(16**local_id_length)
 
     enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
