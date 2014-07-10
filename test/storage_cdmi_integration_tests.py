@@ -23,16 +23,33 @@ def string_is_valid_json(value):
         return False
 
 
+def is_valid_objectID(resource, value):
+    if value is None:
+        return False
+    m = re.match('^.*$', value)
+    if m is not None:
+        return True
+    return False
+
+
+def is_valid_parentID(resource, value):
+    # the parent of root is not required
+    # to have an objectID
+    if resource.is_root:
+        return True
+    return is_valid_objectID(resource, value)
+
+
 class TestCdmiApi(TestApi):
 
     SERVER_CDMI_VERSION = '1.0.2'
 
     cdmi_mandatory_list = [
         ('objectType', lambda r, v: r.content_type == v),
-        ('objectID', lambda r, v: re.match('^.*$', v)),
+        ('objectID', lambda r, v: is_valid_objectID(r, v)),
         ('objectName', lambda r, v: r.name == v),
         ('parentURI', lambda r, v: r.parent_url == v),
-        ('parentID', lambda r, v: re.match('^.*$', v)),
+        ('parentID', lambda r, v: is_valid_parentID(r, v)),
         ('domainURI', lambda r, v: re.match('^/cdmi_domains/.*$', v)),
         ('capabilitiesURI',
             lambda r, v: re.match('^/cdmi_capabilities/.*$', v)),
@@ -84,16 +101,15 @@ class TestCdmiApi(TestApi):
         elif resource.content_type == 'application/cdmi-container':
             cdmi_mandatory_fields = self.cdmi_container_mandatory_list
 
-        print resource
         for field_name, check_func in cdmi_mandatory_fields:
-            print field_name, type(json_data.get(field_name))
-            assert json_data.get(field_name, None) is not None, \
+            # comparing to None is not possible, because None can be a valid
+            # value for some fields
+            assert json_data.get(field_name, 'ERRCODE') != 'ERRCODE', \
                 '%s does not exist' % field_name
             assert check_func(resource, json_data[field_name]), \
-                ('%s has wrong value: %s, or type: %s, expected: %s'
+                ('%s has wrong value: %s, or type: %s'
                  % (field_name, json_data[field_name],
-                    type(json_data[field_name]),
-                    resource.parent_url))
+                    type(json_data[field_name])))
 
     def test_cdmi_get(self):
         for t in self.check_cdmi_resource(self.check_cdmi_get):

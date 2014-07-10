@@ -30,6 +30,7 @@ class RestResource:
     FileType = 'file'
 
     url = None
+    is_root = False
     path = None  # for now path and url are the same
     objtype = None
     objinfo = {}
@@ -43,6 +44,10 @@ class RestResource:
                  parent_exists=True):
 
         self.url = url
+        # this must not be included in add_prefix,
+        # since the root is determined without the prefix
+        if self.url == '/':
+            self.is_root = True
         self.objtype = objtype
         self.objinfo = objinfo
         self.exists = exists
@@ -64,11 +69,12 @@ class RestResource:
         return self.objtype == self.FileType
 
     def __str__(self):
-        return ('path: %s; type: %s; exists: %s; parent_exists: %s'
+        return ('path: %s; type: %s; exists: %s; parent_exists: %s; isroot: %s'
                 % (self.path,
                    self.objtype,
                    self.exists,
-                   self.parent_exists)
+                   self.parent_exists,
+                   self.is_root)
                 )
 
     def __repr__(self):
