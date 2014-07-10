@@ -3,6 +3,7 @@
 from __future__ import with_statement
 
 from collections import OrderedDict
+from functools import partial
 import os
 
 from flask import current_app
@@ -89,3 +90,8 @@ class StreamWrapper(object):
     def readline(self, buffer_size):
         rv = self._stream.read(buffer_size)
         return rv
+
+
+def stream_generator(handle, buffer_size=4194304):
+    for data in iter(partial(handle.read, buffer_size), ''):
+        yield data

@@ -10,6 +10,7 @@ from functools import partial
 from functools import wraps
 from inspect import isgenerator
 from itertools import islice
+from itertools import ifilter
 import random
 import re
 import requests
@@ -386,13 +387,6 @@ def put_file_obj(path):
         StreamWrapper(request.environ['wsgi.input'])
     request.shallow = False
 
-    def stream_generator(handle, buffer_size=4194304):
-        while True:
-            data = handle.read(buffer_size)
-            if data == '':
-                break
-            yield data
-
     cdmi_json, value_gen = _parse_cdmi_msg_body_fields(request.stream)
     if 'copy' in cdmi_json:
         value_uri = '%s' % cdmi_json['copy']
@@ -400,7 +394,7 @@ def put_file_obj(path):
         pw = request.authorization['password']
         auth = requests.auth.HTTPBasicAuth(user, pw)
         stream = _get_value_stream(value_uri, auth)
-        value_gen = stream_generator(stream)
+        value_gen = common.stream_generator(stream)
 
     #bytes_written = 0
     try:
@@ -562,8 +556,11 @@ def get_dir_obj(path):
 
 
 def _get_cdmi_filters(args_dict):
+    return _parse_cdmi_args(_get_cdmi_args(args_dict))
+
+
+def _get_cdmi_args(args_dict):
     cdmi_args = []
-    cdmi_filter = dict()
     for arg_key in args_dict.iterkeys():
         if any(map(lambda s: arg_key.startswith(s), cdmi_body_fields)):
             if re.match('^[\w:-]+(;[\w:-]+)*;?$', arg_key) is None:
@@ -571,11 +568,14 @@ def _get_cdmi_filters(args_dict):
                     'Could not parse the argument expression: %s' % arg_key)
 
             # remove empty args from ;; or a trailing ;
-            cdmi_args = filter(lambda s: s != '', arg_key.split(';'))
+            cdmi_args = ifilter(lambda s: s != '', arg_key.split(';'))
             break
 
-    if not cdmi_args:
-        return dict()
+    return cdmi_args
+
+
+def _parse_cdmi_args(cdmi_args):
+    cdmi_filter = dict()
 
     re_range = re.compile('(\d+)-(\d+)')
     key, value = None, None

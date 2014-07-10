@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from functools import partial
+
 START = 'file-start'
 END = 'file-end'
 BACKWARDS = 'file-back'
@@ -197,10 +199,7 @@ def read_stream_generator(file_handle, file_size,
         multipart = True
 
     if not ordered_range_list:
-        while True:
-            data = read_func(file_handle, buffer_size)
-            if data == '':
-                break
+        for data in iter(partial(read_func, file_handle, buffer_size), ''):
             yield delimiter, 0, file_size, data
     else:
         for start, end in ordered_range_list:

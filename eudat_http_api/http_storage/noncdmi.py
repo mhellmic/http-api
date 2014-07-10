@@ -171,14 +171,7 @@ def put_file_obj(path):
         common.StreamWrapper(request.environ['wsgi.input'])
     request.shallow = False
 
-    def stream_generator(handle, buffer_size=4194304):
-        while True:
-            data = handle.read(buffer_size)
-            if data == '':
-                break
-            yield data
-
-    value_gen = stream_generator(request.stream)
+    value_gen = common.stream_generator(request.stream)
 
     bytes_written = 0
     try:
