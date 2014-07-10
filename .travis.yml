@@ -14,5 +14,7 @@ script:
  - "TEST_CONFIG=test.config.IrodsConfig nosetests test.storage_interface_tests"
  - "TEST_CONFIG=test.config.LocalConfig nosetests test.storage_integration_tests"
  - "TEST_CONFIG=test.config.IrodsConfig nosetests test.storage_integration_tests"
+ - "TEST_CONFIG=test.config.LocalConfig nosetests test.storage_cdmi_integration_tests"
+ - "TEST_CONFIG=test.config.IrodsConfig nosetests test.storage_cdmi_integration_tests"
  - "TEST_CONFIG=test.config.LocalConfig nosetests test.register_integration_tests"
  - "TEST_CONFIG=test.config.IrodsConfig nosetests test.register_integration_tests"
