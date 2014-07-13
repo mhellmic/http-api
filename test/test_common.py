@@ -36,12 +36,14 @@ class RestResource:
     objinfo = {}
     exists = None
     parent_exists = None
+    objectid = None
 
     def __init__(self, url,
                  objtype,
                  objinfo,
                  exists=True,
-                 parent_exists=True):
+                 parent_exists=True,
+                 objectid=''):
 
         self.url = url
         # this must not be included in add_prefix,
@@ -55,6 +57,7 @@ class RestResource:
         self.path = self.url
         self.parent_url, self.name = split_path(self.url)
         self.parent_url = add_trailing_slash(self.parent_url)
+        self.objectid = objectid
 
     def add_prefix(self, prefix):
         self.url = '%s%s' % (prefix, self.url)
@@ -225,12 +228,16 @@ def create_irods_urls(url_list, rodsconfig):
                 base, name = os.path.split(obj.path)
                 coll = irodsCollection(conn, base)
                 coll.createCollection(name)
+                dir_handle = irodsCollection(conn, obj.path)
+                if dir_handle is not None:
+                    dir_handle.addUserMetadata('objectID', obj.objectid)
             elif obj.objtype == obj.FileType:
                 coll = irodsCollection(conn)
                 coll.createCollection(os.path.split(obj.path)[0])
                 file_handle = irodsOpen(conn, obj.path, 'w')
                 if file_handle is not None:
                     file_handle.write(obj.objinfo['content'])
+                    file_handle.addUserMetadata('objectID', obj.objectid)
                     file_handle.close()
         conn.disconnect()
 
