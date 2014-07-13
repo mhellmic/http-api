@@ -248,9 +248,13 @@ def get_connection(f):
             return wrap_generator(res, conn)
         elif isinstance(res, tuple):
             current_app.logger.debug('typical read() case encountered')
-            wrapped_res = [wrap_generator(i, conn) if isgenerator(i) else i
-                           for i in res]
-            return wrapped_res
+            if not any(map(isgenerator, wrapped_res)):
+                connection_pool.release_connection(conn)
+                return res
+            else:  # generator is in the result tuple
+                wrapped_res = [wrap_generator(i, conn) if isgenerator(i) else i
+                               for i in res]
+                return wrapped_res
         else:
             current_app.logger.debug('other case encountered')
             connection_pool.release_connection(conn)
