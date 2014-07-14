@@ -121,7 +121,7 @@ def set_user_metadata(path, user_metadata):
 
 
 @check_path
-def read(path, range_list=[]):
+def read(path, range_list=[], query=None):
     """Read a file from the backend storage.
 
     Returns a bytestream.

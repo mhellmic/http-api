@@ -2,15 +2,9 @@
 
 from __future__ import with_statement
 
-from functools import wraps
-import hashlib
-from inspect import isgenerator
 import os
-from Queue import Queue, Empty, Full
-from threading import Lock
 
 from flask import current_app
-from flask import request
 
 from irods import *
 
@@ -63,136 +57,13 @@ class suppress_stdout_stderr(object):
         self.null_fds[1].close()
 
 
-class Connection(object):
-    auth_hash = None
+class IrodsConnection(Connection):
     connection = None
 
-    def __init__(self, connection, auth_hash):
-        self.connection = connection
-        self.auth_hash = auth_hash
-
-
-class ConnectionPool(object):
-    pool = {}
-    max_pool_size = 10
-    mutex = None
-    used_connections = set()
-
-    def __init__(self, max_pool_size=10):
-        current_app.logger.debug(
-            'created the ConnectionPool')
-        #self.pool = Queue(maxsize=max_pool_size)
-        self.max_pool_size = max_pool_size
-        self.mutex = Lock()
-
-    def __del__(self):
-        # Connections are destroyed automatically on
-        # program exit
+    def __init__(self):
         pass
 
-    def get_connection(self, username, password):
-        user_pool = self.__get_user_pool(self.__get_auth_hash(username,
-                                                              password))
-
-        if user_pool.qsize() == 0:
-            conn = self.__create_connection(username, password)
-            if conn is not None:
-                current_app.logger.debug(
-                    'add a storage connection to used. now used = %d+1'
-                    % len(self.used_connections))
-                self.used_connections.add(conn)
-
-            return conn
-
-        try:
-            conn = user_pool.get(block=True, timeout=5)
-            current_app.logger.debug(
-                'got a storage connection from the pool. now = %d-1'
-                % user_pool.qsize())
-            if not self.__connection_is_valid:
-                current_app.logger.debug('found a bad storage connection')
-                self.__destroy_connection(conn)
-                conn = self.__create_connection(username, password)
-
-        except Empty:
-            current_app.logger.debug('pool was empty')
-            conn = self.__create_connection(username, password)
-        finally:
-            current_app.logger.debug(
-                'add a storage connection to used. now used = %d+1'
-                % len(self.used_connections))
-            self.used_connections.add(conn)
-
-        return conn
-
-    def __connection_is_valid(self, conn):
-        if conn is None:
-            current_app.logger.debug('conn is None')
-            return False
-
-        irods_conn = conn.connection
-        is_valid = True
-        if irods_conn.rError is not None:
-            current_app.logger.debug('conn error set to something')
-            is_valid = False
-        elif irods_conn.loggedIn != 1:  # 1 is logged in
-            current_app.logger.debug('conn not logged in: %d'
-                                     % irods_conn.loggedIn)
-            is_valid = False
-        elif irods_conn.status != 0:
-            current_app.logger.debug('conn status error: %d'
-                                     % irods_conn.status)
-            is_valid = False
-
-        return is_valid
-
-    def release_connection(self, conn):
-        user_pool = self.__get_user_pool(conn.auth_hash)
-
-        if not self.__connection_is_valid(conn):
-            current_app.logger.debug(
-                'found a bad storage connection in release()')
-            self.__destroy_connection(conn)
-            current_app.logger.debug(
-                'remove a storage connection from used. now used = %d-1'
-                % len(self.used_connections))
-            self.used_connections.remove(conn)
-            return
-
-        try:
-            current_app.logger.debug(
-                'putting back a storage connection. now = %d+1'
-                % user_pool.qsize())
-            user_pool.put(conn, block=False)
-        except Full:
-            current_app.logger.debug('pool was full')
-            self.__destroy_connection(conn)
-        finally:
-            current_app.logger.debug(
-                'remove a storage connection from used. now used = %d-1'
-                % len(self.used_connections))
-            self.used_connections.discard(conn)
-
-    def __get_user_pool(self, auth_hash):
-        user_pool = None
-        self.mutex.acquire()
-        try:
-            user_pool = self.pool[auth_hash]
-            current_app.logger.debug('got an existing userpool')
-        except KeyError:
-            self.pool[auth_hash] = Queue(self.max_pool_size)
-            user_pool = self.pool[auth_hash]
-            current_app.logger.debug('made a new userpool')
-        finally:
-            self.mutex.release()
-
-        return user_pool
-
-    def __get_auth_hash(self, username, password):
-        auth_hash = hashlib.sha1(username+password).hexdigest()
-        return auth_hash
-
-    def __create_connection(self, username, password):
+    def connect(self, username, password):
         rodsUserName = username
 
         rodsHost = get_config_parameter('RODSHOST')
@@ -214,59 +85,33 @@ class ConnectionPool(object):
             err = clientLoginWithPassword(conn, password)
         if err == 0:
             current_app.logger.debug('Created a storage connection')
-            return Connection(conn, self.__get_auth_hash(username,
-                                                         password))
+            self.connection = conn
+            return True
         else:
             conn.disconnect()
-            return None
+            return False
 
-    def __destroy_connection(self, conn):
-        current_app.logger.debug('Disconnected a storage connection')
+    def disconnect(self):
         conn.connection.disconnect()
 
-
-connection_pool = ConnectionPool()
-
-
-def get_connection(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth = _get_authentication()
-        conn = connection_pool.get_connection(auth.username, auth.password)
-        if conn is None:
-            raise NotAuthorizedException('Invalid credentials')
-
-        kwargs.update({'conn': conn.connection})
-        try:
-            res = f(*args, **kwargs)
-        except:
-            connection_pool.release_connection(conn)
-            raise
-
-        if isgenerator(res):
-            current_app.logger.debug('typical ls() case encountered')
-            return wrap_generator(res, conn)
-        elif isinstance(res, tuple):
-            current_app.logger.debug('typical read() case encountered')
-            if not any(map(isgenerator, wrapped_res)):
-                connection_pool.release_connection(conn)
-                return res
-            else:  # generator is in the result tuple
-                wrapped_res = [wrap_generator(i, conn) if isgenerator(i) else i
-                               for i in res]
-                return wrapped_res
-        else:
-            current_app.logger.debug('other case encountered')
-            connection_pool.release_connection(conn)
-            return res
-
-    return decorated
+    def is_valid(self):
+        irods_conn = self.connection
+        is_valid = True
+        if irods_conn.rError is not None:
+            current_app.logger.debug('conn error set to something')
+            is_valid = False
+        elif irods_conn.loggedIn != 1:  # 1 is logged in
+            current_app.logger.debug('conn not logged in: %d'
+                                     % irods_conn.loggedIn)
+            is_valid = False
+        elif irods_conn.status != 0:
+            current_app.logger.debug('conn status error: %d'
+                                     % irods_conn.status)
+            is_valid = False
+        return is_valid
 
 
-def wrap_generator(gen, conn):
-    for i in gen:
-        yield i
-    connection_pool.release_connection(conn)
+connection_pool = ConnectionPool(IrodsConnection)
 
 
 def authenticate(username, password, conn=None):
@@ -307,7 +152,7 @@ def _check_conflict(conn, path):
         raise ConflictException('Target already exists')
 
 
-@get_connection
+@get_connection(connection_pool)
 def stat(path, metadata=None, conn=None):
     """Return detailed information about the object.
 
@@ -356,7 +201,7 @@ def stat(path, metadata=None, conn=None):
     return obj_info
 
 
-@get_connection
+@get_connection(connection_pool)
 def get_user_metadata(path, user_metadata=None, conn=None):
     """Gets user_metadata from irods and filters them by the user_metadata arg.
 
@@ -405,7 +250,7 @@ def _get_user_metadata(conn, obj_handle, path, user_metadata):
     return user_meta
 
 
-@get_connection
+@get_connection(connection_pool)
 def set_user_metadata(path, user_metadata, conn=None):
     """ Set a number of user metadata entries.
 
@@ -434,7 +279,7 @@ def _set_user_metadata(conn, path, user_metadata):
         obj_handle.addUserMetadata(key, val)
 
 
-@get_connection
+@get_connection(connection_pool)
 def read(path, range_list=[], conn=None):
     """Read a file from the backend storage.
 
@@ -492,7 +337,7 @@ def read(path, range_list=[], conn=None):
     return gen, file_size, content_len, num_ordered_range_list
 
 
-@get_connection
+@get_connection(connection_pool)
 def write(path, stream_gen, force=False, conn=None):
     """Write a file from an input stream."""
 
@@ -515,7 +360,7 @@ def write(path, stream_gen, force=False, conn=None):
     return bytes_written
 
 
-@get_connection
+@get_connection(connection_pool)
 def ls(path, conn=None):
     """Return a generator of a directory listing."""
 
@@ -547,7 +392,7 @@ def ls(path, conn=None):
     return gen
 
 
-@get_connection
+@get_connection(connection_pool)
 def mkdir(path, conn=None):
     """Create a directory."""
 
@@ -593,7 +438,7 @@ def _handle_irodserror(path, err):
     raise StorageException('Unknown storage exception')
 
 
-@get_connection
+@get_connection(connection_pool)
 def rm(path, conn=None):
     """Delete a file."""
 
@@ -621,7 +466,7 @@ def rm(path, conn=None):
     return True, ''
 
 
-@get_connection
+@get_connection(connection_pool)
 def rmdir(path, force=False, conn=None):
     """Delete a directory.
 
@@ -675,7 +520,3 @@ def _close(file_handle):
 
 def _write(file_handle, data):
     return file_handle.write(data)
-
-
-def _get_authentication():
-    return request.authorization

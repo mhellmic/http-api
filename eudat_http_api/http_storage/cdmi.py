@@ -312,10 +312,12 @@ def get_file_obj(path):
         (stream_gen,
          file_size,
          content_len,
-         range_list) = storage.read(path, range_requests)
+         range_list) = storage.read(path, range_requests, request.args)
     except storage.IsDirException as e:
         params = urlparse(request.url).query
         return redirect('%s/?%s' % (path, params))
+    except storage.RedirectException as e:
+        return redirect(e.url), e.redir_code  # ???
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
