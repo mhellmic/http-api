@@ -5,6 +5,7 @@ from __future__ import with_statement
 from itertools import imap
 from functools import partial
 from functools import wraps
+import os
 import pydmlite
 
 from eudat_http_api.http_storage import common
@@ -16,9 +17,14 @@ class DmliteConnection(Connection):
     pluginmanager = None
     stack = None
     secctx = None
+    connection = None
 
     def __init__(self, config='/etc/dmlite.conf'):
         self.config = config
+        # for some connections, only the .connection
+        # is passed down. For dmlite, it's the whole
+        # object.
+        self.connection = self
 
     def connect(self, username, password):
         pm = pydmlite.PluginManager()
