@@ -317,7 +317,7 @@ def get_file_obj(path):
         params = urlparse(request.url).query
         return redirect('%s/?%s' % (path, params))
     except storage.RedirectException as e:
-        return redirect(e.url), e.redir_code  # ???
+        return redirect(e.location, code=e.redir_code)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
