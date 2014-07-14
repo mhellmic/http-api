@@ -3,6 +3,8 @@
 from __future__ import with_statement
 
 from itertools import imap
+from functools import partial
+from functools import wraps
 import pydmlite
 
 from eudat_http_api.http_storage import common
@@ -141,7 +143,20 @@ def write(path, stream_gen, conn=None):
 @get_connection(connection_pool)
 @path_to_ascii
 def ls(path, conn=None):
-    pass
+    catalog = conn.stack.getCatalog()
+
+    dir_handle = catalog.openDir(path)
+
+    def list_generator(catalog, dir_handle):
+        for xstat in iter(partial(catalog.readDirx, dir_handle), 0):
+            if xstat.stat.isDir():
+                yield StorageDir(xstat.name, os.path.join(path, xstat.name))
+            else:
+                yield StorageFile(xstat.name, os.path.join(path, xstat.name),
+                                  size=xstat.stat.st_size)
+
+    gen = list_generator(catalog, dir_handle)
+    return gen
 
 
 @get_connection(connection_pool)
