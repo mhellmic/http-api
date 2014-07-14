@@ -104,7 +104,7 @@ def _redirect(path, conn):
     # but those values can be empty ("" and 0)
     url = location[0].url
     url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
-    raise RedirectException(url_str, code=307)
+    raise RedirectException(url_str, redir_code=307)
 
 
 def _read_file(path, range_list, query=None, conn=None):
