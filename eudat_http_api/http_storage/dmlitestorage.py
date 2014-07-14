@@ -97,7 +97,7 @@ def _redirect(path, conn):
 
     pm = conn.stack.getPoolManager()
     location = pm.whereToRead(path)
-    raise RedirectException(location.chunks[0].url)
+    raise RedirectException(location[0].url.toString())
 
 
 def _read_file(path, range_list, query=None, conn=None):
