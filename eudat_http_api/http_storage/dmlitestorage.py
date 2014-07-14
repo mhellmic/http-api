@@ -91,13 +91,18 @@ def read(path, range_list=[], query=None, conn=None):
 
 def _redirect(path, conn):
     catalog = conn.stack.getCatalog()
-    xstat = catalog.extendedStat(path)
+    xstat = catalog.extendedStat(path, True)
     if xstat.stat.isDir():
         raise IsDirException('This is a directory')
 
     pm = conn.stack.getPoolManager()
     location = pm.whereToRead(path)
-    raise RedirectException(location[0].url.toString())
+    # TODO: support https and custom ports
+    # this can come from url.scheme and url.port,
+    # but those values can be empty ("" and 0)
+    url = location[0].url
+    url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
+    raise RedirectException(url_str, code=307)
 
 
 def _read_file(path, range_list, query=None, conn=None):
@@ -105,7 +110,7 @@ def _read_file(path, range_list, query=None, conn=None):
     iohandler = None
     try:
         iohandler = io.createIOHandler(path, O_RDONLY, query)
-    except DmException as e:
+    except pydmlite.DmException as e:
         raise
 
     file_size = iohandler.fstat().st_size
