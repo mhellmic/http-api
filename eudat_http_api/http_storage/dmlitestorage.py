@@ -5,6 +5,7 @@ from __future__ import with_statement
 from itertools import imap
 import pydmlite
 
+from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage.storage_common import *
 
 
@@ -19,10 +20,11 @@ class DmliteConnection(Connection):
 
     def connect(self, username, password):
         pm = pydmlite.PluginManager()
-        pm.loadConfiguration(config)
+        pm.loadConfiguration(self.config)
         self.pluginmanager = pm
         self.secctx = pydmlite.SecurityContext()
-        self.stack = pydmlite.StackInstance()
+        self.stack = pydmlite.StackInstance(pm)
+        return True
 
     def disconnect(self):
         pass
@@ -38,7 +40,15 @@ def authenticate(username, password):
     return True
 
 
+def path_to_ascii(f):
+    @wraps(f)
+    def encode(path, *args, **kwargs):
+        return f(path.encode('ascii', 'ignore'), *args, **kwargs)
+    return encode
+
+
 @get_connection(connection_pool)
+@path_to_ascii
 def stat(path, metadata=None, conn=None):
     catalog = conn.stack.getCatalog()
     xstat = catalog.extendedStat(path, True)
@@ -59,16 +69,19 @@ def stat(path, metadata=None, conn=None):
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def get_user_metadata(path, user_metadata=None, conn=None):
     return dict()
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def set_user_metadata(path, user_metadata, conn=None):
     pass
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def read(path, range_list=[], query=None, conn=None):
     if path.startswith('/dpm'):
         return _redirect(path, conn)
@@ -115,26 +128,31 @@ def _read_file(path, range_list, query=None, conn=None):
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def write(path, stream_gen, conn=None):
     pass
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def ls(path, conn=None):
     pass
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def mkdir(path, conn=None):
     pass
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def rm(path, conn=None):
     pass
 
 
 @get_connection(connection_pool)
+@path_to_ascii
 def rmdir(path, conn=None):
     pass
 
