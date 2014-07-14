@@ -59,7 +59,11 @@ def path_to_ascii(f):
 @path_to_ascii
 def stat(path, metadata=None, conn=None):
     catalog = conn.stack.getCatalog()
-    xstat = catalog.extendedStat(path, True)
+    xstat = None
+    try:
+        xstat = catalog.extendedStat(path, True)
+    except:
+        raise NotFoundException('File not found')
 
     obj_info = dict()
     base, name = common.split_path(path)
@@ -99,7 +103,11 @@ def read(path, range_list=[], query=None, conn=None):
 
 def _redirect(path, conn):
     catalog = conn.stack.getCatalog()
-    xstat = catalog.extendedStat(path, True)
+    xstat = None
+    try:
+        xstat = catalog.extendedStat(path, True)
+    except:
+        raise NotFoundException('File not found')
     if xstat.stat.isDir():
         raise IsDirException('This is a directory')
 
