@@ -143,8 +143,8 @@ class TestStorageApi:
     def check_stat_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -200,8 +200,8 @@ class TestStorageApi:
     def check_stat_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
             from eudat_http_api.http_storage import storage
 
@@ -224,8 +224,8 @@ class TestStorageApi:
     def check_read_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -255,8 +255,8 @@ class TestStorageApi:
     def check_read_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -284,8 +284,8 @@ class TestStorageApi:
     def check_ls_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -300,8 +300,8 @@ class TestStorageApi:
     def check_ls_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -328,8 +328,8 @@ class TestStorageApi:
     def check_mkdir_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -339,8 +339,8 @@ class TestStorageApi:
     def check_mkdir_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -366,8 +366,8 @@ class TestStorageApi:
     def check_rmdir_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -377,8 +377,8 @@ class TestStorageApi:
     def check_rmdir_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -407,8 +407,8 @@ class TestStorageApi:
     def check_rm_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -418,8 +418,8 @@ class TestStorageApi:
     def check_rm_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -444,8 +444,8 @@ class TestStorageApi:
     def check_write_good(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
@@ -462,8 +462,8 @@ class TestStorageApi:
     def check_write_except(self, resource, userinfo):
         with self.app.test_request_context(), \
                 patch(
-                'eudat_http_api.http_storage.%sstorage._get_authentication'
-                % self.storage_config,
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
                 return_value=self.Auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage

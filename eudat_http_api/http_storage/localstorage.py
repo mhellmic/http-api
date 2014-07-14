@@ -260,10 +260,6 @@ def _write(file_handle, data):
     return file_handle.write(data)
 
 
-def _get_authentication():
-    return request.authorization
-
-
 def _handle_oserror(path, e):
     current_app.logger.error('Local storage exception: %s: %s'
                              % (path, e))
