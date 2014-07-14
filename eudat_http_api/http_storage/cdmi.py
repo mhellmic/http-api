@@ -402,6 +402,8 @@ def put_file_obj(path):
     try:
         #bytes_written = storage.write(path, value_gen)
         storage.write(path, value_gen)
+    except storage.RedirectException as e:
+        return redirect(e.location, code=e.redir_code)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:

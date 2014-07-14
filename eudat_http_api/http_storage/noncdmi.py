@@ -76,6 +76,8 @@ def get_file_obj(path):
     except storage.IsDirException as e:
         params = urlparse(request.url).query
         return redirect('%s/?%s' % (path, params))
+    except storage.RedirectException as e:
+        return redirect(e.location, code=e.redir_code)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
@@ -176,6 +178,8 @@ def put_file_obj(path):
     bytes_written = 0
     try:
         bytes_written = storage.write(path, value_gen)
+    except storage.RedirectException as e:
+        return redirect(e.location, code=e.redir_code)
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
