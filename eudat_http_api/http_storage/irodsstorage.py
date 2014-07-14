@@ -92,7 +92,7 @@ class IrodsConnection(Connection):
             return False
 
     def disconnect(self):
-        conn.connection.disconnect()
+        self.connection.disconnect()
 
     def is_valid(self):
         irods_conn = self.connection
