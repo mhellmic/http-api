@@ -148,7 +148,7 @@ def ls(path, conn=None):
     dir_handle = catalog.openDir(path)
 
     def list_generator(catalog, dir_handle):
-        for xstat in iter(partial(catalog.readDirx, dir_handle), 0):
+        for xstat in iter(partial(catalog.readDirx, dir_handle), None):
             if xstat.stat.isDir():
                 yield StorageDir(xstat.name, os.path.join(path, xstat.name))
             else:
