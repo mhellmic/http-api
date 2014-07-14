@@ -15,9 +15,9 @@ elif get_config_parameter('STORAGE') == 'irods':
     current_app.logger.debug('using irods storage backend')
     from eudat_http_api.http_storage.irodsstorage import *
 
-elif get_config_parameter('STORAGE') == 'mock':
-    current_app.logger.debug('using mock storage backend')
-    from eudat_http_api.http_storage.mockstorage import *
+elif get_config_parameter('STORAGE') == 'dmlite':
+    current_app.logger.debug('using dmlite storage backend')
+    from eudat_http_api.http_storage.dmlitestorage import *
 
 else:
     raise NotImplementedError('%s does not exist'
