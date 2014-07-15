@@ -280,7 +280,7 @@ def _set_user_metadata(conn, path, user_metadata):
 
 
 @get_connection(connection_pool)
-def read(path, range_list=[], conn=None):
+def read(path, range_list=[], query=None, conn=None):
     """Read a file from the backend storage.
 
     Returns a bytestream.
