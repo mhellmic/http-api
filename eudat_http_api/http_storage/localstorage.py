@@ -7,6 +7,8 @@ from functools import wraps
 from itertools import imap
 import os
 import stat as sys_stat
+import xattr
+
 from flask import current_app
 from flask import request
 
@@ -112,12 +114,17 @@ def stat(path, metadata=None):
 
 @check_path
 def get_user_metadata(path, user_metadata=None):
-    return dict()
+    return dict(xattr.xattr(path))
 
 
 @check_path
 def set_user_metadata(path, user_metadata):
-    pass
+    attrs = xattr.xattr(path)
+    try:
+        for key, value in user_metadata.iteritems():
+            attrs[key] = value
+    except IOError:
+        raise StorageException('object not modifiable or not found')
 
 
 @check_path

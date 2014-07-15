@@ -9,6 +9,7 @@ import os
 import random
 import shutil
 import struct
+import xattr
 
 from eudat_http_api import create_app
 from eudat_http_api.http_storage.common import split_path
@@ -228,6 +229,8 @@ def create_local_urls(url_list):
                 pass
             with open(obj.path, 'wb') as f:
                 f.write(obj.objinfo['content'])
+        attrs = xattr.xattr(obj.path)
+        attrs['objectID'] = obj.objectid
 
 
 def create_irods_connection(username, password, rodsconfig):
