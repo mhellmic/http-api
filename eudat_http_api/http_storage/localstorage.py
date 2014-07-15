@@ -121,7 +121,7 @@ def set_user_metadata(path, user_metadata):
 
 
 @check_path
-def read(path, range_list=[], query=None):
+def read(path, arg_range_list=None, query=None):
     """Read a file from the backend storage.
 
     Returns a bytestream.
@@ -132,6 +132,10 @@ def read(path, range_list=[], query=None):
     If a range exceeds the size of the object, the
     bytestream goes until the object end.
     """
+
+    range_list = []
+    if arg_range_list is not None:
+        range_list = arg_range_list
 
     try:
         file_handle = _open(path, 'rb')

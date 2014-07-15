@@ -94,7 +94,7 @@ def set_user_metadata(path, user_metadata, conn=None):
 
 @get_connection(connection_pool)
 @path_to_ascii
-def read(path, range_list=[], query=None, conn=None):
+def read(path, range_list=None, query=None, conn=None):
     if path.startswith('/dpm'):
         return _redirect(path, conn)
     else:
@@ -121,7 +121,11 @@ def _redirect(path, conn):
     raise RedirectException(url_str, redir_code=307)
 
 
-def _read_file(path, range_list, query=None, conn=None):
+def _read_file(path, arg_range_list, query=None, conn=None):
+    range_list = []
+    if arg_range_list is not None:
+        range_list = arg_range_list
+
     io = conn.stack.getIODriver()
     iohandler = None
     try:
