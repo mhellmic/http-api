@@ -232,8 +232,7 @@ def _get_user_metadata(conn, obj_handle, path, user_metadata):
     irods_user_metadata = obj_handle.getUserMetadata()
     # convert the irods format into a dict with a single value
     # drop the 'unit' value along the way
-    dict_gen = ((key, val) for key, val, unit in irods_user_metadata)
-    user_meta = dict(dict_gen)
+    user_meta = dict((key, val) for key, val, unit in irods_user_metadata)
 
     try:
         # select only the keys that were asked for
@@ -243,7 +242,7 @@ def _get_user_metadata(conn, obj_handle, path, user_metadata):
         # http://stackoverflow.com/questions/5352546/best-way-to-extract- \
         # subset-of-key-value-pairs-from-python-dictionary-object
         subset_keys = user_metadata & user_meta.viewkeys()
-        sub_user_meta = dict([(k, user_meta[k]) for k in subset_keys])
+        sub_user_meta = dict(((k, user_meta[k]) for k in subset_keys))
         user_meta = sub_user_meta
     except TypeError:
         pass
