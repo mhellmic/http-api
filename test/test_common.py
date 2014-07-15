@@ -229,8 +229,11 @@ def create_local_urls(url_list):
                 pass
             with open(obj.path, 'wb') as f:
                 f.write(obj.objinfo['content'])
-        attrs = xattr.xattr(obj.path)
-        attrs['objectID'] = obj.objectid
+        try:
+            attrs = xattr.xattr(obj.path)
+            attrs['objectID'] = obj.objectid
+        except IOError:
+            pass
 
 
 def create_irods_connection(username, password, rodsconfig):
