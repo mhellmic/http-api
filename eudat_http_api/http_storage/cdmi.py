@@ -419,6 +419,7 @@ def put_file_obj(path):
         return e.msg, 400
 
     # store the CDMI Object ID
+    obj_id = create_object_id()
     hex_obj_id = binascii.b2a_hex(obj_id)
     storage.set_user_metadata(path, {'objectID': hex_obj_id})
 
