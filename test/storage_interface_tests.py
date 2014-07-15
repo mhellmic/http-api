@@ -194,8 +194,11 @@ class TestStorageApi:
                     assert rv['size'] == resource.objinfo['size']
 
             assert 'user_metadata' in rv
-            if 'user_metadata' in rv:
-                assert len(rv['user_metadata']) == 0
+            # disable this fine-grained check, as some backends may
+            # support metadata (and add the objectID) others don't
+            # reenable when all backends support metadata
+            #if 'user_metadata' in rv:
+            #    assert len(rv['user_metadata']) == 0
 
     def check_stat_except(self, resource, userinfo):
         with self.app.test_request_context(), \
