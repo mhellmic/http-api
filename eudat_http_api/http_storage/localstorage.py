@@ -114,7 +114,11 @@ def stat(path, metadata=None):
 
 @check_path
 def get_user_metadata(path, user_metadata=None):
-    return dict(xattr.xattr(path))
+    meta = dict(xattr.xattr(path))
+    meta_clean = dict()
+    for key, value in meta.iteritems():
+        meta_clean[key.replace('user.', '', 1)] = value
+    return meta_clean
 
 
 @check_path
@@ -122,7 +126,7 @@ def set_user_metadata(path, user_metadata):
     attrs = xattr.xattr(path)
     try:
         for key, value in user_metadata.iteritems():
-            attrs[key] = value
+            attrs['user.%s' % key] = value
     except IOError:
         raise StorageException('object not modifiable or not found')
 
