@@ -16,23 +16,28 @@ class CDMIClient:
         r = requests.head(url, headers=headers, auth=self.auth)
         return r
 
-    def cdmi_get(self, url):
+    def cdmi_get(self, url, stream=False):
         headers = {
             'Accept': 'application/cdmi-object',
             'X-CDMI-Specification-Version': '1.0.2',
         }
 
-        r = requests.get(url, headers=headers, auth=self.auth)
+        r = requests.get(url, headers=headers, auth=self.auth, stream=stream)
 
         return r
 
     def cdmi_put(self, url, data):
-        headers = {
+        cdmi_headers = {
             'Content-type': 'application/cdmi-object',
             'X-CDMI-Specification-Version': '1.0.2',
         }
 
-        return requests.put(url, headers=headers, data=data, auth=self.auth)
+        cdmi_data = json.dumps({
+            'value': data,
+        })
+
+        return requests.put(url, headers=cdmi_headers,
+                            data=cdmi_data, auth=self.auth)
 
     def cdmi_copy(self, url, src_url):
         cdmi_headers = {

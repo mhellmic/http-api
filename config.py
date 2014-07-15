@@ -1,5 +1,4 @@
 import os
-from eudat_http_api.epicclient import EpicClient
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -27,19 +26,14 @@ RODSZONE = 'tempZone'
 HOST = '127.0.0.1'
 PORT = 8080
 
-EPIC_URI = 'http://localhost:5000'
-EPIC_USER = 'user'
-EPIC_PASS = 'pass'
 #usually equals EPIC_USER
-EPIC_PREFIX = '666'
 
-HANDLE_BASE_URI = EpicClient.HANDLE_BASE_URI
-#for testing with: https://github.com/httpPrincess/fakedEpicServer
-HANDLE_BASE_URI = 'http://localhost:5000'
+HTTP_ENDPOINT = 'localhost:8080'
 
 # config for b2safe irods (could be different then "playground" irods?)
 # # final destination of the files (local safe storage)
 IRODS_SAFE_STORAGE = '/%s/safe/' % RODSZONE
+# e.g. IRODS_SAFE_STORAGE = '/tmp/http_server/registered/'
 # # where the replication commands are written
 IRODS_SHARED_SPACE = '/%s/replicate/' % RODSZONE
 # # in the process of replication you have to define the destination where the
@@ -47,12 +41,11 @@ IRODS_SHARED_SPACE = '/%s/replicate/' % RODSZONE
 # # this location this is done by replication rules.
 IRODS_REPLICATION_DESTINATION = '/%s/replicated/' % RODSZONE
 
-HANDLE_URI = ''
-HANDLE_USER = ''
-HANDLE_PASS = ''
-
-#STORAGE = 'irods'
-STORAGE = 'local'
+#for testing with: https://github.com/httpPrincess/fakedEpicServer
+HANDLE_URI = 'http://localhost:5000'
+HANDLE_USER = 'user'
+HANDLE_PASS = 'pass'
+HANDLE_PREFIX = '666'
 
 ACTIVATE_CDMI = True
 CDMI_DOMAIN = 'cern.ch'

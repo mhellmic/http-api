@@ -65,6 +65,28 @@ def get_requests():
         src=src)
 
 
+def extract_urls(url):
+    """Extract data and metadata urls from cdmi url
+
+    The source URL should have no query string attached,
+    so we can also get it over plain HTTP and not in the
+    CDMI json format.
+
+    @param url:
+    @return:
+    """
+    return url, url + '?metadata'
+
+
+@registration.before_app_first_request
+def initialize():
+    current_app.logger.debug('Setting worker config')
+    set_config(current_app.config)
+    current_app.logger.debug('Starting workers')
+    start_workers(5)
+>>>>>>> make the registrationworker access the storage through http
+
+
 @registration.route('/request/', methods=['POST'])
 @auth.requires_auth
 def post_request():
@@ -156,7 +178,7 @@ def get_pids_by_prefix(pid_prefix):
 def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
 
-    handle_client = EpicClient(base_uri=current_app.config['HANDLE_BASE_URI'],
+    handle_client = EpicClient(base_uri=current_app.config['HANDLE_URI'],
                                credentials=None)
     handle_record = handle_client.retrieve_handle(prefix=pid_prefix,
                                                   suffix=pid_suffix)
