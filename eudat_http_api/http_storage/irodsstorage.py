@@ -265,7 +265,7 @@ def set_user_metadata(path, user_metadata, conn=None):
 
     obj_handle, _ = _get_irods_obj_handle(conn, path)
 
-    _set_user_metadata(conn, path, user_metadata)
+    _set_user_metadata(conn, obj_handle, user_metadata)
 
     try:
         _close(obj_handle)
@@ -273,9 +273,9 @@ def set_user_metadata(path, user_metadata, conn=None):
         pass  # obj is a collection, which cannot be closed
 
 
-def _set_user_metadata(conn, path, user_metadata):
+def _set_user_metadata(conn, obj_handle, user_metadata):
     """Performs the work for set_user_metadata."""
-    for key, val in user_metadata:
+    for key, val in user_metadata.iteritems():
         obj_handle.addUserMetadata(key, val)
 
 

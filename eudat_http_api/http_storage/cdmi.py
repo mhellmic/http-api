@@ -417,8 +417,8 @@ def put_file_obj(path):
         return e.msg, 400
 
     # store the CDMI Object ID
-    obj_id = create_object_id()
-    storage.set_user_metadata(path, {'objectID': obj_id})
+    hex_obj_id = binascii.b2a_hex(obj_id)
+    storage.set_user_metadata(path, {'objectID': hex_obj_id})
 
     response_headers = {
         'Content-Type': 'application/cdmi-object',
@@ -667,7 +667,8 @@ def _get_cdmi_json_generator(path, obj_type, **data):
         if user_meta is not None:
             obj_id = user_meta.get('objectID', None)
             if obj_id is not None:
-                return binascii.b2a_hex(obj_id)
+                # obj_id is already stored in hex
+                return obj_id
         return None
 
     yield ('objectType', lambda x=None: 'application/cdmi-%s' % obj_type)
@@ -765,7 +766,8 @@ def put_dir_obj(path):
 
     # store the CDMI Object ID
     obj_id = create_object_id()
-    storage.set_user_metadata(path, {'objectID': obj_id})
+    hex_obj_id = binascii.b2a_hex(obj_id)
+    storage.set_user_metadata(path, {'objectID': hex_obj_id})
 
     return flask_jsonify(create='Created'), 201
 
@@ -791,14 +793,14 @@ def del_dir_obj(path):
     return empty_response
 
 
-def create_object_id(local_id_length=8):
+def create_object_id_no_ctx(enterprise_number, local_id_length=8):
+    """ Facility function that works without an application context."""
     # I agree that the following is ugly and quite probably not as fast
     # as I would like it. Goal is to create a random string with a length
     # of exactly local_id_length.
     local_id_format = ''.join(['%0', str(local_id_length), 'x'])
     local_obj_id = local_id_format % random.randrange(16**local_id_length)
 
-    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
     crc_val = 0
     id_length = str(unichr(8 + len(local_obj_id)))
     # the poly given in the CDMI 1.0.2 spec ()x8005) is wrong,
@@ -824,6 +826,11 @@ def create_object_id(local_id_length=8):
                                local_obj_id)
 
     return packed_id
+
+
+def create_object_id(local_id_length=8):
+    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
+    return create_object_id_no_ctx(enterprise_number, local_id_length)
 
 
 def unpack_object_id(obj_id):

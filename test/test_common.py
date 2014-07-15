@@ -1,10 +1,14 @@
 from __future__ import with_statement
 
 import base64
+import binascii
 from collections import namedtuple
+import crcmod
 from itertools import product
 import os
+import random
 import shutil
+import struct
 
 from eudat_http_api import create_app
 from eudat_http_api.http_storage.common import split_path
@@ -25,6 +29,41 @@ class ByteRange:
         return self.end - self.start + 1
 
 
+def create_object_id_no_ctx(enterprise_number, local_id_length=8):
+    """ Facility function that works without an application context."""
+    # I agree that the following is ugly and quite probably not as fast
+    # as I would like it. Goal is to create a random string with a length
+    # of exactly local_id_length.
+    local_id_format = ''.join(['%0', str(local_id_length), 'x'])
+    local_obj_id = local_id_format % random.randrange(16**local_id_length)
+
+    crc_val = 0
+    id_length = str(unichr(8 + len(local_obj_id)))
+    # the poly given in the CDMI 1.0.2 spec ()x8005) is wrong,
+    # CRC-16 is specified as below
+    crc_func = crcmod.mkCrcFun(0x18005, initCrc=0x0000,
+                               xorOut=0x0000)
+
+    struct_id = struct.Struct('!cxhccH%ds' % local_id_length)
+    packed_id_no_crc = struct_id.pack('\0',
+                                      enterprise_number,
+                                      '\0',
+                                      id_length,
+                                      0,
+                                      local_obj_id)
+
+    crc_val = crc_func(packed_id_no_crc)
+
+    packed_id = struct_id.pack('\0',
+                               enterprise_number,
+                               '\0',
+                               id_length,
+                               crc_val,
+                               local_obj_id)
+
+    return packed_id
+
+
 class RestResource:
     ContainerType = 'dir'
     FileType = 'file'
@@ -43,7 +82,7 @@ class RestResource:
                  objinfo,
                  exists=True,
                  parent_exists=True,
-                 objectid=''):
+                 objectid=None):
 
         self.url = url
         # this must not be included in add_prefix,
@@ -57,7 +96,10 @@ class RestResource:
         self.path = self.url
         self.parent_url, self.name = split_path(self.url)
         self.parent_url = add_trailing_slash(self.parent_url)
-        self.objectid = objectid
+        if objectid is not None:
+            self.objectid = objectid
+        else:
+            self.objectid = binascii.b2a_hex(create_object_id_no_ctx(20))
 
     def add_prefix(self, prefix):
         self.url = '%s%s' % (prefix, self.url)
