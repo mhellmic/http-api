@@ -230,8 +230,9 @@ def _get_user_metadata(conn, obj_handle, path, user_metadata):
     key to get. If it's not iterable, this returns all metadata.
     """
     irods_user_metadata = obj_handle.getUserMetadata()
-    # convert the irods format into a dict with a value tuple
-    dict_gen = ((key, (val1, val2)) for key, val1, val2 in irods_user_metadata)
+    # convert the irods format into a dict with a single value
+    # drop the 'unit' value along the way
+    dict_gen = ((key, val) for key, val, unit in irods_user_metadata)
     user_meta = dict(dict_gen)
 
     try:
