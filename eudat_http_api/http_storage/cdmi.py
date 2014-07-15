@@ -8,6 +8,8 @@ from collections import deque
 import crcmod
 from functools import partial
 from functools import wraps
+#from ijson.backends.yajl2 import parse
+from ijson.backends.python import parse
 from inspect import isgenerator
 from itertools import islice
 from itertools import ifilter
@@ -466,22 +468,37 @@ def _parse_cdmi_msg_body_fields(handle, buffer_size=4194304):
      to accomodate requests that fit in one buffer_size.
 
     """
-    data = handle.read(buffer_size)
+    parser = parse(handle)
 
-    data_json = None
-    try:
-        data_json = flask_json.loads(data)
-    except ValueError:
-        raise MalformedMsgBodyException('WRONG')
+    data_json = dict()
+    value_gen = None
 
-    if 'value' in data_json:
-        def cdmi_value_generator(value, encoding):
-            yield value
+    for prefix, event, value in parser:
+        if value == 'value':
+            def make_value_gen(val, encoding, buffer_size=4 * 1024):
+                """ This function works with the current ijson.
 
-        value_gen = cdmi_value_generator(data_json['value'])
-        return data_json, value_gen
-    else:
-        return data_json, None
+                ijson itself should be modified so that it can return
+                an iterator. Then this function will become simpler,
+                but will be used to apply any special encoding.
+                """
+                acc = 0
+                out = None
+                while out != '':
+                    out = val[acc:acc + buffer_size]
+                    acc += buffer_size
+                    yield out
+
+            pre, eve, val = next(parser)
+            value_gen = make_value_gen(
+                val,
+                data_json.get('valuetransferencoding', None)
+            )
+            break
+        if prefix != '':
+            data_json[prefix] = value
+
+    return data_json, value_gen
 
 
 def _get_value_stream(uri, auth):
