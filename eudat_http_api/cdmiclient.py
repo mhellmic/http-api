@@ -16,6 +16,13 @@ class CDMIClient:
         r = requests.head(url, headers=headers, auth=self.auth)
         return r
 
+    def get(self, url, stream=False):
+        headers = {}
+
+        r = requests.get(url, headers=headers, auth=self.auth, stream=stream)
+
+        return r
+
     def cdmi_get(self, url, stream=False):
         headers = {
             'Accept': 'application/cdmi-object',
@@ -25,6 +32,14 @@ class CDMIClient:
         r = requests.get(url, headers=headers, auth=self.auth, stream=stream)
 
         return r
+
+    def put(self, url, data, headers=None):
+        rheaders = {}
+        if headers is not None:
+            rheaders.update(headers)
+
+        return requests.put(url, headers=rheaders,
+                            data=data, auth=self.auth)
 
     def cdmi_put(self, url, data):
         cdmi_headers = {
