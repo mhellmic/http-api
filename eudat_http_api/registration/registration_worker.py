@@ -29,11 +29,35 @@ def get_epic_client():
         config['HANDLE_USER'], config['HANDLE_PASS']), debug=False)
 
 
-def stream_download(source, file_handle, chunk_size=4194304):
-    for chunk in source.iter_content(chunk_size=chunk_size):
-        if chunk:
-            file_handle.write(chunk)
-            file_handle.flush()
+def stream_download(client, src_url, dst_url, chunk_size=4194304):
+    """GET a file over HTTP and PUT it somewhere else.
+
+    This method has two drawbacks:
+    1. To make it a bit simpler (before we solve the CDMI streaming),
+       get and put with plain HTTP.
+       This is tolerable as all CDMI interfaces should support the plain
+       access and we can add metadata somewhere else.
+    2. The streaming does not work. Currently we have to read in the file as
+       a whole before giving it to PUT. This is an issue with our HTTP
+       interface that WSGI does not support the chunked encoding:
+       https://code.google.com/p/modwsgi/issues/detail?id=1
+       and this function should work with our HTTP interface :)
+       Without chunked, the file-like object that we can give to PUT must
+       support seek() to get the Content-Length, which won't work with the
+       generator input (or file-like .raw) we get from requests.get without
+       reading the whole input anyway.
+       This is how the code would look like:
+    put_response = client.put(dst_url, get_response.raw,
+                              headers={'transfer-encoding': 'chunked'})
+
+    """
+
+    get_response = client.get(src_url, stream=True)
+    put_response = client.put(dst_url, get_response.content)
+
+    if put_response.status_code != requests.codes.created:
+        return False
+
     return True
 
 
