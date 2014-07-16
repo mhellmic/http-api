@@ -69,7 +69,7 @@ def get_destination_url(context):
     """
     return 'http://%s%s%s' % (
         config['HTTP_ENDPOINT'],
-        config['IRODS_SAFE_STORAGE'],
+        config['REGISTERED_SPACE'],
         hashlib.sha256(context.src_url).hexdigest())
 
 
