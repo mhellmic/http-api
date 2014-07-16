@@ -9,6 +9,7 @@ class Config(object):
     PORT = 5000
 
     CDMI_DOMAIN = 'cern.ch'
+    CDMI_ENTERPRISE_NUMBER = 20456
 
     DB_FD, DB_FILENAME = tempfile.mkstemp()
     SQLALCHEMY_DATABASE_URI = '%s%s' % ('sqlite:///', DB_FILENAME)
