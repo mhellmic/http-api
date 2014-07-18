@@ -57,7 +57,7 @@
             <li class="next"><a
                 href="{{ url_for('.get_requests', page = requests.next_num) }}">Older requests &rarr;</a></li>
             {% else %}
-            <li class="next disabled">&larr; Older requests &rarr;</li>
+            <li class="next disabled"><a href="#">Older requests &rarr;</a></li>
         {% endif %}
         </ul>
      </div>
