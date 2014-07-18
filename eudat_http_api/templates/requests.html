@@ -40,7 +40,7 @@
                    name="register"/>
         </form>
 
-
+{% if requests.items %}
     <h3>List of registration requests</h3>
         {% for r in requests.items %}
           {% include 'request.html' %}
@@ -60,6 +60,7 @@
             <li class="next disabled"><a href="#">Older requests &rarr;</a></li>
         {% endif %}
         </ul>
+      {% endif %}
      </div>
 </div>
 {% endblock %}
