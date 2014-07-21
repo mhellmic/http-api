@@ -11,6 +11,7 @@ from flask import render_template
 from flask import request
 from flask import Response
 from flask import stream_with_context
+from itertools import tee
 
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
@@ -151,9 +152,12 @@ def get_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
+    dirlist, filelist = tee(dir_gen)
+
     return render_template(
         'html/dirlisting.html',
-        dirlist=dir_gen,
+        dirlist=dirlist,
+        filelist=filelist,
         path=path,
         path_links=common.create_path_links(path),
         parent_path=common.add_trailing_slash(common.split_path(path)[0]))

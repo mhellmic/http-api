@@ -37,20 +37,20 @@
           </a></li>
           {% endfor %}
       </ol>
-   <ul style="list-style-type: none">
+      <ul style="list-style-type: none">
         <li><a href="{{ parent_path }}"><span class="glyphicon glyphicon-circle-arrow-up"></span></a></li>
-        {% for item in dirlist %}
-        <li><a href="{{ path }}{{ item.name }}">
-        {% if item.objtype == 'dir' %}
-            <span class="glyphicon glyphicon-folder-open"></span>
-        {% else %}
-            <span class="glyphicon glyphicon-file"></span>
-        {% endif %}
-                    {{ item.name}}
-        </a>
-        </li>
+        {% for item in dirlist|sort(attribute='name') if
+          item.objtype=='dir' %}
+          <li><a href="{{url_for('http_storage_read.get_obj',objpath=path+item.name)}}"><span class="glyphicon glyphicon-folder-open"></span>&nbsp;{{item.name}}</a></li>
+         {% endfor %}
+        {% for item in filelist|sort(attribute='name') if
+          item.objtype=='file' %}
+          <li><a href="{{url_for('http_storage_read.get_obj',objpath=path+item.name)}}"><span class="glyphicon glyphicon-file"></span>{{item.name}}</a>
+          <a href="{{ url_for('registration.get_requests', src=url_for('http_storage_read.get_obj',objpath=path+item.name,_external=True)) }}">
+<span class="glyphicon glyphicon-new-window"></span></a></li>
         {% endfor %}
     </ul>
+
     </div>
 </div>
 {% endblock %}
