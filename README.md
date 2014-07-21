@@ -4,13 +4,16 @@ Simple REST interface to EUDAT services
 Installation
 ------------
 
-Required python packages:
+Required python packages (check `requirements.txt`):
 
-- flask
 - requests
+- Flask
 - Flask-SQLAlchemy
+- Flask-Bootstrap
 - marshmallow
 - BeautifulSoup
+- ijson
+- xattr
 
 Testing:
 
@@ -34,35 +37,6 @@ Instructions:
 
 Find more detailed instructions including how to install in a virtualenv here:
 https://github.com/EudatHttpApi/http-api/wiki/Installation-guide
-
-
-Unit Testing
-------------
-
-You can start the unit tests to confirm your changes.
-
-    cd http-api
-    TEST_CONFIG=test.config.LocalConfig nosetests test.unittests
-
-This will run nosetests to do all unit tests with the local storage backend.
-Using another environment variable tests other backends, for example irods.
-
-    TEST_CONFIG=test.config.IrodsConfig nosetests test.unittests
-
-For this, you probably want to configure your irods server in
-
-    vim test/config.py
-
-You can also execute the tests partially, by class
-
-    TEST_CONFIG=test.config.LocalConfig nosetests test.unittests:TestHttpApi
-
-or by single test
-
-    TEST_CONFIG=test.config.LocalConfig nosetests test.unittests:TestStorageApi.test_stat
-
-If you start the tests without an environment variable, nosetests will try to test the mock backend,
-which is already deprecated. Please don't be upset about errors.
 
 
 Coding Style
