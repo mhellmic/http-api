@@ -31,9 +31,6 @@ def get_epic_client():
         config['EPIC_USER'], config['EPIC_PASS']), debug=False)
 
 
-
-
-
 def connect_to_irods(host, port, username, password, zone):
     conn, err = rcConnect(host, port, username, zone)
     if err.status != 0:

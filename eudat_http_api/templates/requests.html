@@ -34,7 +34,9 @@
         <form class="form-inline" role="form" action="" method="post">
             <div class="form-group">
             <label class="control-label" for="src_url">Source: </label>
-                <input class="form-control" name="src_url" type="text" placeholder=""/>
+                <input class="form-control" name="src_url" type="text"
+                       placeholder="object's url" value="{{ src }}"
+                       size="60"/>
             </div>
             <input class="btn btn-primary" type="submit" value="register"
                    name="register"/>

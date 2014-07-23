@@ -57,27 +57,12 @@ def get_requests():
                                                        many=True).data,
              "_links": get_hal_links(reg_requests, page)})
 
+    src = request.args.get('src', '')
     return flask.render_template(
         'requests.html',
         scratch=current_app.config.get('SCRATCH_SPACE', None),
-        requests=reg_requests)
-
-
-def extract_urls(url):
-    """Extract data and metadata urls from cdmi url
-
-    @param url:
-    @return:
-    """
-    return url + '?value', url + '?metadata'
-
-
-@registration.before_app_first_request
-def initialize():
-    current_app.logger.debug('Setting worker config')
-    set_config(current_app.config)
-    current_app.logger.debug('Starting workers')
-    start_workers(5)
+        requests=reg_requests,
+        src=src)
 
 
 @registration.route('/request/', methods=['POST'])
@@ -207,3 +192,20 @@ def select_location(location_list):
             return url_for('http_storage.get_cdmi_obj', objpath=loc)
 
     return False
+
+
+def extract_urls(url):
+    """Extract data and metadata urls from cdmi url
+
+    @param url:
+    @return:
+    """
+    return url + '?value', url + '?metadata'
+
+
+@registration.before_app_first_request
+def initialize():
+    current_app.logger.debug('Setting worker config')
+    set_config(current_app.config)
+    current_app.logger.debug('Starting workers')
+    start_workers(5)
