@@ -4,8 +4,8 @@ from functools import wraps
 
 from flask import abort
 from flask import Blueprint
+from flask.ext.login import login_required
 
-from eudat_http_api import auth
 from eudat_http_api import common
 from eudat_http_api.http_storage import common as http_common
 from eudat_http_api.http_storage import cdmi
@@ -53,7 +53,7 @@ def check_access_type(f):
 
 @http_storage_read.route('/', methods=['GET'], defaults={'objpath': '/'})
 @http_storage_read.route('/<path:objpath>', methods=['GET'])
-@auth.requires_auth
+@login_required
 @check_access_type
 def get_obj(access_module, objpath):
     absolute_objpath = http_common.make_absolute_path(objpath)
@@ -65,7 +65,7 @@ def get_obj(access_module, objpath):
 
 @http_storage_write.route('/', methods=['PUT'], defaults={'objpath': '/'})
 @http_storage_write.route('/<path:objpath>', methods=['PUT'])
-@auth.requires_auth
+@login_required
 @check_access_type
 def put_obj(access_module, objpath):
     absolute_objpath = http_common.make_absolute_path(objpath)
@@ -77,7 +77,7 @@ def put_obj(access_module, objpath):
 
 @http_storage_write.route('/', methods=['DELETE'], defaults={'objpath': '/'})
 @http_storage_write.route('/<path:objpath>', methods=['DELETE'])
-@auth.requires_auth
+@login_required
 @check_access_type
 def del_obj(access_module, objpath):
     absolute_objpath = http_common.make_absolute_path(objpath)

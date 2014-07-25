@@ -10,8 +10,8 @@ import stat as sys_stat
 import xattr
 
 from flask import current_app
-from flask import request
 
+from eudat_http_api.auth.common import AuthMethod, AuthException
 from eudat_http_api.http_storage.common import get_config_parameter
 from eudat_http_api.http_storage.storage_common import *
 
@@ -41,21 +41,21 @@ def check_path(f):
     return decorated
 
 
-def check_auth():
-    auth = _get_authentication()
-    if not authenticate(auth.username, auth.password):
-        raise NotAuthorizedException('Invalid credentials')
+#def check_auth():
+#    auth = _get_authentication()
+#    if not authenticate(auth.username, auth.password):
+#        raise NotAuthorizedException('Invalid credentials')
+#
+#
+#def with_auth(f):
+#    @wraps(f)
+#    def decorated(*args, **kwargs):
+#        check_auth()
+#        return f(*args, **kwargs)
+#    return decorated
 
 
-def with_auth(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        check_auth()
-        return f(*args, **kwargs)
-    return decorated
-
-
-def authenticate(username, password):
+def authenticate(auth_info):
     """Authenticate with username, password.
 
     Returns True or False.
@@ -66,11 +66,16 @@ def authenticate(username, password):
     valid accounts and passwords.
     Otherwise it allows everyone.
     """
-    if get_config_parameter('USERS') is not None:
-        return (username in get_config_parameter('USERS') and
-                get_config_parameter('USERS')[username] == password)
-    else:
-        return True
+    if auth_info.method == AuthMethod.Pass:
+        current_app.logger.debug('authenticate by PASS: %s'
+                                 % auth_info.username)
+        if get_config_parameter('USERS') is not None:
+            return (auth_info.username in get_config_parameter('USERS') and
+                    (get_config_parameter('USERS')[auth_info.username]
+                        == auth_info.password))
+        else:
+            return True
+    return False
 
 
 @check_path

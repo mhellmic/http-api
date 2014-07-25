@@ -40,4 +40,7 @@ def create_app(config_name):
             models.db.app = app
             models.db.init_app(app)
 
+        from eudat_http_api.auth.auth import login_manager
+        login_manager.init_app(app)
+
     return app

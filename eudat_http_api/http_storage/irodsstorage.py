@@ -8,6 +8,7 @@ from flask import current_app
 
 from irods import *
 
+from eudat_http_api.auth.common import AuthMethod, AuthException
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage.common import get_config_parameter
 
@@ -114,18 +115,20 @@ class IrodsConnection(Connection):
 connection_pool = ConnectionPool(IrodsConnection)
 
 
-def authenticate(username, password, conn=None):
+def authenticate(auth, conn=None):
     """Authenticate with username, password.
 
     Returns True or False.
     Validates an existing connection.
     """
-    conn = connection_pool.get_connection(username, password)
-    if conn is not None:
-        connection_pool.release_connection(conn)
-        return True
-    else:
-        return False
+    if auth.method == AuthMethod.Pass:
+        conn = connection_pool.get_connection(auth.username, auth.password)
+        if conn is not None:
+            connection_pool.release_connection(conn)
+            return True
+        else:
+            return False
+    return False
 
 
 def _get_irods_obj_handle(conn, path, mode='r'):

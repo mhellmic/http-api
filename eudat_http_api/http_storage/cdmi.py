@@ -28,8 +28,8 @@ from flask import Response
 from flask import jsonify as flask_jsonify
 from flask import json as flask_json
 from flask import stream_with_context
+from flask.ext.login import login_required
 
-from eudat_http_api import auth
 from eudat_http_api import metadata
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
@@ -56,7 +56,8 @@ def check_cdmi(f):
 
 
 @cdmi_uris.route('/cdmi_capabilities/', methods=['GET'])
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 @check_cdmi
 def get_system_capabilities():
     cdmi_system_capabilities = {
@@ -91,7 +92,8 @@ def get_system_capabilities():
 
 
 @cdmi_uris.route('/cdmi_capabilities/container/', methods=['GET'])
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 @check_cdmi
 def get_container_capabilities():
     cdmi_container_capabilities = {
@@ -132,7 +134,8 @@ def get_container_capabilities():
 
 
 @cdmi_uris.route('/cdmi_capabilities/dataobject/', methods=['GET'])
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 @check_cdmi
 def get_dataobject_capabilities():
     cdmi_dataobject_capabilities = {
@@ -166,7 +169,8 @@ def get_dataobject_capabilities():
 
 
 @cdmi_uris.route('/cdmi_domains/<domain>')
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 def get_domain(domain):
     return flask_jsonify('We dont support domains just yet')
 
