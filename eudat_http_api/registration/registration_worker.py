@@ -1,16 +1,14 @@
-import ConfigParser
 from Queue import Queue
 
 import threading
 import hashlib
-from requests import get
 import requests
 from requests.auth import HTTPBasicAuth
 
+from eudat_http_api.cdmiclient import CDMIClient
 from eudat_http_api.registration.models import db, RegistrationRequest
 from eudat_http_api.epicclient import EpicClient, HandleRecord, \
     extract_prefix_suffix
-from irods import rcConnect, clientLoginWithPassword, irodsOpen
 
 
 def get_checksum(destination):
@@ -27,36 +25,39 @@ def set_config(new_config):
 
 
 def get_epic_client():
-    return EpicClient(base_uri=config['EPIC_URI'], credentials=HTTPBasicAuth(
-        config['EPIC_USER'], config['EPIC_PASS']), debug=False)
+    return EpicClient(base_uri=config['HANDLE_URI'], credentials=HTTPBasicAuth(
+        config['HANDLE_USER'], config['HANDLE_PASS']), debug=False)
 
 
-def connect_to_irods(host, port, username, password, zone):
-    conn, err = rcConnect(host, port, username, zone)
-    if err.status != 0:
-        print 'ERROR: Unable to connect to iRODS@%s' % config['RODSHOST']
-        return None
+def stream_download(client, src_url, dst_url, chunk_size=4194304):
+    """GET a file over HTTP and PUT it somewhere else.
 
-    if conn is None:
-        return conn
+    This method has two drawbacks:
+    1. To make it a bit simpler (before we solve the CDMI streaming),
+       get and put with plain HTTP.
+       This is tolerable as all CDMI interfaces should support the plain
+       access and we can add metadata somewhere else.
+    2. The streaming does not work. Currently we have to read in the file as
+       a whole before giving it to PUT. This is an issue with our HTTP
+       interface that WSGI does not support the chunked encoding:
+       https://code.google.com/p/modwsgi/issues/detail?id=1
+       and this function should work with our HTTP interface :)
+       Without chunked, the file-like object that we can give to PUT must
+       support seek() to get the Content-Length, which won't work with the
+       generator input (or file-like .raw) we get from requests.get without
+       reading the whole input anyway.
+       This is how the code would look like:
+    put_response = client.put(dst_url, get_response.raw,
+                              headers={'transfer-encoding': 'chunked'})
 
-    err = clientLoginWithPassword(conn, password)
-    if err != 0:
-        return conn
+    """
 
-    print 'Connection successful'
-    return conn
+    get_response = client.get(src_url, stream=True)
+    put_response = client.put(dst_url, get_response.content)
 
+    if put_response.status_code != requests.codes.created:
+        return False
 
-def get_irods_file_handle(connection, filename):
-    return irodsOpen(connection, filename, mode='w')
-
-
-def stream_download(source, file_handle, chunk_size=4194304):
-    for chunk in source.iter_content(chunk_size=chunk_size):
-        if chunk:
-            file_handle.write(chunk)
-            file_handle.flush()
     return True
 
 
@@ -69,28 +70,38 @@ def check_url(url, auth):
 
 
 def extract_credentials(auth):
-    """Extract irods credentials from request authentication object
+    """Extract credentials from request authentication object
 
     Only a place-holder currently.
 
     Works only with basic authentication so far. In the future I expect a
     change here. We will extract the target identity from the provided
-    short-lived certificate and use irods.chmode after the data object
+    short-lived certificate and use chmod after the data object
     creation
 
     @param auth:
-    @return: username, password that can be used in irods.
+    @return: username, password
     """
     return auth.username, auth.password
 
 
-def get_destination(context):
-    return '%s%s' % (config['IRODS_SAFE_STORAGE'], hashlib.sha256(context
-                                                                  .src_url)
-                     .hexdigest())
+def get_destination_url(context):
+    """Returns the destination URL for the file.
+
+    This has to be a working HTTP URL, since we access it through the
+    HTTP interface.
+    """
+    return 'http://%s%s%s' % (
+        config['HTTP_ENDPOINT'],
+        config['REGISTERED_SPACE'],
+        hashlib.sha256(context.src_url).hexdigest())
 
 
 def get_replication_destination(context):
+    """Returns the replication targets.
+
+    This is an irods-internal value and should be removed at some point.
+    """
     return '%s%s' % (config['IRODS_REPLICATION_DESTINATION'],
                      hashlib.sha256(context.src_url).hexdigest())
 
@@ -123,20 +134,21 @@ def check_metadata(context):
 
 def copy_data_object(context):
     update_request(context, 'Copying data object to the new location')
-    destination = get_destination(context)
+    destination = get_destination_url(context)
     username, password = extract_credentials(context.auth)
-    conn = connect_to_irods(config['RODSHOST'], config['RODSPORT'],
-                            username,
-                            password,
-                            config['RODSZONE'])
-    target = get_irods_file_handle(connection=conn, filename=destination)
-    source = get(url=context.src_url, auth=context.auth, stream=True)
-    stream_download(source, target)
-    target.close()
-    conn.disconnect()
 
     context.destination = destination
+    # this is probably not the right place. the storage backend should
+    # create a checksum if required. let's check if that is possible.
     context.checksum = get_checksum(destination)
+
+    client = CDMIClient((username, password))
+
+    upload_response = client.cdmi_copy(
+        context.destination, context.src_url)
+    if upload_response.status_code != 201:
+        update_request(context, 'Unable to move the data to register space')
+        return False
 
     return True
 
@@ -145,7 +157,7 @@ def get_handle(context):
     update_request(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(config['EPIC_PREFIX'],
+    pid = epic_client.create_new(config['HANDLE_PREFIX'],
                                  HandleRecord.get_handle_with_values(
                                      create_storage_url(context.destination),
                                      context.checksum))
@@ -160,20 +172,14 @@ def start_replication(context):
     update_request(context, 'Starting replication')
     context.replication_destination = get_replication_destination(context)
 
+    # here we have to think about whether there will be a service account
+    # starting the replication with the appropriate permissions.
+    # b2safe description should give more information.
     username, password = extract_credentials(context.auth)
-    conn = connect_to_irods(config['RODSHOST'], config['RODSPORT'],
-                            username,
-                            password,
-                            config['RODSZONE'])
-    target = get_irods_file_handle(
-        connection=conn,
-        filename=get_replication_filename(context))
 
-    replication_command = get_replication_command(context)
-
-    target.write(replication_command)
-    target.close()
-    conn.disconnect()
+    client = CDMIClient((username, password))
+    client.cdmi_put(get_replication_filename(context),
+                    get_replication_command(context))
 
     return True
 
@@ -226,6 +232,3 @@ def start_workers(num_worker_thread):
         t = threading.Thread(target=executor)
         t.daemon = True
         t.start()
-
-
-
