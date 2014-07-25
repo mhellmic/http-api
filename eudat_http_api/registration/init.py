@@ -84,7 +84,6 @@ def initialize():
     set_config(current_app.config)
     current_app.logger.debug('Starting workers')
     start_workers(5)
->>>>>>> make the registrationworker access the storage through http
 
 
 @registration.route('/request/', methods=['POST'])
