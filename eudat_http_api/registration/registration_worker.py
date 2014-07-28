@@ -4,6 +4,7 @@ import threading
 import uuid
 import requests
 from requests.auth import HTTPBasicAuth
+from urlparse import urljoin
 
 from eudat_http_api.cdmiclient import CDMIClient
 from eudat_http_api.registration.models import db, RegistrationRequest
@@ -91,10 +92,10 @@ def get_destination_url(context):
     This has to be a working HTTP URL, since we access it through the
     HTTP interface.
     """
-    return 'http://%s%s%s' % (
+    return urljoin(
         config['HTTP_ENDPOINT'],
-        config['REGISTERED_SPACE'],
-        str(uuid.uuid1()))
+        urljoin(config['REGISTERED_SPACE'],
+                str(uuid.uuid1())))
 
 
 def get_replication_destination(context):

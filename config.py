@@ -55,7 +55,7 @@ REQUESTS_PER_PAGE = 5
 # the destination host for file registering requests.
 # this should be an fqdn of the (or a) machine where the http-api
 # storage runs on.
-HTTP_ENDPOINT = 'localhost:8080'
+HTTP_ENDPOINT = 'http://localhost:8080'
 
 # public scratch space path
 SCRATCH_SPACE = '/tmp/http_server/scratch/'
