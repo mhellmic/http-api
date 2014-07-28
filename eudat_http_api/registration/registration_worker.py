@@ -108,8 +108,8 @@ def get_replication_destination(context):
                      str(uuid.uuid1()))
 
 
-def get_replication_filename(context):
-    return 'http://%s%s/%s.replicate' % (config['HTTP_ENDPOINT'], config['IRODS_SHARED_SPACE'], context.pid
+def get_replication_path(context):
+    return '%s%s.replicate' % (config['IRODS_SHARED_SPACE'], context.pid
                                .split('/')[-1])
 
 
@@ -191,8 +191,13 @@ def start_replication(context):
     # b2safe description should give more information.
     username, password = extract_credentials(context.auth)
 
+    replication_path = get_replication_path(context)
+    # for this to work, replication_path must be absolute
+    replication_file_url = urljoin(urlunparse(context.destination),
+                                   replication_path)
+
     client = CDMIClient((username, password))
-    client.cdmi_put(get_replication_filename(context),
+    client.cdmi_put(replication_file_url,
                     get_replication_command(context))
 
     return True
