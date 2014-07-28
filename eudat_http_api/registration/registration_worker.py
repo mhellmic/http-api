@@ -1,7 +1,7 @@
 from Queue import Queue
 
 import threading
-import hashlib
+import uuid
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -25,8 +25,8 @@ def set_config(new_config):
 
 
 def get_epic_client():
-    return EpicClient(base_uri=config['HANDLE_URI'], credentials=HTTPBasicAuth(
-        config['HANDLE_USER'], config['HANDLE_PASS']), debug=False)
+    return EpicClient(base_uri=config['EPIC_URI'], credentials=HTTPBasicAuth(
+        config['EPIC_USER'], config['EPIC_PASS']), debug=False)
 
 
 def stream_download(client, src_url, dst_url, chunk_size=4194304):
@@ -94,7 +94,7 @@ def get_destination_url(context):
     return 'http://%s%s%s' % (
         config['HTTP_ENDPOINT'],
         config['REGISTERED_SPACE'],
-        hashlib.sha256(context.src_url).hexdigest())
+        str(uuid.uuid1()))
 
 
 def get_replication_destination(context):
@@ -103,11 +103,11 @@ def get_replication_destination(context):
     This is an irods-internal value and should be removed at some point.
     """
     return '%s%s' % (config['IRODS_REPLICATION_DESTINATION'],
-                     hashlib.sha256(context.src_url).hexdigest())
+                     str(uuid.uuid1()))
 
 
 def get_replication_filename(context):
-    return '%s%s.replicate' % (config['IRODS_SHARED_SPACE'], context.pid
+    return 'http://%s%s/%s.replicate' % (config['HTTP_ENDPOINT'], config['IRODS_SHARED_SPACE'], context.pid
                                .split('/')[-1])
 
 
@@ -157,9 +157,9 @@ def get_handle(context):
     update_request(context, 'Creating handle')
 
     epic_client = get_epic_client()
-    pid = epic_client.create_new(config['HANDLE_PREFIX'],
+    pid = epic_client.create_new(config['EPIC_PREFIX'],
                                  HandleRecord.get_handle_with_values(
-                                     create_storage_url(context.destination),
+                                     context.destination,
                                      context.checksum))
     if pid is None:
         return False

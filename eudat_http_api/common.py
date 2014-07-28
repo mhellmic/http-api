@@ -2,6 +2,7 @@ from __future__ import with_statement
 
 from flask import request
 
+from urlparse import urlparse
 
 class ContentTypes:
     json = 'application/json'
@@ -21,6 +22,9 @@ def request_wants_json():
 def is_local(storage_url, local_host, local_port, local_zone):
     #This should be part of the storage backend interface
     parsed = urlparse(storage_url)
+    if parsed.scheme.startswith('http'):
+        return storage_url
+
     if parsed.scheme != 'irods':
         return False
     if parsed.hostname != local_host:

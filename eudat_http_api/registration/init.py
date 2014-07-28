@@ -209,6 +209,8 @@ def select_location(location_list):
         loc = is_local(l, current_app.config['RODSHOST'],
                        current_app.config['RODSPORT'],
                        current_app.config['RODSZONE'])
+        if loc and loc.startswith('http'):
+            return loc 
         if loc:
             return url_for('http_storage.get_cdmi_obj', objpath=loc)
 
