@@ -82,3 +82,7 @@ HANDLE_USER = 'user'
 HANDLE_PASS = 'pass'
 HANDLE_PREFIX = '666'
 
+# this is where handles are written to
+EPIC_URI = 'http://localhost:5000'
+EPIC_USER = 'user'
+EPIC_PASS = 'pass'
