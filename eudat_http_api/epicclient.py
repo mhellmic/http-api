@@ -196,8 +196,10 @@ class EpicClient(object):
         @return: location of the handle
         """
         headers = {'Content-Type': 'application/json'}
-        response = post(url=create_uri(base_uri=self.base_uri,
-                                       prefix=prefix, suffix=''),
+        record_uri = create_uri(base_uri=self.base_uri,
+                                prefix=prefix, suffix='')
+        self._debug_msg('createNew', 'URI = %s' % record_uri)
+        response = post(url=record_uri,
                         headers=headers,
                         data=handle_record.as_epic_json_array(),
                         auth=self.credentials)

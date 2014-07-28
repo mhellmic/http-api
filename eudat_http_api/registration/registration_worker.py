@@ -4,7 +4,7 @@ import threading
 import uuid
 import requests
 from requests.auth import HTTPBasicAuth
-from urlparse import urljoin
+from urlparse import urljoin, urlparse, urlunparse
 
 from eudat_http_api.cdmiclient import CDMIClient
 from eudat_http_api.registration.models import db, RegistrationRequest
@@ -13,6 +13,7 @@ from eudat_http_api.epicclient import EpicClient, HandleRecord, \
 
 
 def get_checksum(destination):
+    url_str = urlunparse(destination)
     return 667
 
 
@@ -113,14 +114,22 @@ def get_replication_filename(context):
 
 
 def get_replication_command(context):
-    # Format: '*pid;*source;*destination'
-    return '%s;%s;%s' % (context.pid, context.destination, context
-                         .replication_destination)
+    """Creates the contents of the replication file.
+
+    Format: '*pid;*source;*destination'
+
+    pid         the PID given by the handle system
+    source      the path of the file in the irods namespace
+    repl..dest  the irods path to replicate to
+    """
+    return '%s;%s;%s' % (context.pid, context.storage_url,
+                         context.replication_destination)
 
 
-def create_storage_url(path):
+def create_storage_url(destination_url):
+    # cant use urljoin, because it does not recognize irods://
     return 'irods://%s:%d%s' % (config['RODSHOST'], config['RODSPORT'],
-                                path)
+                                destination_url.path)
 
 
 def check_src(context):
@@ -135,7 +144,7 @@ def check_metadata(context):
 
 def copy_data_object(context):
     update_request(context, 'Copying data object to the new location')
-    destination = get_destination_url(context)
+    destination = urlparse(get_destination_url(context))
     username, password = extract_credentials(context.auth)
 
     context.destination = destination
@@ -146,7 +155,7 @@ def copy_data_object(context):
     client = CDMIClient((username, password))
 
     upload_response = client.cdmi_copy(
-        context.destination, context.src_url)
+        urlunparse(context.destination), context.src_url)
     if upload_response.status_code != 201:
         update_request(context, 'Unable to move the data to register space')
         return False
@@ -158,9 +167,13 @@ def get_handle(context):
     update_request(context, 'Creating handle')
 
     epic_client = get_epic_client()
+    storage_url = create_storage_url(context.destination)
+    # store for the replication file (for irods)
+    context.storage_url = storage_url
+    #update_request(context, 'created storage_url: %s' % storage_url)
     pid = epic_client.create_new(config['EPIC_PREFIX'],
                                  HandleRecord.get_handle_with_values(
-                                     context.destination,
+                                     storage_url,
                                      context.checksum))
     if pid is None:
         return False
