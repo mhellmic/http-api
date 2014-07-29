@@ -171,7 +171,7 @@ def get_handle(context):
     # store for the replication file (for irods)
     context.storage_url = storage_url
     #update_request(context, 'created storage_url: %s' % storage_url)
-    pid = epic_client.create_new(config['EPIC_PREFIX'],
+    pid = epic_client.create_new(config['HANDLE_PREFIX'],
                                  HandleRecord.get_handle_with_values(
                                      storage_url,
                                      context.checksum))
