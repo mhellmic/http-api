@@ -40,7 +40,7 @@ USERS = {
 # irods storage settings
 RODSHOST = os.getenv('IRODS_PORT_1247_TCP_ADDR', 'localhost')
 RODSPORT = int(os.getenv('IRODS_PORT_1247_TCP_PORT', '1247'))
-RODSZONE = 'tempZone'
+RODSZONE = os.getenv('IRODS_ENV_ZONE','tempZone')
 
 
 ############################
@@ -55,7 +55,7 @@ REQUESTS_PER_PAGE = 5
 # the destination host for file registering requests.
 # this should be an fqdn of the (or a) machine where the http-api
 # storage runs on.
-HTTP_ENDPOINT = 'localhost:8080'
+HTTP_ENDPOINT = 'http://localhost:8080'
 
 # public scratch space path
 SCRATCH_SPACE = '/tmp/http_server/scratch/'
@@ -86,5 +86,6 @@ EPIC_USER = 'user'
 EPIC_PASS = 'pass'
 #usually equals EPIC_USER
 EPIC_PREFIX = '666'
+HANDLE_PREFIX = '666'
 
 HANDLE_URI = EPIC_URI

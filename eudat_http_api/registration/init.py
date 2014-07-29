@@ -212,7 +212,7 @@ def select_location(location_list):
         if loc and loc.startswith('http'):
             return loc 
         if loc:
-            return url_for('http_storage.get_cdmi_obj', objpath=loc)
+            return url_for('http_storage_read.get_obj', objpath=loc)
 
     return False
 
