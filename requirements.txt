@@ -1,6 +1,7 @@
 BeautifulSoup
 crcmod>=1.7
 Flask==0.10.1
+Flask-Login>=0.2.11
 Flask-SQLAlchemy==1.0
 gevent==1.0
 ijson>=1.1
