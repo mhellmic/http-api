@@ -347,6 +347,10 @@ class TestApi:
         else:
             app = create_app(__name__)
 
+        with app.app_context():
+            from eudat_http_api.registration.models import db
+            db.create_all()
+
         self.app = app
         self.client = app.test_client()
 
