@@ -61,7 +61,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if url[-1] != '/':
@@ -81,7 +81,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         assert rv.status_code == 404
@@ -93,7 +93,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         assert rv.status_code == 200
@@ -114,7 +114,7 @@ class TestHttpApi(TestApi):
                                  headers=headers)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         assert rv.status_code == 206
@@ -179,7 +179,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         assert rv.status_code == 404
@@ -191,7 +191,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if resource.exists:
@@ -206,7 +206,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if (resource.objtype == resource.ContainerType and
@@ -230,7 +230,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         assert rv.status_code == 404
@@ -243,7 +243,7 @@ class TestHttpApi(TestApi):
                                  data=resource.objinfo['content'])
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if resource.exists:
@@ -260,7 +260,7 @@ class TestHttpApi(TestApi):
                                  userinfo.name, userinfo.password)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if resource.exists:

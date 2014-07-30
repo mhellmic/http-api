@@ -132,7 +132,7 @@ class TestCdmiApi(TestApi):
                                  headers=cdmi_headers)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if resource.cdmi_version != self.SERVER_CDMI_VERSION:
@@ -162,7 +162,7 @@ class TestCdmiApi(TestApi):
                                  headers=cdmi_headers)
 
         if not userinfo.valid:
-            assert rv.status_code == 403
+            assert rv.status_code == 401
             return
 
         if resource.cdmi_version != self.SERVER_CDMI_VERSION:
