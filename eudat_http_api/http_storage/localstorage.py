@@ -75,6 +75,9 @@ def authenticate(auth_info):
                         == auth_info.password))
         else:
             return True
+    elif auth_info.method == AuthMethod.Gsi:
+        if auth_info.userverifiedok:
+            return True
     return False
 
 
