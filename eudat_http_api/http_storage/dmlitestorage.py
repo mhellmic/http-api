@@ -32,6 +32,7 @@ class DmliteConnection(Connection):
         self.pluginmanager = pm
         self.secctx = pydmlite.SecurityContext()
         self.stack = pydmlite.StackInstance(pm)
+        self.stack.setSecurityContext(self.secctx)
         return True
 
     def disconnect(self):
