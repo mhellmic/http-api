@@ -46,18 +46,18 @@ Supported Functionality
 
 | Functionality     | Support Level | Comments |
 | -------------     | -------------:| -------- |
-| HTTP GET          | yes           |
-| HTTP PUT          | yes           |
-| HTTP DELETE       | yes           |
-| HTTP POST         | no            |
-| CDMI GET          | yes           | containers and objects |
-| CDMI PUT          | partial       | yes (containers) and yes, but very slow and resource-intensive (objects) |
-| CDMI DELETE       | yes           | containers and objects |
-| CDMI POST         | no            |
-| CDMI Object IDs   | partial       | creation works and gets saved, but you cannot access by object ID directly |
-| Authentication    | Username/Password |
-| PIDs              | yes           | stored in object user metadata |
-| Registration      | partial       | works only for src URL that are free to read or user/password-protected |
+| HTTP GET          | <span style="color:green">yes</span>          |
+| HTTP PUT          | <span style="color:green">yes</span>          |
+| HTTP DELETE       | <span style="color:green">yes</span>          |
+| HTTP POST         | <span style="color:red">no</span>             |
+| CDMI GET          | <span style="color:green">yes</span>          | containers and objects |
+| CDMI PUT          | <span style="color:yellow">partial</span>     | yes (containers) and yes, but very slow and resource-intensive (objects) |
+| CDMI DELETE       | <span style="color:green">yes</span>          | containers and objects |
+| CDMI POST         | <span style="color:red">no</span>             |
+| CDMI Object IDs   | <span style="color:yellow">partial</span>     | creation works and gets saved, but you cannot access by object ID directly |
+| Authentication    | <span style="color:yellow">Username/Password</span> |
+| PIDs              | <span style="color:green">yes</span>          | stored in object user metadata |
+| Registration      | <span style="color:yellow">partial</span>     | works only for src URL that are free to read or user/password-protected |
 
 
 Coding Style
