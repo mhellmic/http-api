@@ -28,6 +28,9 @@ Instructions:
 
     git clone https://github.com/EudatHttpApi/http-api.git
 
+    # install cffi development package, e.g.
+    yum install libffi-devel
+
     pip install -r requirements.txt
 
     git clone https://code.google.com/p/irodspython/
