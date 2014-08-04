@@ -6,8 +6,8 @@ from flask import current_app
 from flask import Response
 
 from flask.ext.login import LoginManager
-from eudat_http_api.auth.common import AuthMethod, AuthException
-from eudat_http_api.auth.common import Auth
+from eudat_http_api.auth.common import AuthException
+from eudat_http_api.auth.common import UserInfo
 from eudat_http_api.http_storage import storage
 
 
@@ -41,6 +41,7 @@ def check_auth(auth_info):
 
 @login_manager.request_loader
 def load_user(request):
-    auth_info = Auth(check_auth)
+    auth_info = UserInfo(check_auth)
     auth_info.parse_request(request)
+    request.auth_info = auth_info
     return auth_info

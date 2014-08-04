@@ -8,7 +8,7 @@ from nose.tools import assert_raises
 
 from eudat_http_api import create_app
 
-from eudat_http_api.auth.common import Auth, AuthMethod
+from eudat_http_api.auth.common import UserInfo, AuthMethod
 
 from test.test_common import get_local_url_list, get_irods_url_list
 from test.test_common import get_user_list
@@ -128,7 +128,7 @@ class TestStorageApi:
             from eudat_http_api.http_storage import storage
             userinfo = params['userinfo']
 
-            auth_info = Auth(None)  # the check_auth function is not used
+            auth_info = UserInfo(None)  # the check_auth function is not used
             auth_info.method = AuthMethod.Pass
             auth_info.username = userinfo.name
             auth_info.password = userinfo.password

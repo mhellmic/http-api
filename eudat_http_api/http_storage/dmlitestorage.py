@@ -26,13 +26,21 @@ class DmliteConnection(Connection):
         # object.
         self.connection = self
 
-    def connect(self, username, password):
+    def connect(self, auth_info):
         pm = pydmlite.PluginManager()
         pm.loadConfiguration(self.config)
         self.pluginmanager = pm
-        self.secctx = pydmlite.SecurityContext()
         self.stack = pydmlite.StackInstance(pm)
-        self.stack.setSecurityContext(self.secctx)
+
+        creds = pydmlite.SecurityCredentials()
+        creds.clientName = auth_info.userdn
+        creds.remoteAddress = auth_info.remote_address
+        secctx = stack.createSecurityContext(creds)
+        try:
+            self.stack.setSecurityContext(secctx)
+        except Exception:
+            return False
+
         return True
 
     def disconnect(self):
@@ -45,7 +53,10 @@ class DmliteConnection(Connection):
 connection_pool = ConnectionPool(DmliteConnection)
 
 
-def authenticate(username, password):
+@get_connection(connection_pool)
+def authenticate(auth_info):
+    """Try to get a dmlite connection.
+    """
     return True
 
 

@@ -64,8 +64,8 @@ class IrodsConnection(Connection):
     def __init__(self):
         pass
 
-    def connect(self, username, password):
-        rodsUserName = username
+    def connect(self, auth_info):
+        rodsUserName = auth_info.username
 
         rodsHost = get_config_parameter('RODSHOST')
         rodsPort = get_config_parameter('RODSPORT')
@@ -83,7 +83,7 @@ class IrodsConnection(Connection):
             raise InternalException('Connecting to iRODS failed')
 
         with suppress_stdout_stderr():
-            err = clientLoginWithPassword(conn, password)
+            err = clientLoginWithPassword(conn, auth_info.password)
         if err == 0:
             current_app.logger.debug('Created a storage connection')
             self.connection = conn
@@ -122,7 +122,7 @@ def authenticate(auth, conn=None):
     Validates an existing connection.
     """
     if auth.method == AuthMethod.Pass:
-        conn = connection_pool.get_connection(auth.username, auth.password)
+        conn = connection_pool.get_connection(auth)
         if conn is not None:
             connection_pool.release_connection(conn)
             return True
