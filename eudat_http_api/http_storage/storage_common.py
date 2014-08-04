@@ -190,7 +190,7 @@ def get_connection(connection_pool):
     def use_connection_pool(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            auth = request.auth_info
+            auth = _get_authentication()
             conn = connection_pool.get_connection(auth)
             if conn is None:
                 raise NotAuthorizedException('Invalid credentials')
