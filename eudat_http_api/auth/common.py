@@ -72,8 +72,12 @@ class UserInfo(object):
 
         self.userdn = request.headers.get('X-Client-Name', None)
         self.usercert = request.headers.get('X-Client-Cert', None)
-        self.userverifiedok = request.headers.get('X-Client-Verified', None)
-        if self.userdn is not None and self.userverifiedok is not None:
+        userverifiedok = request.headers.get('X-Client-Verified', None)
+        self.userverifiedok = False  # set False by default
+        if self.userdn is not None and userverifiedok is not None:
+            # TODO: this might depend on the frontend, we have to see ...
+            if userverifiedok == 'SUCCESS':
+                self.userverifiedok = True
             self.method = AuthMethod.Gsi
 
     def get_auth_hash(self):
@@ -94,6 +98,11 @@ class UserInfo(object):
         return self.method == AuthMethod.NoAuth
 
     def __str__(self):
-        print_str = 'auth method = %s, username = %s' % (self.method,
-                                                         self.username)
+        print_str = ('auth method = {0}'
+                     ', username = {1}'
+                     ', userdn = {2}'
+                     ', userverifiedok = {3}').format(self.method,
+                         self.username,
+                         self.userdn,
+                         self.userverifiedok)
         return print_str
