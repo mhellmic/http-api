@@ -311,23 +311,27 @@ def get_file_obj(path):
         if len(range_requests) > 1:
             return 'no multipart range allowed', 400
 
-    try:
-        (stream_gen,
-         file_size,
-         content_len,
-         range_list) = storage.read(path, range_requests, request.args)
-    except storage.IsDirException as e:
-        params = urlparse(request.url).query
-        return redirect('%s%s/?%s' % (common.get_redirect_host(),
-                                      path, params))
-    except storage.RedirectException as e:
-        return redirect(e.location, code=e.redir_code)
-    except storage.NotFoundException as e:
-        return e.msg, 404
-    except storage.NotAuthorizedException as e:
-        return e.msg, 403
-    except storage.MalformedPathException as e:
-        return e.msg, 400
+    stream_gen = None
+    # only go to the backend and open the file, if the value
+    # is asked for.
+    if not cdmi_filters or 'value' in cdmi_filters:
+        try:
+            (stream_gen,
+             file_size,
+             content_len,
+             range_list) = storage.read(path, range_requests, request.args)
+        except storage.IsDirException as e:
+            params = urlparse(request.url).query
+            return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                          path, params))
+        except storage.RedirectException as e:
+            return redirect(e.location, code=e.redir_code)
+        except storage.NotFoundException as e:
+            return e.msg, 404
+        except storage.NotAuthorizedException as e:
+            return e.msg, 403
+        except storage.MalformedPathException as e:
+            return e.msg, 400
 
     def wrap_singlepart_stream_gen(stream_gen):
         for _, _, _, data in stream_gen:
@@ -340,8 +344,7 @@ def get_file_obj(path):
         'X-CDMI-Specification-Version': CDMI_VERSION,
     }
     cdmi_json_gen = _get_cdmi_json_file_generator(path,
-                                                  wrapped_stream_gen,
-                                                  file_size)
+                                                  wrapped_stream_gen)
     if cdmi_filters:
         filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
                         if a in cdmi_filters)
@@ -430,7 +433,6 @@ def put_file_obj(path):
         'X-CDMI-Specification-Version': CDMI_VERSION,
     }
     cdmi_json_gen = _get_cdmi_json_file_generator(path,
-                                                  None,
                                                   None)
     cdmi_filters = {
         'objectType': None,
@@ -634,10 +636,9 @@ def _parse_cdmi_args(cdmi_args):
     return cdmi_filter
 
 
-def _get_cdmi_json_file_generator(path, value_gen, file_size):
+def _get_cdmi_json_file_generator(path, value_gen):
     return _get_cdmi_json_generator(path, 'object',
-                                    value_gen=value_gen,
-                                    file_size=file_size)
+                                    value_gen=value_gen)
 
 
 def _get_cdmi_json_dir_generator(path, list_gen):
@@ -715,7 +716,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
 
     if obj_type == 'object':
         yield ('mimetype', lambda x=None: 'mime')
-        yield ('valuerange', partial(get_range, data['file_size']))
+        yield ('valuerange', partial(get_range, meta['size']))
         yield ('valuetransferencoding', lambda x=None: 'base64')
         yield ('value', lambda x=None: wrap_json_string(data['value_gen']))
 
