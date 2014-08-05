@@ -29,6 +29,13 @@ class TestStorageApi:
     from collections import namedtuple
     Auth = namedtuple('Auth', 'username password')
 
+    def get_auth(self, username, password):
+        u = UserInfo(None)
+        u.method = AuthMethod.Pass
+        u.username = username
+        u.password = password
+        return u
+
     @classmethod
     def setup_class(cls):
         config = os.getenv('TEST_CONFIG')
@@ -151,7 +158,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -211,7 +218,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
             from eudat_http_api.http_storage import storage
 
             if userinfo.valid:
@@ -235,7 +242,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -266,7 +273,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -295,7 +302,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -311,7 +318,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -339,7 +346,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -350,7 +357,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -377,7 +384,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -388,7 +395,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -418,7 +425,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -429,7 +436,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
 
@@ -455,7 +462,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
             file_content = resource.objinfo['content']
@@ -473,7 +480,7 @@ class TestStorageApi:
                 patch(
                 'eudat_http_api.http_storage.'
                 + 'storage_common._get_authentication',
-                return_value=self.Auth(userinfo.name, userinfo.password)):
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
 
             from eudat_http_api.http_storage import storage
             file_content = resource.objinfo['content']
