@@ -299,20 +299,17 @@ def get_file_obj(path):
     """
 
     range_requests = []
-    cdmi_filters = []
+    cdmi_filters = {}
     try:
         cdmi_filters = _get_cdmi_filters(request.args)
     except MalformedArgumentValueException as e:
         return e.msg, 400
-    try:
-        range_requests = cdmi_filters['value']
-        if range_requests:  # if not []
-            cdmi_filters['valuerange'] = range_requests[0]
 
-            if len(range_requests) > 1:
-                return 'no multipart range allowed', 400
-    except KeyError:
-        pass
+    range_requests = cdmi_filters.get('value', [])
+    if range_requests:  # if not []
+        cdmi_filters['valuerange'] = range_requests[0]
+        if len(range_requests) > 1:
+            return 'no multipart range allowed', 400
 
     try:
         (stream_gen,
