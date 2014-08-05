@@ -39,6 +39,10 @@ def make_absolute_path(path):
         return '/'
 
 
+def get_redirect_host():
+    return get_config_parameter('EXTERNAL_HOST', '')
+
+
 def create_path_links(path):
     """ Create links for each subdirectory in the path.
 

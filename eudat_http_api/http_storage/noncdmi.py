@@ -76,7 +76,8 @@ def get_file_obj(path):
          range_list) = storage.read(path, range_requests, request.args)
     except storage.IsDirException as e:
         params = urlparse(request.url).query
-        return redirect('%s/?%s' % (path, params))
+        return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                      path, params))
     except storage.RedirectException as e:
         return redirect(e.location, code=e.redir_code)
     except storage.NotFoundException as e:
@@ -227,12 +228,12 @@ def put_dir_obj(path):
 
 def del_file_obj(path):
     """Delete a file."""
-
     try:
         storage.rm(path)
     except storage.IsDirException as e:
         params = urlparse(request.url).query
-        return redirect('%s/?%s' % (path, params))
+        return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                      path, params))
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
