@@ -8,6 +8,7 @@ from functools import wraps
 from itertools import imap
 import os
 import pydmlite
+import urllib
 
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage.storage_common import *
@@ -130,14 +131,17 @@ def _redirect_read(path, conn):
             raise IsDirException('This is a directory')
         elif e.code == errno.ENOENT:
             raise NotFoundException('File not found')
+        elif e.code == pydmlite.DMLITE_NO_REPLICAS:
+            raise NotFoundException('File not found')
         else:
             raise StorageException(e.message)
     # TODO: support https and custom ports
     # this can come from url.scheme and url.port,
     # but those values can be empty ("" and 0)
     url = location[0].url
-    url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
-    raise RedirectException(url_str, redir_code=307)
+    url_str = 'http://%s%s?%s' % (url.domain, url.path,
+                                  urllib.unquote(url.queryToString()))
+    raise RedirectException(url_str, redir_code=302)
 
 
 def _redirect_write(path, conn):
@@ -158,7 +162,8 @@ def _redirect_write(path, conn):
     # this can come from url.scheme and url.port,
     # but those values can be empty ("" and 0)
     url = location[0].url
-    url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
+    url_str = 'http://%s%s?%s' % (url.domain, url.path,
+                                  urllib.unquote(url.queryToString()))
     raise RedirectException(url_str, redir_code=307)
 
 
