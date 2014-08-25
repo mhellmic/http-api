@@ -97,19 +97,42 @@ def stat(path, metadata=None, conn=None):
         obj_info['type'] = FILE
         obj_info['size'] = xstat.stat.st_size
 
+    if metadata is not None:
+        user_metadata = get_user_metadata(path, metadata)
+        obj_info['user_metadata'] = user_metadata
+
     return obj_info
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def get_user_metadata(path, user_metadata=None, conn=None):
-    return dict()
+    catalog = conn.stack.getCatalog()
+    xstat = None
+    try:
+        xstat = catalog.extendedStat(path, True)
+    except pydmlite.DmException as e:
+        raise NotFoundException('File not found')
+
+    user_meta = {}
+    for key in xstat.getKeys():
+        user_meta[key] = xstat.getElement(key).extract()
+
+    return user_meta
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def set_user_metadata(path, user_metadata, conn=None):
-    pass
+    catalog = conn.stack.getCatalog()
+    xstat = None
+    try:
+        xstat = catalog.extendedStat(path, True)
+    except pydmlite.DmException as e:
+        raise NotFoundException('File not found')
+
+    for key, value in user_metadata:
+      xstat.setString(key, value)
 
 
 @get_connection(connection_pool)
@@ -139,8 +162,7 @@ def _redirect_read(path, conn):
     # this can come from url.scheme and url.port,
     # but those values can be empty ("" and 0)
     url = location[0].url
-    url_str = 'http://%s%s?%s' % (url.domain, url.path,
-                                  urllib.unquote(url.queryToString()))
+    url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
     raise RedirectException(url_str, redir_code=302)
 
 
@@ -162,8 +184,7 @@ def _redirect_write(path, conn):
     # this can come from url.scheme and url.port,
     # but those values can be empty ("" and 0)
     url = location[0].url
-    url_str = 'http://%s%s?%s' % (url.domain, url.path,
-                                  urllib.unquote(url.queryToString()))
+    url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
     raise RedirectException(url_str, redir_code=307)
 
 
