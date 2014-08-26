@@ -8,7 +8,6 @@ from functools import wraps
 from itertools import imap
 import os
 import pydmlite
-import urllib
 
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage.storage_common import *
@@ -132,7 +131,7 @@ def set_user_metadata(path, user_metadata, conn=None):
         raise NotFoundException('File not found')
 
     for key, value in user_metadata:
-      xstat.setString(key, value)
+        xstat.setString(key, value)
 
 
 @get_connection(connection_pool)
@@ -196,7 +195,7 @@ def _read_file(path, arg_range_list, query=None, conn=None):
     io = conn.stack.getIODriver()
     iohandler = None
     try:
-        iohandler = io.createIOHandler(path, O_RDONLY, query)
+        iohandler = io.createIOHandler(path, os.O_RDONLY, query)
     except pydmlite.DmException as e:
         raise
 
