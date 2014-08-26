@@ -4,6 +4,7 @@ from flask import current_app
 from flask import request
 from flask import json
 from flask import abort, url_for
+from flask.ext.login import login_required
 from werkzeug.utils import redirect
 
 from eudat_http_api.common import request_wants, ContentTypes, is_local
@@ -11,7 +12,6 @@ from eudat_http_api.epicclient import EpicClient
 
 from eudat_http_api.registration.models import db, RegistrationRequest, \
     RegistrationRequestSerializer
-from eudat_http_api import auth
 from eudat_http_api.registration.registration_worker import add_task, \
     start_workers, set_config
 
@@ -41,7 +41,7 @@ def get_hal_links(reg_requests, page):
 
 
 @registration.route('/request/', methods=['GET'])
-@auth.requires_auth
+@login_required
 def get_requests():
     """Get a requests list."""
     page = int(request.args.get('page', '1'))
@@ -87,7 +87,7 @@ def initialize():
 
 
 @registration.route('/request/', methods=['POST'])
-@auth.requires_auth
+@login_required
 def post_request():
     """Submit a new registration request
 
@@ -132,7 +132,7 @@ def post_request():
 
 
 @registration.route('/request/<request_id>', methods=['GET'])
-@auth.requires_auth
+@login_required
 def get_request(request_id):
     """Poll the status of a request by ID."""
     r = RegistrationRequest.query.get(request_id)
@@ -155,7 +155,7 @@ def get_request(request_id):
 #jj: this is a separate component?
 
 @registration.route('/registered/<pid_prefix>/', methods=['GET'])
-@auth.requires_auth
+@login_required
 def get_pids_by_prefix(pid_prefix):
     """Search PIDs with this prefix on handle.net
 
@@ -173,7 +173,7 @@ def get_pids_by_prefix(pid_prefix):
 
 
 @registration.route('/registered/<pid_prefix>/<pid_suffix>', methods=['GET'])
-@auth.requires_auth
+@login_required
 def get_pid_by_handle(pid_prefix, pid_suffix):
     """Retrieves a data object by PID."""
 

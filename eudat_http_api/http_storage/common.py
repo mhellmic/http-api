@@ -2,9 +2,13 @@
 
 from __future__ import with_statement
 
+import binascii
 from collections import OrderedDict
+import crcmod
 from functools import partial
 import os
+import random
+import struct
 
 from flask import current_app
 
@@ -37,6 +41,10 @@ def make_absolute_path(path):
         return '/%s' % path
     else:
         return '/'
+
+
+def get_redirect_host():
+    return get_config_parameter('EXTERNAL_HOST', '')
 
 
 def create_path_links(path):
@@ -95,3 +103,56 @@ class StreamWrapper(object):
 def stream_generator(handle, buffer_size=4194304):
     for data in iter(partial(handle.read, buffer_size), ''):
         yield data
+
+
+def create_object_id_no_ctx(enterprise_number, local_id_length=8):
+    """ Facility function that works without an application context."""
+    # I agree that the following is ugly and quite probably not as fast
+    # as I would like it. Goal is to create a random string with a length
+    # of exactly local_id_length.
+    local_id_format = ''.join(['%0', str(local_id_length), 'x'])
+    local_obj_id = local_id_format % random.randrange(16**local_id_length)
+
+    crc_val = 0
+    id_length = str(unichr(8 + len(local_obj_id)))
+    # the poly given in the CDMI 1.0.2 spec ()x8005) is wrong,
+    # CRC-16 is specified as below
+    crc_func = crcmod.mkCrcFun(0x18005, initCrc=0x0000,
+                               xorOut=0x0000)
+
+    struct_id = struct.Struct('!cxhccH%ds' % local_id_length)
+    packed_id_no_crc = struct_id.pack('\0',
+                                      enterprise_number,
+                                      '\0',
+                                      id_length,
+                                      0,
+                                      local_obj_id)
+
+    crc_val = crc_func(packed_id_no_crc)
+
+    packed_id = struct_id.pack('\0',
+                               enterprise_number,
+                               '\0',
+                               id_length,
+                               crc_val,
+                               local_obj_id)
+
+    return packed_id
+
+
+def create_object_id(local_id_length=8):
+    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
+    return create_object_id_no_ctx(enterprise_number, local_id_length)
+
+
+def create_hex_object_id(local_id_length=8):
+    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
+    obj_id = create_object_id_no_ctx(enterprise_number, local_id_length)
+    hex_obj_id = binascii.b2a_hex(obj_id)
+    return hex_obj_id
+
+
+def unpack_object_id(obj_id):
+    local_id_length = len(obj_id - 8)
+    parts = struct.unpack('!cxhccH%ds' % local_id_length, obj_id)
+    return parts

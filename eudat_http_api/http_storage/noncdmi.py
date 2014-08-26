@@ -2,6 +2,7 @@
 
 from __future__ import with_statement
 
+import binascii
 import re
 from urlparse import urlparse
 
@@ -15,6 +16,7 @@ from itertools import tee
 
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
+from eudat_http_api.http_storage.common import create_hex_object_id
 
 
 class MalformedByteRangeException(Exception):
@@ -76,7 +78,8 @@ def get_file_obj(path):
          range_list) = storage.read(path, range_requests, request.args)
     except storage.IsDirException as e:
         params = urlparse(request.url).query
-        return redirect('%s/?%s' % (path, params))
+        return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                      path, params))
     except storage.RedirectException as e:
         return redirect(e.location, code=e.redir_code)
     except storage.NotFoundException as e:
@@ -195,6 +198,13 @@ def put_file_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
+    # store the CDMI Object ID
+    hex_obj_id = create_hex_object_id()
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
+
     return render_template(
         'html/fileput.html',
         uri=path,
@@ -220,6 +230,13 @@ def put_dir_obj(path):
     except storage.MalformedPathException as e:
         return e.msg, 400
 
+    # store the CDMI Object ID
+    hex_obj_id = create_hex_object_id()
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
+
     return render_template(
         'html/dirput.html',
         uri=path), 201
@@ -227,12 +244,12 @@ def put_dir_obj(path):
 
 def del_file_obj(path):
     """Delete a file."""
-
     try:
         storage.rm(path)
     except storage.IsDirException as e:
         params = urlparse(request.url).query
-        return redirect('%s/?%s' % (path, params))
+        return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                      path, params))
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:

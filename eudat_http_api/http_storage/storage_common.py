@@ -3,7 +3,6 @@
 from functools import partial
 from functools import wraps
 from inspect import isgenerator
-import hashlib
 from Queue import Queue, Empty, Full
 from threading import Lock
 
@@ -61,7 +60,7 @@ class Connection(object):
     def __init__(self):
         pass
 
-    def connect(self, username, password):
+    def connect(self, auth_info):
         pass
 
     def disconnect(self):
@@ -91,12 +90,11 @@ class ConnectionPool(object):
         # program exit
         pass
 
-    def get_connection(self, username, password):
-        user_pool = self.__get_user_pool(self.__get_auth_hash(username,
-                                                              password))
+    def get_connection(self, auth_info):
+        user_pool = self.__get_user_pool(auth_info.get_auth_hash())
 
         if user_pool.qsize() == 0:
-            conn = self.__create_connection(username, password)
+            conn = self.__create_connection(auth_info)
             if conn is not None:
                 current_app.logger.debug(
                     'add a storage connection to used. now used = %d+1'
@@ -113,11 +111,11 @@ class ConnectionPool(object):
             if not self.__connection_is_valid:
                 current_app.logger.debug('found a bad storage connection')
                 self.__destroy_connection(conn)
-                conn = self.__create_connection(username, password)
+                conn = self.__create_connection(auth_info)
 
         except Empty:
             current_app.logger.debug('pool was empty')
-            conn = self.__create_connection(username, password)
+            conn = self.__create_connection(auth_info)
         finally:
             current_app.logger.debug(
                 'add a storage connection to used. now used = %d+1'
@@ -175,10 +173,10 @@ class ConnectionPool(object):
 
         return user_pool
 
-    def __create_connection(self, username, password):
+    def __create_connection(self, auth_info):
         c = self.conn_constructor()
-        c.auth_hash = self.__get_auth_hash(username, password)
-        if c.connect(username, password):
+        c.auth_hash = auth_info.get_auth_hash()
+        if c.connect(auth_info):
             return c
         else:
             return None
@@ -187,17 +185,13 @@ class ConnectionPool(object):
         current_app.logger.debug('Disconnected a storage connection')
         conn.disconnect()
 
-    def __get_auth_hash(self, username, password):
-        auth_hash = hashlib.sha1(username+password).hexdigest()
-        return auth_hash
-
 
 def get_connection(connection_pool):
     def use_connection_pool(f):
         @wraps(f)
         def decorated(*args, **kwargs):
             auth = _get_authentication()
-            conn = connection_pool.get_connection(auth.username, auth.password)
+            conn = connection_pool.get_connection(auth)
             if conn is None:
                 raise NotAuthorizedException('Invalid credentials')
 
@@ -237,7 +231,12 @@ def wrap_generator(gen, connection_pool, conn):
 
 
 def _get_authentication():
-    return request.authorization
+    """Return the authentication object.
+
+    This function is only kept for test compatibility.
+    test/storage_interface_tests.py
+    """
+    return request.auth_info
 
 
 class StorageException(Exception):

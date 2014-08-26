@@ -2,9 +2,10 @@
 
 from __future__ import with_statement
 
-from itertools import imap
+import errno
 from functools import partial
 from functools import wraps
+from itertools import imap
 import os
 import pydmlite
 
@@ -26,13 +27,27 @@ class DmliteConnection(Connection):
         # object.
         self.connection = self
 
-    def connect(self, username, password):
+    def connect(self, auth_info):
         pm = pydmlite.PluginManager()
         pm.loadConfiguration(self.config)
         self.pluginmanager = pm
-        self.secctx = pydmlite.SecurityContext()
         self.stack = pydmlite.StackInstance(pm)
-        self.stack.setSecurityContext(self.secctx)
+
+        creds = pydmlite.SecurityCredentials()
+        print auth_info
+        print type(auth_info.userverifiedok)
+        if auth_info.userdn is not None:
+            # convert unicode to string
+            # only works if there a NO non-ascii chars
+            creds.clientName = str(auth_info.userdn)
+        else:
+            creds.clientName = "nobody"
+        creds.remoteAddress = str(auth_info.client_address)
+        try:
+            self.stack.setSecurityCredentials(creds)
+        except pydmlite.DmException as e:
+            return False
+
         return True
 
     def disconnect(self):
@@ -45,7 +60,10 @@ class DmliteConnection(Connection):
 connection_pool = ConnectionPool(DmliteConnection)
 
 
-def authenticate(username, password):
+@get_connection(connection_pool)
+def authenticate(auth_info, conn=None):
+    """Try to get a dmlite connection.
+    """
     return True
 
 
@@ -63,7 +81,7 @@ def stat(path, metadata=None, conn=None):
     xstat = None
     try:
         xstat = catalog.extendedStat(path, True)
-    except:
+    except pydmlite.DmException as e:
         raise NotFoundException('File not found')
 
     obj_info = dict()
@@ -78,42 +96,89 @@ def stat(path, metadata=None, conn=None):
         obj_info['type'] = FILE
         obj_info['size'] = xstat.stat.st_size
 
+    if metadata is not None:
+        user_metadata = get_user_metadata(path, metadata)
+        obj_info['user_metadata'] = user_metadata
+
     return obj_info
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def get_user_metadata(path, user_metadata=None, conn=None):
-    return dict()
+    catalog = conn.stack.getCatalog()
+    xstat = None
+    try:
+        xstat = catalog.extendedStat(path, True)
+    except pydmlite.DmException as e:
+        raise NotFoundException('File not found')
+
+    user_meta = {}
+    for key in xstat.getKeys():
+        user_meta[key] = xstat.getElement(key).extract()
+
+    return user_meta
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def set_user_metadata(path, user_metadata, conn=None):
-    pass
+    catalog = conn.stack.getCatalog()
+    xstat = None
+    try:
+        xstat = catalog.extendedStat(path, True)
+    except pydmlite.DmException as e:
+        raise NotFoundException('File not found')
+
+    for key, value in user_metadata:
+        xstat.setString(key, value)
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def read(path, range_list=None, query=None, conn=None):
     if path.startswith('/dpm'):
-        return _redirect(path, conn)
+        return _redirect_read(path, conn)
     else:
         return _read_file(path, range_list, query, conn)
 
 
-def _redirect(path, conn):
-    catalog = conn.stack.getCatalog()
-    xstat = None
-    try:
-        xstat = catalog.extendedStat(path, True)
-    except:
-        raise NotFoundException('File not found')
-    if xstat.stat.isDir():
-        raise IsDirException('This is a directory')
-
+def _redirect_read(path, conn):
     pm = conn.stack.getPoolManager()
-    location = pm.whereToRead(path)
+    location = None
+    try:
+        location = pm.whereToRead(path)
+    except Exception as e:
+        if e.code == errno.EISDIR:
+            raise IsDirException('This is a directory')
+        elif e.code == errno.ENOENT:
+            raise NotFoundException('File not found')
+        elif e.code == pydmlite.DMLITE_NO_REPLICAS:
+            raise NotFoundException('File not found')
+        else:
+            raise StorageException(e.message)
+    # TODO: support https and custom ports
+    # this can come from url.scheme and url.port,
+    # but those values can be empty ("" and 0)
+    url = location[0].url
+    url_str = 'http://%s%s?%s' % (url.domain, url.path, url.queryToString())
+    raise RedirectException(url_str, redir_code=302)
+
+
+def _redirect_write(path, conn):
+    pm = conn.stack.getPoolManager()
+    location = None
+    try:
+        location = pm.whereToWrite(path)
+    except pydmlite.DmException as e:
+        if e.code == errno.EACCES:
+            raise NotAuthorizedException('Permission denied')
+        elif e.code == errno.EEXIST:
+            raise ConflictException('This already exists')
+        elif e.code == errno.ENOSPC:
+            raise StorageException('No space left on device')
+        else:
+            raise StorageException(e.message)
     # TODO: support https and custom ports
     # this can come from url.scheme and url.port,
     # but those values can be empty ("" and 0)
@@ -130,7 +195,7 @@ def _read_file(path, arg_range_list, query=None, conn=None):
     io = conn.stack.getIODriver()
     iohandler = None
     try:
-        iohandler = io.createIOHandler(path, O_RDONLY, query)
+        iohandler = io.createIOHandler(path, os.O_RDONLY, query)
     except pydmlite.DmException as e:
         raise
 
@@ -156,7 +221,8 @@ def _read_file(path, arg_range_list, query=None, conn=None):
 @get_connection(connection_pool)
 @path_to_ascii
 def write(path, stream_gen, conn=None):
-    pass
+    if path.startswith('/dpm'):
+        return _redirect_write(path, conn)
 
 
 @get_connection(connection_pool)
@@ -181,19 +247,55 @@ def ls(path, conn=None):
 @get_connection(connection_pool)
 @path_to_ascii
 def mkdir(path, conn=None):
-    pass
+    catalog = conn.stack.getCatalog()
+
+    try:
+        catalog.makeDir(path, 0755)
+    except pydmlite.DmException as e:
+        if e.code == errno.EACCES:
+            raise NotAuthorizedException('Permission denied')
+        elif e.code == errno.EEXIST:
+            raise ConflictException('This already exists')
+        elif e.code == errno.ENOSPC:
+            raise StorageException('No space left on device')
+        else:
+            raise StorageException(e.message)
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def rm(path, conn=None):
-    pass
+    catalog = conn.stack.getCatalog()
+
+    try:
+        catalog.unlink(path)
+    except pydmlite.DmException as e:
+        if e.code == errno.EACCES:
+            raise NotAuthorizedException('Permission denied')
+        elif e.code == errno.EISDIR:
+            raise IsDirException('This is a directory')
+        elif e.code == errno.ENOENT:
+            raise NotFoundException('File not found')
+        else:
+            raise StorageException(e.message)
 
 
 @get_connection(connection_pool)
 @path_to_ascii
 def rmdir(path, conn=None):
-    pass
+    catalog = conn.stack.getCatalog()
+
+    try:
+        catalog.removeDir(path)
+    except pydmlite.DmException as e:
+        if e.code == errno.EACCES:
+            raise NotAuthorizedException('Permission denied')
+        elif e.code == errno.ENOTDIR:
+            raise IsDirException('This is not a directory')
+        elif e.code == errno.ENOENT:
+            raise NotFoundException('File not found')
+        else:
+            raise StorageException(e.message)
 
 
 def _read(iohandler, buffer_size):

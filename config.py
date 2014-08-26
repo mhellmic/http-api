@@ -2,6 +2,8 @@ import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+SECRET_KEY = 'vroneneravinjvnaov;d'
+
 ############################
 # STORAGE SETTINGS         #
 ############################
@@ -23,11 +25,16 @@ ACTIVATE_JSON = False
 ############################
 # STORAGE BACKEND SETTINGS
 
-STORAGE = 'local'  # local, irods, dmlite
+STORAGE = 'dmlite'  # local, irods, dmlite
 # the network interface that the storage should be bound to
 # use 127.0.0.1 for only local access, 0.0.0.0 for unrestricted
 HOST = '127.0.0.1'
 PORT = 8080
+
+# in case of a proxy (e.g. for SSL and/or x509 client certs),
+# specify the proxy coordinates (where this app can redirect to)
+# leave it empty, then the app generates relative links
+#EXTERNAL_HOST = 'https://proxy.org:8443'
 
 # local storage settings
 EXPORTEDPATHS = ['/tmp/']

@@ -3,9 +3,7 @@
 from __future__ import with_statement
 
 from base64 import b64encode  # , b64decode
-import binascii
 from collections import deque
-import crcmod
 from functools import partial
 from functools import wraps
 #from ijson.backends.yajl2 import parse
@@ -13,10 +11,8 @@ from ijson.backends.python import parse
 from inspect import isgenerator
 from itertools import islice
 from itertools import ifilter
-import random
 import re
 import requests
-import struct
 
 from urlparse import urlparse
 
@@ -28,12 +24,13 @@ from flask import Response
 from flask import jsonify as flask_jsonify
 from flask import json as flask_json
 from flask import stream_with_context
+from flask.ext.login import login_required
 
-from eudat_http_api import auth
 from eudat_http_api import metadata
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
 from eudat_http_api.http_storage.common import get_config_parameter
+from eudat_http_api.http_storage.common import create_hex_object_id
 
 
 CDMI_VERSION = '1.0.2'
@@ -56,7 +53,8 @@ def check_cdmi(f):
 
 
 @cdmi_uris.route('/cdmi_capabilities/', methods=['GET'])
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 @check_cdmi
 def get_system_capabilities():
     cdmi_system_capabilities = {
@@ -91,7 +89,8 @@ def get_system_capabilities():
 
 
 @cdmi_uris.route('/cdmi_capabilities/container/', methods=['GET'])
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 @check_cdmi
 def get_container_capabilities():
     cdmi_container_capabilities = {
@@ -132,7 +131,8 @@ def get_container_capabilities():
 
 
 @cdmi_uris.route('/cdmi_capabilities/dataobject/', methods=['GET'])
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 @check_cdmi
 def get_dataobject_capabilities():
     cdmi_dataobject_capabilities = {
@@ -166,7 +166,8 @@ def get_dataobject_capabilities():
 
 
 @cdmi_uris.route('/cdmi_domains/<domain>')
-@auth.requires_auth
+#@auth.requires_auth
+@login_required
 def get_domain(domain):
     return flask_jsonify('We dont support domains just yet')
 
@@ -295,37 +296,39 @@ def get_file_obj(path):
     """
 
     range_requests = []
-    cdmi_filters = []
+    cdmi_filters = {}
     try:
         cdmi_filters = _get_cdmi_filters(request.args)
     except MalformedArgumentValueException as e:
         return e.msg, 400
-    try:
-        range_requests = cdmi_filters['value']
-        if range_requests:  # if not []
-            cdmi_filters['valuerange'] = range_requests[0]
 
-            if len(range_requests) > 1:
-                return 'no multipart range allowed', 400
-    except KeyError:
-        pass
+    range_requests = cdmi_filters.get('value', [])
+    if range_requests:  # if not []
+        cdmi_filters['valuerange'] = range_requests[0]
+        if len(range_requests) > 1:
+            return 'no multipart range allowed', 400
 
-    try:
-        (stream_gen,
-         file_size,
-         content_len,
-         range_list) = storage.read(path, range_requests, request.args)
-    except storage.IsDirException as e:
-        params = urlparse(request.url).query
-        return redirect('%s/?%s' % (path, params))
-    except storage.RedirectException as e:
-        return redirect(e.location, code=e.redir_code)
-    except storage.NotFoundException as e:
-        return e.msg, 404
-    except storage.NotAuthorizedException as e:
-        return e.msg, 403
-    except storage.MalformedPathException as e:
-        return e.msg, 400
+    stream_gen = None
+    # only go to the backend and open the file, if the value
+    # is asked for.
+    if not cdmi_filters or 'value' in cdmi_filters:
+        try:
+            (stream_gen,
+             file_size,
+             content_len,
+             range_list) = storage.read(path, range_requests, request.args)
+        except storage.IsDirException as e:
+            params = urlparse(request.url).query
+            return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                          path, params))
+        except storage.RedirectException as e:
+            return redirect(e.location, code=e.redir_code)
+        except storage.NotFoundException as e:
+            return e.msg, 404
+        except storage.NotAuthorizedException as e:
+            return e.msg, 403
+        except storage.MalformedPathException as e:
+            return e.msg, 400
 
     def wrap_singlepart_stream_gen(stream_gen):
         for _, _, _, data in stream_gen:
@@ -338,8 +341,7 @@ def get_file_obj(path):
         'X-CDMI-Specification-Version': CDMI_VERSION,
     }
     cdmi_json_gen = _get_cdmi_json_file_generator(path,
-                                                  wrapped_stream_gen,
-                                                  file_size)
+                                                  wrapped_stream_gen)
     if cdmi_filters:
         filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
                         if a in cdmi_filters)
@@ -419,16 +421,17 @@ def put_file_obj(path):
         return e.msg, 400
 
     # store the CDMI Object ID
-    obj_id = create_object_id()
-    hex_obj_id = binascii.b2a_hex(obj_id)
-    storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    hex_obj_id = create_hex_object_id()
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
 
     response_headers = {
         'Content-Type': 'application/cdmi-object',
         'X-CDMI-Specification-Version': CDMI_VERSION,
     }
     cdmi_json_gen = _get_cdmi_json_file_generator(path,
-                                                  None,
                                                   None)
     cdmi_filters = {
         'objectType': None,
@@ -519,7 +522,8 @@ def del_file_obj(path):
         storage.rm(path)
     except storage.IsDirException as e:
         params = urlparse(request.url).query
-        return redirect('%s/?%s' % (path, params))
+        return redirect('%s%s/?%s' % (common.get_redirect_host(),
+                                      path, params))
     except storage.NotFoundException as e:
         return e.msg, 404
     except storage.NotAuthorizedException as e:
@@ -631,10 +635,9 @@ def _parse_cdmi_args(cdmi_args):
     return cdmi_filter
 
 
-def _get_cdmi_json_file_generator(path, value_gen, file_size):
+def _get_cdmi_json_file_generator(path, value_gen):
     return _get_cdmi_json_generator(path, 'object',
-                                    value_gen=value_gen,
-                                    file_size=file_size)
+                                    value_gen=value_gen)
 
 
 def _get_cdmi_json_dir_generator(path, list_gen):
@@ -712,7 +715,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
 
     if obj_type == 'object':
         yield ('mimetype', lambda x=None: 'mime')
-        yield ('valuerange', partial(get_range, data['file_size']))
+        yield ('valuerange', partial(get_range, meta['size']))
         yield ('valuetransferencoding', lambda x=None: 'base64')
         yield ('value', lambda x=None: wrap_json_string(data['value_gen']))
 
@@ -783,9 +786,11 @@ def put_dir_obj(path):
         return e.msg, 400
 
     # store the CDMI Object ID
-    obj_id = create_object_id()
-    hex_obj_id = binascii.b2a_hex(obj_id)
-    storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    hex_obj_id = create_hex_object_id()
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
 
     return flask_jsonify(create='Created'), 201
 
@@ -809,49 +814,3 @@ def del_dir_obj(path):
     empty_response = Response(status=204)
     del empty_response.headers['content-type']
     return empty_response
-
-
-def create_object_id_no_ctx(enterprise_number, local_id_length=8):
-    """ Facility function that works without an application context."""
-    # I agree that the following is ugly and quite probably not as fast
-    # as I would like it. Goal is to create a random string with a length
-    # of exactly local_id_length.
-    local_id_format = ''.join(['%0', str(local_id_length), 'x'])
-    local_obj_id = local_id_format % random.randrange(16**local_id_length)
-
-    crc_val = 0
-    id_length = str(unichr(8 + len(local_obj_id)))
-    # the poly given in the CDMI 1.0.2 spec ()x8005) is wrong,
-    # CRC-16 is specified as below
-    crc_func = crcmod.mkCrcFun(0x18005, initCrc=0x0000,
-                               xorOut=0x0000)
-
-    struct_id = struct.Struct('!cxhccH%ds' % local_id_length)
-    packed_id_no_crc = struct_id.pack('\0',
-                                      enterprise_number,
-                                      '\0',
-                                      id_length,
-                                      0,
-                                      local_obj_id)
-
-    crc_val = crc_func(packed_id_no_crc)
-
-    packed_id = struct_id.pack('\0',
-                               enterprise_number,
-                               '\0',
-                               id_length,
-                               crc_val,
-                               local_obj_id)
-
-    return packed_id
-
-
-def create_object_id(local_id_length=8):
-    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
-    return create_object_id_no_ctx(enterprise_number, local_id_length)
-
-
-def unpack_object_id(obj_id):
-    local_id_length = len(obj_id - 8)
-    parts = struct.unpack('!cxhccH%ds' % local_id_length, obj_id)
-    return parts
