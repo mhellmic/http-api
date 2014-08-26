@@ -200,7 +200,10 @@ def put_file_obj(path):
 
     # store the CDMI Object ID
     hex_obj_id = create_hex_object_id()
-    storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
 
     return render_template(
         'html/fileput.html',
@@ -229,7 +232,10 @@ def put_dir_obj(path):
 
     # store the CDMI Object ID
     hex_obj_id = create_hex_object_id()
-    storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
 
     return render_template(
         'html/dirput.html',
