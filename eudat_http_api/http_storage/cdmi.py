@@ -402,9 +402,7 @@ def put_file_obj(path):
         stream = _get_value_stream(value_uri, auth)
         value_gen = common.stream_generator(stream)
 
-    #bytes_written = 0
     try:
-        #bytes_written = storage.write(path, value_gen)
         storage.write(path, value_gen)
     except storage.RedirectException as e:
         return redirect(e.location, code=e.redir_code)
