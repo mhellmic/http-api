@@ -3,9 +3,7 @@
 from __future__ import with_statement
 
 from base64 import b64encode  # , b64decode
-import binascii
 from collections import deque
-import crcmod
 from functools import partial
 from functools import wraps
 #from ijson.backends.yajl2 import parse
@@ -13,10 +11,8 @@ from ijson.backends.python import parse
 from inspect import isgenerator
 from itertools import islice
 from itertools import ifilter
-import random
 import re
 import requests
-import struct
 
 from urlparse import urlparse
 
@@ -34,6 +30,7 @@ from eudat_http_api import metadata
 from eudat_http_api.http_storage import common
 from eudat_http_api.http_storage import storage
 from eudat_http_api.http_storage.common import get_config_parameter
+from eudat_http_api.http_storage.common import create_hex_object_id
 
 
 CDMI_VERSION = '1.0.2'
@@ -424,8 +421,7 @@ def put_file_obj(path):
         return e.msg, 400
 
     # store the CDMI Object ID
-    obj_id = create_object_id()
-    hex_obj_id = binascii.b2a_hex(obj_id)
+    hex_obj_id = create_hex_object_id()
     storage.set_user_metadata(path, {'objectID': hex_obj_id})
 
     response_headers = {
@@ -787,8 +783,7 @@ def put_dir_obj(path):
         return e.msg, 400
 
     # store the CDMI Object ID
-    obj_id = create_object_id()
-    hex_obj_id = binascii.b2a_hex(obj_id)
+    hex_obj_id = create_hex_object_id()
     storage.set_user_metadata(path, {'objectID': hex_obj_id})
 
     return flask_jsonify(create='Created'), 201
@@ -813,49 +808,3 @@ def del_dir_obj(path):
     empty_response = Response(status=204)
     del empty_response.headers['content-type']
     return empty_response
-
-
-def create_object_id_no_ctx(enterprise_number, local_id_length=8):
-    """ Facility function that works without an application context."""
-    # I agree that the following is ugly and quite probably not as fast
-    # as I would like it. Goal is to create a random string with a length
-    # of exactly local_id_length.
-    local_id_format = ''.join(['%0', str(local_id_length), 'x'])
-    local_obj_id = local_id_format % random.randrange(16**local_id_length)
-
-    crc_val = 0
-    id_length = str(unichr(8 + len(local_obj_id)))
-    # the poly given in the CDMI 1.0.2 spec ()x8005) is wrong,
-    # CRC-16 is specified as below
-    crc_func = crcmod.mkCrcFun(0x18005, initCrc=0x0000,
-                               xorOut=0x0000)
-
-    struct_id = struct.Struct('!cxhccH%ds' % local_id_length)
-    packed_id_no_crc = struct_id.pack('\0',
-                                      enterprise_number,
-                                      '\0',
-                                      id_length,
-                                      0,
-                                      local_obj_id)
-
-    crc_val = crc_func(packed_id_no_crc)
-
-    packed_id = struct_id.pack('\0',
-                               enterprise_number,
-                               '\0',
-                               id_length,
-                               crc_val,
-                               local_obj_id)
-
-    return packed_id
-
-
-def create_object_id(local_id_length=8):
-    enterprise_number = get_config_parameter('CDMI_ENTERPRISE_NUMBER', 0)
-    return create_object_id_no_ctx(enterprise_number, local_id_length)
-
-
-def unpack_object_id(obj_id):
-    local_id_length = len(obj_id - 8)
-    parts = struct.unpack('!cxhccH%ds' % local_id_length, obj_id)
-    return parts
