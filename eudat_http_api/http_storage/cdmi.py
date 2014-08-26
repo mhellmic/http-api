@@ -18,6 +18,7 @@ from urlparse import urlparse
 
 from flask import abort
 from flask import Blueprint
+from flask import current_app
 from flask import redirect
 from flask import request
 from flask import Response
@@ -644,8 +645,10 @@ def _get_cdmi_json_dir_generator(path, list_gen):
 
 def _get_cdmi_json_generator(path, obj_type, **data):
     base_uri, obj_name = common.split_path(path)
-    meta = metadata.stat(path, user_metadata=['objectID'])
+    meta = metadata.stat(path, user_metadata=True)
     parent_uri = common.add_trailing_slash(base_uri)
+    current_app.logger.debug('get stat for name, base: %s, %s'
+                             % (obj_name, base_uri))
     try:
         parent_meta = metadata.stat(base_uri, user_metadata=['objectID'])
     except storage.NotFoundException:
@@ -660,11 +663,6 @@ def _get_cdmi_json_generator(path, obj_type, **data):
         if range_end is None or range_end > range_max:
             range_end = range_max
         yield flask_json.dumps('%s-%s' % (range_start, range_end))
-
-    def get_usermetadata(path, metadata=None):
-        from eudat_http_api import metadata
-        yield '%s' % flask_json.dumps(
-            metadata.get_user_metadata(path, metadata))
 
     def wrap_json_string(gen):
         yield '"'
@@ -701,7 +699,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
            % ('dataobject' if obj_type == 'object' else obj_type))
     yield ('completionStatus', lambda x=None: 'Complete')
     #'percentComplete': '%s',  # optional
-    yield ('metadata', partial(get_usermetadata, path))
+    yield ('metadata', lambda x=None: meta['user_metadata'])
     #'exports': {},  # optional
     #'snapshots': [],  # optional
     if obj_type == 'container':
