@@ -25,7 +25,7 @@ ACTIVATE_JSON = False
 ############################
 # STORAGE BACKEND SETTINGS
 
-STORAGE = 'dmlite'  # local, irods, dmlite
+STORAGE = 'irods'  # local, irods, dmlite
 # the network interface that the storage should be bound to
 # use 127.0.0.1 for only local access, 0.0.0.0 for unrestricted
 HOST = '127.0.0.1'
