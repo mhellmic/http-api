@@ -650,7 +650,8 @@ def _get_cdmi_json_generator(path, obj_type, **data):
     current_app.logger.debug('get stat for name, base: %s, %s'
                              % (obj_name, base_uri))
     try:
-        parent_meta = metadata.stat(base_uri, user_metadata=['objectID'])
+        parent_meta = metadata.get_user_metadata(base_uri,
+                                                 user_metadata=['objectID'])
     except storage.NotFoundException:
         parent_meta = {}
 
