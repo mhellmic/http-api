@@ -181,9 +181,11 @@ def stat(path, metadata=None, conn=None):
     obj_info['name'] = name
     if path_is_dir:
         obj_info['type'] = DIR
-        # -1 because irods counts the current dir
-        obj_info['children'] = (obj_handle.getLenSubCollections() - 1 +
-                                obj_handle.getLenObjects())
+        current_app.logger.debug('# of sub collections: %d'
+                                 % obj_handle.getLenSubCollections())
+        # -1 because irods counts the current dir as subdir, too
+        obj_info['children'] = (obj_handle.getLenSubCollections() +
+                                obj_handle.getLenObjects() - 1)
         obj_info['ID'] = obj_handle.getId()
 
     else:
