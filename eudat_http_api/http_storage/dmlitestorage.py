@@ -298,6 +298,12 @@ def rmdir(path, conn=None):
             raise StorageException(e.message)
 
 
+@get_connection(connection_pool)
+@path_to_ascii
+def copy(srcpath, dstpath, force=False, conn=None):
+    raise NotImplementedException('copy is not implemented for dmlite')
+
+
 def _read(iohandler, buffer_size):
     return iohandler.read(buffer_size)
 

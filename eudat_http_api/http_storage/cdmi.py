@@ -397,6 +397,15 @@ def put_file_obj(path):
     cdmi_json, value_gen = _parse_cdmi_msg_body_fields(request.stream)
     if 'copy' in cdmi_json:
         value_uri = '%s' % cdmi_json['copy']
+        value_path = urlparse(value_uri).path
+        try:
+            current_app.logger.debug('trying to locally copy the object')
+            return copy_file_obj(value_path, path)
+        except storage.StorageException as e:
+            current_app.logger.debug('locally copying failed, exc = %s' % e)
+
+        # this is only evaluated, when the copy_file_obj failed
+        current_app.logger.debug('starting remote copy')
         user = request.authorization['username']
         pw = request.authorization['password']
         auth = requests.auth.HTTPBasicAuth(user, pw)
@@ -413,6 +422,59 @@ def put_file_obj(path):
         return e.msg, 403
     except storage.ConflictException as e:
         # this disables updates?
+        return e.msg, 409
+    except storage.StorageException as e:
+        return e.msg, 500
+    except storage.MalformedPathException as e:
+        return e.msg, 400
+
+    # store the CDMI Object ID
+    hex_obj_id = create_hex_object_id()
+    try:
+        storage.set_user_metadata(path, {'objectID': hex_obj_id})
+    except storage.StorageException:
+        current_app.logger.debug('setting an objectID failed on: %s' % path)
+
+    response_headers = {
+        'Content-Type': 'application/cdmi-object',
+        'X-CDMI-Specification-Version': CDMI_VERSION,
+    }
+    cdmi_json_gen = _get_cdmi_json_file_generator(path,
+                                                  None)
+    cdmi_filters = {
+        'objectType': None,
+        'objectID': None,
+        'objectName': None,
+        'parentURI': None,
+        'parentID': None,
+        'domainURI': None,
+        'capabilitiesURI': None,
+        'completionStatus': None,
+        'mimetype': None,
+        'metadata': True,
+    }
+    filtered_gen = ((a, b(cdmi_filters[a])) for a, b in cdmi_json_gen
+                    if a in cdmi_filters)
+
+    json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
+    return Response(stream_with_context(json_stream_wrapper),
+                    headers=response_headers), 201
+
+
+def copy_file_obj(srcpath, path, force=False):
+    """"Copy files locally.
+
+    The exceptions here are the only ones that should be acted upon.
+    All others should be passed to show that the copy has failed and
+    other measures to copy can be tried.
+    It might be that not all of these exceptions can be correctly
+    thrown by the backend.
+    """
+    try:
+        storage.copy(srcpath, path, force)
+    except storage.NotAuthorizedException as e:
+        return e.msg, 403
+    except storage.ConflictException as e:
         return e.msg, 409
     except storage.StorageException as e:
         return e.msg, 500

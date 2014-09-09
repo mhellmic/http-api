@@ -504,6 +504,29 @@ def rmdir(path, force=False, conn=None):
     return True, ''
 
 
+@get_connection(connection_pool)
+def copy(srcpath, dstpath, force=False, conn=None):
+    """Copy an object locally."""
+
+    if conn is None:
+        return None
+
+    if not force:
+        _check_conflict(conn, dstpath)
+
+    file_handle = _open(conn, srcpath, 'r')
+    if not file_handle:
+        raise NotFoundException('Path does not exist or is not a file')
+
+    status = file_handle.copy(dstpath, force)
+    if status < 0:
+        raise CopyException('Could not copy the object')
+
+    _close(file_handle)
+
+    return status
+
+
 #### Not part of the interface anymore
 
 

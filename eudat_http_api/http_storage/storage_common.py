@@ -288,6 +288,22 @@ class MalformedPathException(StorageException):
         return repr(self.msg)
 
 
+class CopyException(StorageException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+class NotImplementedException(StorageException):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
 def adjust_range_size(x, y, file_size):
     '''Adjust from range representation of the CDMI layer.
 

@@ -6,6 +6,7 @@ import errno
 from functools import wraps
 from itertools import imap
 import os
+import shutil
 import stat as sys_stat
 import xattr
 
@@ -261,6 +262,16 @@ def rmdir(path):
         os.rmdir(path)
     except OSError as e:
         _handle_oserror(path, e)
+
+
+@check_path
+def copy(srcpath, dstpath, force=False):
+    try:
+        shutil.copyfile(srcpath, dstpath)
+    except OSError as e:
+        _handle_oserror(path, e)
+    except IOError as e:
+        raise CopyException('Could not copy the object')
 
 
 def _open(path, mode):
