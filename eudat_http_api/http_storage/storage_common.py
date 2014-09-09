@@ -411,3 +411,16 @@ def read_stream_generator(file_handle, file_size,
                 range_size_acc += range_buffer_size
 
     close_func(file_handle)
+
+
+def simple_read_stream_generator(file_handle, file_size,
+                                 read_func, close_func,
+                                 buffer_size=4194304):
+    """Generate the bytestream.
+
+    Default chunking is 4 MByte.
+    """
+    for data in iter(partial(read_func, file_handle, buffer_size), ''):
+            yield data
+
+    close_func(file_handle)
