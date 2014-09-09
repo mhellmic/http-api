@@ -100,7 +100,7 @@ class StreamWrapper(object):
         return rv
 
 
-def stream_generator(handle, buffer_size=4194304):
+def stream_generator(handle, buffer_size=41943040):
     for data in iter(partial(handle.read, buffer_size), ''):
         yield data
 
