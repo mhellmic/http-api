@@ -711,11 +711,14 @@ def _get_cdmi_json_generator(path, obj_type, **data):
     parent_uri = common.add_trailing_slash(base_uri)
     current_app.logger.debug('get stat for name, base: %s, %s'
                              % (obj_name, base_uri))
+    parent_object_id = None
     try:
         parent_meta = metadata.get_user_metadata(base_uri,
                                                  user_metadata=['objectID'])
+        current_app.logger.debug('got parent meta: %s' % parent_meta)
+        parent_object_id = parent_meta.get('objectID', None)
     except storage.NotFoundException:
-        parent_meta = {}
+        pass
 
     def get_range(range_max, range_tuple=(0, None)):
         if range_tuple is None:
@@ -755,7 +758,7 @@ def _get_cdmi_json_generator(path, obj_type, **data):
     yield ('objectID', lambda x=None: get_hex_object_id_or_none(meta))
     yield ('objectName', lambda x=None: obj_name)
     yield ('parentURI', lambda x=None: parent_uri)
-    yield ('parentID', lambda x=None: get_hex_object_id_or_none(parent_meta))
+    yield ('parentID', lambda x=None: parent_object_id)
     yield ('domainURI', lambda x=None: '/cdmi_domains/%s/'
            % get_config_parameter('CDMI_DOMAIN', None))
     yield ('capabilitiesURI', lambda x=None: '/cdmi_capabilities/%s/'
