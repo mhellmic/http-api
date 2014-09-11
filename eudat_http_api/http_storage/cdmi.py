@@ -398,11 +398,13 @@ def put_file_obj(path):
     if 'copy' in cdmi_json:
         value_uri = '%s' % cdmi_json['copy']
         value_path = urlparse(value_uri).path
-        try:
-            current_app.logger.debug('trying to locally copy the object')
-            return copy_file_obj(value_path, path)
-        except storage.StorageException as e:
-            current_app.logger.debug('locally copying failed, exc = %s' % e)
+        if _src_is_local(value_uri):
+            try:
+                current_app.logger.debug('trying to locally copy the object')
+                return copy_file_obj(value_path, path)
+            except storage.StorageException as e:
+                current_app.logger.debug('locally copying failed, exc = %s'
+                                         % e)
 
         # this is only evaluated, when the copy_file_obj failed
         current_app.logger.debug('starting remote copy')
@@ -512,6 +514,28 @@ def copy_file_obj(srcpath, path, force=False):
     json_stream_wrapper = _wrap_with_json_generator(filtered_gen)
     return Response(stream_with_context(json_stream_wrapper),
                     headers=response_headers), 201
+
+
+def _src_is_local(uri):
+    """Checks if the URI is in the local CDMI domain.
+
+    This check is broader than normally necessary on purpose,
+    because I am not sure to which values the CDMI domain can and
+    should be set.
+    """
+    cdmi_domain = get_config_parameter('CDMI_DOMAIN', None)
+    if cdmi_domain is not None:
+        uri_location = urlparse(uri).netloc
+        if cdmi_domain in uri_location:
+            current_app.logger.debug('found this location to be local: %s'
+                                     % uri_location)
+            return True
+        else:
+            current_app.logger.debug('found this location to be remote: %s'
+                                     % uri_location)
+            return False
+    current_app.logger.debug('CDMI domain is not set. can\'t find local src.')
+    return False
 
 
 def _parse_cdmi_msg_body_fields(handle, buffer_size=4194304):
