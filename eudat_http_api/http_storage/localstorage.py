@@ -269,9 +269,9 @@ def copy(srcpath, dstpath, force=False):
     try:
         shutil.copyfile(srcpath, dstpath)
     except OSError as e:
-        _handle_oserror(path, e)
+        _handle_oserror(srcpath, e)
     except IOError as e:
-        raise CopyException('Could not copy the object')
+        _handle_oserror(srcpath, e)
 
 
 def _open(path, mode):
