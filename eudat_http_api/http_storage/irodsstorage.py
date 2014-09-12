@@ -518,13 +518,17 @@ def copy(srcpath, dstpath, force=False, conn=None):
     if not file_handle:
         raise NotFoundException('Path does not exist or is not a file')
 
-    status = file_handle.copy(dstpath, force)
-    if status < 0:
-        raise CopyException('Could not copy the object')
+    current_app.logger.debug('argument types to copy(): %s, %s'
+                             % (type(dstpath), type(force)))
+    err = file_handle.copy(str(dstpath), force)
+    if err < 0:  # in case this shows the number of bytes copied
+        current_app.logger.debug('copying from %s to %s failed.'
+                                 % (srcpath, dstpath))
+        _handle_irodserror(srcpath, err)
 
     _close(file_handle)
 
-    return status
+    return err
 
 
 #### Not part of the interface anymore
