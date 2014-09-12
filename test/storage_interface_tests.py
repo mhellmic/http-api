@@ -10,6 +10,7 @@ from eudat_http_api import create_app
 
 from eudat_http_api.auth.common import UserInfo, AuthMethod
 
+from test.test_common import TestApi
 from test.test_common import get_local_url_list, get_irods_url_list
 from test.test_common import get_user_list
 from test.test_common import create_local_urls, create_irods_urls
@@ -23,7 +24,7 @@ TESTING = True
 STORAGE = 'local'
 
 
-class TestStorageApi:
+class TestStorageApi(TestApi):
     url_list = None
 
     from collections import namedtuple
@@ -35,55 +36,6 @@ class TestStorageApi:
         u.username = username
         u.password = password
         return u
-
-    @classmethod
-    def setup_class(cls):
-        config = os.getenv('TEST_CONFIG')
-        if config is not None:
-            app = create_app(config)
-        else:
-            app = create_app(__name__)
-
-        cls.storage_config = app.config['STORAGE']
-
-        if app.config['STORAGE'] == 'local':
-            cls.url_list = get_local_url_list()
-        elif app.config['STORAGE'] == 'irods':
-            with app.app_context():
-                cls.url_list = get_irods_url_list(app.config['RODSZONE'])
-
-    def setup(self):
-        # this is needed to give each test
-        # its own app
-        config = os.getenv('TEST_CONFIG')
-        if config is not None:
-            app = create_app(config)
-        else:
-            app = create_app(__name__)
-
-        self.app = app
-        self.client = app.test_client()
-
-        self.storage_config = app.config['STORAGE']
-
-        if self.app.config['STORAGE'] == 'local':
-            create_local_urls(self.url_list)
-        elif self.app.config['STORAGE'] == 'irods':
-            self.irods_config = (self.app.config['RODSHOST'],
-                                 self.app.config['RODSPORT'],
-                                 self.app.config['RODSZONE']
-                                 )
-            with self.app.app_context():
-                create_irods_urls(self.url_list,
-                                  self.irods_config)
-
-    def teardown(self):
-        if self.app.config['STORAGE'] == 'local':
-            erase_local_urls(self.url_list)
-        elif self.app.config['STORAGE'] == 'irods':
-            with self.app.app_context():
-                erase_irods_urls(self.url_list,
-                                 self.irods_config)
 
     def check_storage(self, check_func):
         for (resource,
@@ -128,6 +80,10 @@ class TestStorageApi:
 
     def test_write(self):
         for t in self.check_storage(self.check_write):
+            yield t
+
+    def test_copy(self):
+        for t in self.check_storage(self.check_copy):
             yield t
 
     def check_auth(self, params):
@@ -498,3 +454,55 @@ class TestStorageApi:
             elif not resource.parent_exists:
                 assert_raises(storage.NotFoundException,
                               storage.write, resource.path, write_gen)
+
+    def check_copy(self, params):
+        targetresource = self.get_copy_target_url(params['userinfo'])
+        if (params['resource'].exists and params['resource'].parent_exists
+                and params['userinfo'].valid and params['resource'].is_file()):
+            self.check_copy_good(targetresource, **params)
+        elif not params['resource'].is_dir():
+            self.check_copy_except(targetresource, **params)
+
+    def check_copy_good(self, targetresource, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+            src_path = resource.path
+            dst_path = targetresource.path
+            dst_dir, dst_file = os.path.split(dst_path)
+
+            # ignore the function result, it's not specified
+            storage.copy(src_path, dst_path)
+
+            ls_gen = storage.ls(dst_dir)
+
+            ls_res = list(ls_gen)
+            assert len(ls_res) == 1
+            ls_names = map(lambda x: x.name, ls_res)
+            assert dst_file in ls_names
+
+    def check_copy_except(self, targetresource, resource, userinfo):
+        with self.app.test_request_context(), \
+                patch(
+                'eudat_http_api.http_storage.'
+                + 'storage_common._get_authentication',
+                return_value=self.get_auth(userinfo.name, userinfo.password)):
+
+            from eudat_http_api.http_storage import storage
+            src_path = resource.path
+            dst_path = targetresource.path
+            dst_dir, dst_file = os.path.split(dst_path)
+
+            if not userinfo.valid:
+                assert_raises(storage.NotAuthorizedException,
+                              storage.copy, src_path, dst_path)
+            elif not resource.exists:
+                assert_raises(storage.NotFoundException,
+                              storage.copy, src_path, dst_path)
+            elif not resource.parent_exists:
+                assert_raises(storage.NotFoundException,
+                              storage.copy, src_path, dst_path)

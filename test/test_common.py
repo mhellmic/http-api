@@ -194,6 +194,14 @@ def get_local_url_list():
     return l
 
 
+def get_local_copy_target_url():
+    r = RestResource('/emptyfolder/copied_file', RestResource.FileType, {},
+                     True, True)
+    r.add_prefix('/tmp/new')
+
+    return r
+
+
 def get_irods_url_list(rodszone):
     l = []
     for user in [u for u in get_user_list() if u.valid]:
@@ -202,6 +210,14 @@ def get_irods_url_list(rodszone):
             l.append(o)
 
     return l
+
+
+def get_irods_copy_target_url(rodszone, userinfo):
+    r = RestResource('/emptyfolder/copied_file', RestResource.FileType, {},
+                     True, True)
+    r.add_prefix('/%s/home/%s' % (rodszone, userinfo.name))
+
+    return r
 
 
 def get_user_list():
@@ -291,7 +307,8 @@ def create_irods_urls(url_list, rodsconfig):
 
 
 def erase_local_urls(url_list):
-    for obj in url_list:
+    urls = url_list + [get_local_copy_target_url()]
+    for obj in urls:
         if obj.objtype == obj.ContainerType:
             try:
                 shutil.rmtree(obj.path, ignore_errors=True)
@@ -309,15 +326,19 @@ def erase_irods_urls(url_list, rodsconfig):
 
     for user in [u for u in get_user_list() if u.valid]:
         conn = create_irods_connection(user.name, user.password, rodsconfig)
-        for obj in url_list:
-            file_handle = irodsOpen(conn, obj.path, 'r')
+        urls = url_list + [get_irods_copy_target_url(
+            rodsconfig[2],  # rodszone
+            user
+        )]
+        for obj in urls:
+            file_handle = irodsOpen(conn, obj.path, 'w')
             if file_handle is not None:
                 file_handle.close()
                 file_handle.delete(force=True)
-
-            base, name = os.path.split(obj.path)
-            coll = irodsCollection(conn, base)
-            coll.deleteCollection(name)
+            else:
+                base, name = os.path.split(obj.path)
+                coll = irodsCollection(conn, base)
+                coll.deleteCollection(name)
         conn.disconnect()
 
 
@@ -331,6 +352,8 @@ class TestApi:
             app = create_app(config)
         else:
             app = create_app(__name__)
+
+        cls.storage_config = app.config['STORAGE']
 
         if app.config['STORAGE'] == 'local':
             cls.url_list = get_local_url_list()
@@ -400,3 +423,10 @@ class TestApi:
                        'resource': resource,
                        'userinfo': userinfo,
                    })
+
+    def get_copy_target_url(self, userinfo):
+        if self.app.config['STORAGE'] == 'local':
+            return get_local_copy_target_url()
+        elif self.app.config['STORAGE'] == 'irods':
+            return get_irods_copy_target_url(self.app.config['RODSZONE'],
+                                             userinfo)
