@@ -83,7 +83,10 @@ class IrodsConnection(Connection):
             raise InternalException('Connecting to iRODS failed')
 
         with suppress_stdout_stderr():
-            err = clientLoginWithPassword(conn, auth_info.password)
+            if auth_info.AuthMethod == AuthMethod.Pass:
+                err = clientLoginWithPassword(conn, auth_info.password)
+            elif auth_info.AuthMethod == AuthMethod.Gsi:
+                err = clientLogin(conn)
         if err == 0:
             current_app.logger.debug('Created a storage connection')
             self.connection = conn
@@ -128,7 +131,19 @@ def authenticate(auth, conn=None):
             return True
         else:
             return False
+    elif auth.method == AuthMethod.Gsi:
+        if auth.userverifiedok:
+            auth.username = _get_irodsuser_from_mapfile(auth.userdn)
+            return True
     return False
+
+
+def _get_irodsuser_from_mapfile(userdn):
+    """Read in the mapfile and match the userdn.
+
+    Return the corresponding irods username.
+    """
+    pass
 
 
 def _get_irods_obj_handle(conn, path, mode='r'):
