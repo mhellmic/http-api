@@ -60,9 +60,10 @@ class suppress_stdout_stderr(object):
 
 class IrodsConnection(Connection):
     connection = None
+    used_count = None
 
     def __init__(self):
-        pass
+        self.used_count = 0
 
     def connect(self, auth_info):
         rodsUserName = auth_info.username
@@ -96,9 +97,16 @@ class IrodsConnection(Connection):
         self.connection.disconnect()
 
     def is_valid(self):
+        self.used_count += 1
+        if self.used_count % 50 == 0:
+            current_app.logger.debug('conn used %d out of 500 times.'
+                                     % self.used_count)
         irods_conn = self.connection
         is_valid = True
-        if irods_conn.rError is not None:
+        if self.used_count > 500:
+            is_valid = False
+            current_app.logger.debug('conn used more than 500 times.')
+        elif irods_conn.rError is not None:
             current_app.logger.debug('conn error set to something')
             is_valid = False
         elif irods_conn.loggedIn != 1:  # 1 is logged in
